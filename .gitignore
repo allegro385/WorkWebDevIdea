@@ -1,0 +1,6 @@
+.local/
+**/bin/
+**/obj/
+**/App_Data/
+**/archive/
+**/appsettings.Development.json

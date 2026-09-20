@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Common/">
+    <Project Path="src/Common/SalesSupport.Common/SalesSupport.Common.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SalesSupport.Common.Tests/SalesSupport.Common.Tests.csproj" />
+  </Folder>
+</Solution>
