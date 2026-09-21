@@ -36,7 +36,7 @@ public sealed class MailOptions
     public bool Enabled { get; set; }
     public string Host { get; set; } = "";
     public int Port { get; set; }
-    public MailTlsMode TlsMode { get; set; } = MailTlsMode.StartTls;
+    public MailTlsMode? TlsMode { get; set; }
     public string? UserName { get; set; }
     public string? Password { get; set; }
     public string From { get; set; } = "";
@@ -44,7 +44,7 @@ public sealed class MailOptions
     /// <summary>開発環境で実宛先を置き換える唯一の宛先です。</summary>
     public string? DevelopmentRecipient { get; set; }
     public int TimeoutSeconds { get; set; } = 30;
-    /// <summary>1通あたりの宛先上限です。未設定なら上限検証を行いません。</summary>
+    /// <summary>1通あたりの宛先上限です。メール有効時は必須です。</summary>
     public int? MaxRecipients { get; set; }
 }
 

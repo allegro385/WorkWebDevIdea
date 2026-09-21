@@ -24,8 +24,9 @@ public sealed record ActivityChange(string Field, string? FromCode, string? ToCo
 /// <summary>本文やメールを含めず操作種別と結果だけを伝えます。</summary>
 public sealed record ActivityEvent(string EventType, string ResultCode, string? FailureReason = null,
     string? TargetType = null, string? TargetId = null, IReadOnlyList<ActivityChange>? Changes = null);
-/// <summary>例外のメッセージは保存せず型・コードと安全化済み本文だけを扱います。</summary>
-public sealed record SystemErrorEvent(Guid ErrorId, string? ErrorCode = null, string? Message = null, Exception? Exception = null, string ErrorLevel = "ERROR");
+/// <summary>例外のメッセージは保存せず型・コードと許可した補足情報だけを扱います。</summary>
+public sealed record SystemErrorEvent(Guid ErrorId, string? ErrorCode = null, Exception? Exception = null, string ErrorLevel = "ERROR",
+    IReadOnlyDictionary<string, string>? Details = null);
 /// <summary>ツール利用ログの境界です。</summary>
 public interface IUsageLogger
 {
@@ -82,7 +83,7 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     {
         if (entry.ErrorId == Guid.Empty || entry.ErrorLevel is not ("ERROR" or "CRITICAL")) return Task.FromResult(LogWriteResult.Skipped);
         var request = http.HttpContext?.Request;
-        var message = string.IsNullOrWhiteSpace(entry.Message) ? "処理中にエラーが発生しました。" : entry.Message;
+        var message = "処理中にエラーが発生しました。" + SafeLogDetails.Format(entry.Details);
         return SaveAsync(new SystemErrorLog
         {
             ErrorId = entry.ErrorId, ErrorCode = IsCode(entry.ErrorCode, 100) ? entry.ErrorCode : null,
@@ -99,22 +100,28 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     {
         if (changes is null || changes.Count == 0) return null;
         var text = string.Join(';', changes
-            .Where(x => IsCode(x.Field, 50) && (x.FromCode is null || IsCode(x.FromCode, 20)) && (x.ToCode is null || IsCode(x.ToCode, 20)))
+            .Where(x => AllowedChange(x.Field, x.FromCode) && AllowedChange(x.Field, x.ToCode))
             .Select(x => $"{x.Field}:{x.FromCode ?? "-"}>{x.ToCode ?? "-"}"));
         return text.Length == 0 ? null : text[..Math.Min(text.Length, 1000)];
     }
 
-    /// <summary>クエリ文字列を除き、識別子らしい経路要素を伏せます。</summary>
+    /// <summary>業務で許可したフィールドと保存コードの組合せだけを記録します。</summary>
+    private static bool AllowedChange(string field, string? code) => field switch
+    {
+        "RoleCode" => code is null or "USER" or "ADMIN",
+        "Status" => code is null or "PUBLIC" or "PRIVATE" or "HIDDEN" or "ACTION_REQUIRED" or "IN_PROGRESS" or "UNDER_REVIEW" or "COMPLETED" or "NO_ACTION",
+        "IsActive" or "SystemNoticeMailEnabled" or "FavoriteToolNoticeMailEnabled" => code is null or "0" or "1",
+        _ => false
+    };
+
+    /// <summary>要求値ではなくサーバー定義のルートテンプレートを記録し、トークンの漏えいを防ぎます。</summary>
     private static string? MaskPath(Microsoft.AspNetCore.Http.HttpRequest? request)
     {
         if (request is null) return null;
-        var path = (request.PathBase.Add(request.Path).Value ?? "").Split('/').Select(segment => IsOpaque(segment) ? "***" : segment);
-        var text = string.Join('/', path);
+        if (request.HttpContext.GetEndpoint() is not Microsoft.AspNetCore.Routing.RouteEndpoint endpoint) return null;
+        var text = endpoint.RoutePattern.RawText ?? "";
         return text.Length == 0 ? null : text[..Math.Min(text.Length, 500)];
     }
-
-    /// <summary>GUIDや長い不透明値を経路から識別します。</summary>
-    private static bool IsOpaque(string segment) => Guid.TryParse(segment, out _) || segment.Length >= 24 && segment.Any(char.IsAsciiDigit);
 
     /// <summary>信頼済みプロキシ適用後の接続元IPを取得します。</summary>
     private string? RemoteAddress()

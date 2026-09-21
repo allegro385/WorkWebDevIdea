@@ -85,13 +85,13 @@ public sealed class CommonFeatureTests : IDisposable
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 
-    /// <summary>永続ファイルはFileId配下へ、物理名をGUIDとして保存します。</summary>
+    /// <summary>永続ファイルはDB採番前にGUID名で保存できます。</summary>
     [Fact]
     public async Task PermanentFileUsesFileIdDirectoryAndGeneratedName()
     {
         var storage = CreateStorage(maxFileSizeBytes: 100, ".pdf");
-        var stored = await storage.SavePermanentAsync(new(UploadPurpose.Reference, "TOOL001", 42, "手順書.PDF"), new MemoryStream(new byte[5]));
-        Assert.Equal(Path.Combine("Site", "TOOL001", "Files", "42"), Path.GetDirectoryName(stored.RelativePath));
+        var stored = await storage.SavePermanentAsync(new(UploadPurpose.Reference, "TOOL001", "手順書.PDF"), new MemoryStream(new byte[5]));
+        Assert.Equal(Path.Combine("Site", "TOOL001", "Files"), Path.GetDirectoryName(stored.RelativePath));
         Assert.Equal(".pdf", stored.Extension);
         Assert.Equal("手順書.PDF", stored.OriginalName);
         Assert.Equal(5, stored.SizeBytes);

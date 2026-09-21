@@ -32,6 +32,8 @@ public sealed class MailSender(IOptions<MailOptions> mail, IOptions<CommonOption
     {
         var settings = mail.Value;
         if (!settings.Enabled) throw new ConfigurationException("SalesSupport:Mail:Enabled");
+        if (settings.MaxRecipients is not > 0) throw new ConfigurationException("SalesSupport:Mail:MaxRecipients");
+        if (settings.TlsMode is not (MailTlsMode.StartTls or MailTlsMode.SslOnConnect)) throw new ConfigurationException("SalesSupport:Mail:TlsMode");
         if (!string.IsNullOrEmpty(settings.UserName) && string.IsNullOrEmpty(settings.Password)) throw new ConfigurationException("SalesSupport:Mail:Password");
         if (HasLineBreak(request.Subject) || string.IsNullOrWhiteSpace(request.Subject)) return await FailAsync("検証", "INVALID_INPUT", ct);
         var recipients = ResolveRecipients(request, settings);
@@ -105,11 +107,6 @@ public sealed class MailSender(IOptions<MailOptions> mail, IOptions<CommonOption
     private Recipients? ResolveRecipients(MailRequest request, MailOptions settings)
     {
         if (!CommonValidation.IsEmail(settings.From) || settings.ReplyTo is { Length: > 0 } && !CommonValidation.IsEmail(settings.ReplyTo)) return null;
-        if (common.Value.IsDevelopment)
-        {
-            if (!CommonValidation.IsEmail(settings.DevelopmentRecipient)) return null;
-            return new Recipients([settings.DevelopmentRecipient!], [], [], 1);
-        }
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         List<string> to = [], cc = [], bcc = [];
         foreach (var (source, target) in new[] { (request.To, to), (request.Cc, cc), (request.Bcc, bcc) })
@@ -118,6 +115,12 @@ public sealed class MailSender(IOptions<MailOptions> mail, IOptions<CommonOption
                 if (!CommonValidation.IsEmail(address)) return null;
                 if (seen.Add(address)) target.Add(address);
             }
+        // 実宛先の0件・上限・形式を検証してから、開発時だけ送信先を置換します。
+        if (seen.Count > 0 && seen.Count <= settings.MaxRecipients && common.Value.IsDevelopment)
+        {
+            if (!CommonValidation.IsEmail(settings.DevelopmentRecipient)) return null;
+            return new Recipients([settings.DevelopmentRecipient!], [], [], 1);
+        }
         return new Recipients(to, cc, bcc, seen.Count);
     }
 

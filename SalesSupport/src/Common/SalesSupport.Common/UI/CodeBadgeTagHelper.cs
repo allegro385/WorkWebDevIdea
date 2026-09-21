@@ -22,7 +22,7 @@ public sealed class CodeBadgeTagHelper(ICodeMasterReader codes) : TagHelper
         output.TagName = "span";
         output.TagMode = TagMode.StartTagAndEndTag;
         output.Attributes.SetAttribute("class", "badge ss-badge");
-        if (option?.ColorCode is { } color)
+        if (option?.ColorCode is { } color && Validation.CommonValidation.IsColor(color))
         {
             output.Attributes.SetAttribute("style", $"background-color:{color};color:{TextColor(color)}");
             output.Attributes.SetAttribute("class", "badge ss-badge ss-badge-colored");
@@ -39,6 +39,7 @@ public sealed class CodeBadgeTagHelper(ICodeMasterReader codes) : TagHelper
             var channel = int.Parse(color.AsSpan(offset, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture) / 255.0;
             luminance += weight * (channel <= 0.04045 ? channel / 12.92 : Math.Pow((channel + 0.055) / 1.055, 2.4));
         }
-        return luminance > 0.35 ? "#212529" : "#ffffff";
+        // 黒と白のうちコントラスト比が高い方を使い、中間の明るさでも読めるようにします。
+        return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#000000" : "#ffffff";
     }
 }

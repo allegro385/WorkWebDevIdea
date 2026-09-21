@@ -30,8 +30,8 @@ public sealed record StoredFile(string RelativePath, string Extension, long Size
 /// <summary>一時保存の要求です。用途とツールから保存領域を決定します。</summary>
 public sealed record TemporaryFileRequest(UploadPurpose Purpose, string? ToolId, string OriginalName);
 
-/// <summary>永続保存の要求です。FileIdはDBが採番した値を渡します。</summary>
-public sealed record PermanentFileRequest(UploadPurpose Purpose, string ToolId, long FileId, string OriginalName);
+/// <summary>永続保存の要求です。DB採番より先に保存できるようFileIdを要求しません。</summary>
+public sealed record PermanentFileRequest(UploadPurpose Purpose, string ToolId, string OriginalName);
 
 /// <summary>入力不正による保存拒否です。予期しない障害と区別します。</summary>
 public sealed class UploadRejectedException : Exception
@@ -108,6 +108,8 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
     /// <summary>用途別・ツール別の一時領域へ保存します。</summary>
     public async Task<TemporaryFileHandle> SaveTemporaryAsync(TemporaryFileRequest request, Stream source, CancellationToken ct = default)
     {
+        if (request.Purpose is not (UploadPurpose.InquiryAttachment or UploadPurpose.UserImport or UploadPurpose.ToolInput))
+            throw new ArgumentException("一時保存の用途が不正です。", nameof(request));
         var policy = await policies.GetAsync(request.Purpose, request.ToolId, ct);
         var (name, extension) = Normalize(request.OriginalName, policy);
         var fileId = Guid.NewGuid();
@@ -116,13 +118,14 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         return new TemporaryFileHandle(this, fileId, request.Purpose, request.ToolId, relativePath, name, extension, size);
     }
 
-    /// <summary>DBが採番したFileIdの配下へ、GUIDの物理名で保存します。</summary>
+    /// <summary>DB採番に依存せずGUIDで保存し、DB更新確定前の清掃も可能にします。</summary>
     public async Task<StoredFile> SavePermanentAsync(PermanentFileRequest request, Stream source, CancellationToken ct = default)
     {
-        if (request.FileId <= 0) throw new ArgumentException("FileIdが不正です。", nameof(request));
+        if (request.Purpose is not (UploadPurpose.Reference or UploadPurpose.App))
+            throw new ArgumentException("永続保存の用途が不正です。", nameof(request));
         var policy = await policies.GetAsync(request.Purpose, request.ToolId, ct);
         var (name, extension) = Normalize(request.OriginalName, policy);
-        var relativePath = Path.Combine("Site", Segment(request.ToolId), "Files", request.FileId.ToString(), Guid.NewGuid().ToString("N") + extension);
+        var relativePath = Path.Combine("Site", Segment(request.ToolId), "Files", Guid.NewGuid().ToString("N") + extension);
         var size = await WriteAsync(FileArea.Permanent, relativePath, source, policy.MaxFileSizeBytes, ct);
         return new StoredFile(relativePath, extension, size, name);
     }
@@ -157,14 +160,14 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
     /// <summary>ハンドル破棄時の清掃です。失敗は一度だけ記録し、業務結果を変更しません。</summary>
     internal async Task CleanupAsync(TemporaryFileHandle handle)
     {
+        var failed = false;
         try
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.CleanupTimeoutSeconds));
-            if (await DeleteAsync(handle, timeout.Token) != FileDeleteResult.Failed) return;
-            // ログ側の独立した制限時間を使うため、清掃の待機上限は引き継ぎません。
-            await logger.WriteAsync(new SystemErrorEvent(Guid.NewGuid(), "FILE_CLEANUP_FAILED"));
+            failed = await DeleteAsync(handle, timeout.Token) == FileDeleteResult.Failed;
         }
-        catch (Exception) { /* 清掃の失敗で業務処理を失敗させず、再帰的な記録も行いません。 */ }
+        catch (Exception) { failed = true; }
+        if (failed) await LogCleanupFailureAsync();
     }
 
     /// <summary>上限超過の時点で書込みを止め、途中ファイルを削除します。</summary>
@@ -176,12 +179,14 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         EnsureNoLink(RootOf(area), path);
         var buffer = new byte[81920];
         long totalBytes = 0;
-        var destination = new FileStream(path, new FileStreamOptions
-        {
-            Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, Options = FileOptions.Asynchronous
-        });
+        var created = false;
         try
         {
+            await using var destination = new FileStream(path, new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, Options = FileOptions.Asynchronous
+            });
+            created = true;
             int read;
             while ((read = await source.ReadAsync(buffer, ct)) != 0)
             {
@@ -193,12 +198,18 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         }
         catch (Exception)
         {
-            await destination.DisposeAsync();
-            try { File.Delete(path); } catch (Exception) { /* 途中ファイルの削除失敗は保守対象として残します。 */ }
+            if (created)
+                try { File.Delete(path); } catch (Exception) { await LogCleanupFailureAsync(); }
             throw;
         }
-        await destination.DisposeAsync();
         return totalBytes;
+    }
+
+    /// <summary>途中保存と通常清掃の失敗を一度だけ記録し、元の業務結果を維持します。</summary>
+    private async Task LogCleanupFailureAsync()
+    {
+        try { await logger.WriteAsync(new SystemErrorEvent(Guid.NewGuid(), "FILE_CLEANUP_FAILED")); }
+        catch (Exception) { /* ロガー自体の障害は再帰記録しません。 */ }
     }
 
     /// <summary>元の名前を検証し、表示用の名前とDB条件に一致する小文字拡張子を返します。</summary>
@@ -235,8 +246,9 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
     /// <summary>設定済みのルートを返し、未設定の領域利用を構成エラーにします。</summary>
     private string RootOf(FileArea area)
     {
+        if (!Enum.IsDefined(area)) throw new ArgumentException("保存領域が不正です。", nameof(area));
         var root = area == FileArea.Temporary ? options.Value.TemporaryRoot : options.Value.PermanentRoot;
-        if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root)) throw new ConfigurationException(area == FileArea.Temporary ? "Storage:TemporaryRoot" : "Storage:PermanentRoot");
+        if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root) || !Directory.Exists(root)) throw new ConfigurationException(area == FileArea.Temporary ? "Storage:TemporaryRoot" : "Storage:PermanentRoot");
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
     }
 
@@ -256,14 +268,13 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         return full;
     }
 
-    /// <summary>ルートから対象までの既存要素にリンク・再解析ポイントがないことを確認します。</summary>
+    /// <summary>ルート自身とその祖先を含む全既存要素でリンク・再解析ポイントを拒否します。</summary>
     private static void EnsureNoLink(string root, string fullPath)
     {
-        for (var current = fullPath; current is not null && current.Length > root.Length; current = Path.GetDirectoryName(current))
+        for (var current = fullPath; current is not null; current = Path.GetDirectoryName(current))
         {
             FileSystemInfo info = File.Exists(current) ? new FileInfo(current) : new DirectoryInfo(current);
-            if (!info.Exists) continue;
-            if (info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            if (info.LinkTarget is not null || info.Exists && info.Attributes.HasFlag(FileAttributes.ReparsePoint))
                 throw new ArgumentException("保存領域内のリンクは利用できません。", nameof(fullPath));
         }
     }

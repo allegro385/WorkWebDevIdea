@@ -77,7 +77,7 @@ public static class CommonServiceExtensions
         services.AddSingleton<IDelimitedTextWriter, DelimitedTextWriter>();
         services.AddScoped<ISalesSupportLinks, SalesSupportLinks>();
         services.AddScoped<SharedCookieEvents>();
-        services.AddAntiforgery();
+        services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         services.AddHttpClient();
         services.AddHttpContextAccessor();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();
@@ -113,6 +113,7 @@ public static class CommonServiceExtensions
     /// <summary>設定された保存領域だけを検証します。起動処理でフォルダーを作成しません。</summary>
     private static void AddStorage(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StorageOptions>, StoragePathValidation>();
         services.AddOptions<StorageOptions>().Bind(configuration.GetSection("SalesSupport:Storage"))
             .Validate(x => x.CleanupTimeoutSeconds > 0, "Storage:CleanupTimeoutSecondsが不正です。")
             .Validate(x => IsUsableRoot(x.TemporaryRoot), "Storage:TemporaryRootが不正です。")
@@ -130,12 +131,12 @@ public static class CommonServiceExtensions
             .Bind(configuration.GetSection("SalesSupport:Mail"))
             .Validate(x => !x.Enabled || !string.IsNullOrWhiteSpace(x.Host), "Mail:Hostが必要です。")
             .Validate(x => !x.Enabled || x.Port is > 0 and <= 65535, "Mail:Portが不正です。")
-            .Validate(x => !x.Enabled || Enum.IsDefined(x.TlsMode), "Mail:TlsModeが不正です。")
+            .Validate(x => !x.Enabled || x.TlsMode is MailTlsMode.StartTls or MailTlsMode.SslOnConnect, "Mail:TlsModeを明示してください。")
             .Validate(x => !x.Enabled || CommonValidation.IsEmail(x.From), "Mail:Fromが不正です。")
             .Validate(x => !x.Enabled || string.IsNullOrEmpty(x.ReplyTo) || CommonValidation.IsEmail(x.ReplyTo), "Mail:ReplyToが不正です。")
             .Validate(x => !x.Enabled || string.IsNullOrEmpty(x.UserName) == string.IsNullOrEmpty(x.Password), "Mail:UserNameとPasswordは一組で設定してください。")
-            .Validate(x => !x.Enabled || x.TimeoutSeconds > 0, "Mail:TimeoutSecondsが不正です。")
-            .Validate(x => !x.Enabled || x.MaxRecipients is null or > 0, "Mail:MaxRecipientsが不正です。")
+            .Validate(x => !x.Enabled || x.TimeoutSeconds is > 0 and <= 2147483, "Mail:TimeoutSecondsが不正です。")
+            .Validate(x => !x.Enabled || x.MaxRecipients is > 0, "Mail:MaxRecipientsが必要です。")
             .Validate(x => !x.Enabled || !isDevelopment || CommonValidation.IsEmail(x.DevelopmentRecipient), "Mail:DevelopmentRecipientが必要です。")
             .ValidateOnStart();
     }

@@ -43,12 +43,14 @@ public sealed class JsonHttpClient(IHttpClientFactory factory) : IJsonHttpClient
         var client = factory.CreateClient(clientName);
         if (client.BaseAddress is null) throw new ConfigurationException("Http:BaseAddress/" + clientName);
         using var request = create();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (client.Timeout != System.Threading.Timeout.InfiniteTimeSpan) timeout.CancelAfter(client.Timeout);
         try
         {
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             var status = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode) return new(HttpCallStatus.HttpFailure, default, status);
-            var value = await response.Content.ReadFromJsonAsync<TResponse>(Serialization, ct);
+            var value = await response.Content.ReadFromJsonAsync<TResponse>(Serialization, timeout.Token);
             return new(HttpCallStatus.Success, value, status);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { return new(HttpCallStatus.Canceled); }
@@ -61,8 +63,10 @@ public sealed class JsonHttpClient(IHttpClientFactory factory) : IJsonHttpClient
     /// <summary>絶対URL・親移動・制御文字を拒否し、固定の相対パスだけを許可します。</summary>
     private static Uri Relative(string relativePath)
     {
-        if (string.IsNullOrWhiteSpace(relativePath) || relativePath[0] == '/' || relativePath.Any(char.IsControl)
-            || relativePath.Contains("..", StringComparison.Ordinal) || !Uri.TryCreate(relativePath, UriKind.Relative, out var uri))
+        var decoded = Uri.UnescapeDataString(relativePath);
+        if (string.IsNullOrWhiteSpace(decoded) || decoded[0] == '/' || decoded.Any(char.IsControl) || decoded.Contains('\\')
+            || decoded.Contains('%') || decoded.Split('?', '#')[0].Split('/').Any(x => x is "." or "..")
+            || Uri.TryCreate(decoded, UriKind.Absolute, out _) || !Uri.TryCreate(relativePath, UriKind.Relative, out var uri))
             throw new ArgumentException("接続先の相対パスが不正です。", nameof(relativePath));
         return uri;
     }
@@ -76,13 +80,13 @@ public static class HttpClientExtensions
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("クライアント名が必要です。", nameof(name));
         if (!Uri.TryCreate(baseAddress, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
-            || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) || !baseAddress.EndsWith('/'))
+            || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment) || !baseAddress.EndsWith('/'))
             throw new ConfigurationException("Http:BaseAddress/" + name);
         services.AddHttpClient(name, (provider, client) =>
         {
             client.BaseAddress = uri;
             client.Timeout = TimeSpan.FromSeconds(provider.GetRequiredService<IOptions<HttpOptions>>().Value.TimeoutSeconds);
-        });
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
         return services;
     }
 }
