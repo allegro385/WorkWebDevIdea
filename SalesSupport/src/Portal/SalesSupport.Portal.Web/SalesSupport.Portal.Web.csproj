@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\..\Common\SalesSupport.Common\SalesSupport.Common.csproj" />
@@ -8,6 +8,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>8b75a134-0534-4b5c-a904-abda3af2baec</UserSecretsId>
   </PropertyGroup>
 
 </Project>

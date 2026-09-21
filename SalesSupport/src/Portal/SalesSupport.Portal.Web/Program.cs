@@ -8,6 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSalesSupportPortal(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
+if (InitialAdminBootstrapCommand.IsRequested(args))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<InitialAdminBootstrapCommand>().RunAsync();
+}
+
 app.UseSalesSupportForwardedHeaders();
 app.UseSalesSupportErrors();
 
@@ -33,7 +39,8 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 
-app.Run();
+await app.RunAsync();
+return 0;
 
 /// <summary>結合テストからPortalホストを参照するためのエントリポイントです。</summary>
 public partial class Program;
