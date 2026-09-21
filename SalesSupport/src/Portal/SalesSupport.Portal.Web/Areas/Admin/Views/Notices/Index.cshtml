@@ -1,0 +1,10 @@
+@model NoticeSectionViewModel
+@*
+    A006 サイト管理です。システムのお知らせの登録・更新・公開・メール送信だけを提供します。
+    サイト公開状態の表示・変更欄と案内文の編集欄は設けません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<partial name="_ValidationSummary" />
+<partial name="_NoticeSection" model="Model" />

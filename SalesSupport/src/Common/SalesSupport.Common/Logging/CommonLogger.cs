@@ -111,6 +111,10 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
         "RoleCode" => code is null or "USER" or "ADMIN",
         "Status" => code is null or "PUBLIC" or "PRIVATE" or "HIDDEN" or "ACTION_REQUIRED" or "IN_PROGRESS" or "UNDER_REVIEW" or "COMPLETED" or "NO_ACTION",
         "IsActive" or "SystemNoticeMailEnabled" or "FavoriteToolNoticeMailEnabled" => code is null or "0" or "1",
+        // 問い合わせの分類変更では、変更前後のコードと対象ツールのIDだけを記録します。
+        "CategoryCode" => code is null or "QUESTION" or "REQUEST" or "OPINION" or "PROBLEM" or "OTHER",
+        "TargetType" => code is null or "PORTAL" or "TOOL" or "OTHER",
+        "ToolId" => code is null || IsCode(code, 20),
         _ => false
     };
 

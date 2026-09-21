@@ -1,0 +1,73 @@
+@model InquiryDetailViewModel
+@*
+    A005 問い合わせ管理の詳細です。本文は省略せず表示し、編集対象にはしません。
+    カテゴリ・対象を変更しても受付時の通知メールは再送せず、担当者も自動変更しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+    <partial name="_ValidationSummary" />
+    <dl class="pt-detail-list">
+        <dt>問い合わせID</dt>
+        <dd>@Model.Detail.InquiryId</dd>
+        <dt>送信日時</dt>
+        <dd>@Model.Detail.ReceivedAt.ToString("yyyy/MM/dd HH:mm")</dd>
+        <dt>送信者</dt>
+        <dd>@Model.Detail.SenderName（@Model.Detail.SenderEmail）</dd>
+        <dt>受付時の対象</dt>
+        <dd>@Model.Detail.TargetLabel</dd>
+        <dt>本文</dt>
+        <dd class="pt-multiline">@Model.Detail.Content</dd>
+    </dl>
+
+    <form method="post" asp-area="Admin" asp-controller="Inquiries" asp-action="Update" asp-route-inquiryId="@Model.Detail.InquiryId" data-ss-once>
+        <input type="hidden" name="UpdateCount" value="@Model.Input.UpdateCount" />
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="detail-category">カテゴリ</label>
+            <select class="form-select" id="detail-category" name="CategoryCode">
+                @foreach (var category in Model.Categories)
+                {
+                    <option value="@category.CodeValue" selected="@(category.CodeValue == Model.Input.CategoryCode)">@category.CodeName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="detail-target">対象</label>
+            <select class="form-select" id="detail-target" name="Target">
+                @foreach (var target in Model.Targets)
+                {
+                    <option value="@target.Value" selected="@(target.Value == Model.Input.Target)">@target.Label</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="detail-assignee">担当者</label>
+            <select class="form-select" id="detail-assignee" name="AssigneeUserId">
+                <option value="">未割当</option>
+                @foreach (var assignee in Model.Assignees)
+                {
+                    <option value="@assignee.UserId" selected="@(assignee.UserId == Model.Input.AssigneeUserId)">@assignee.DisplayName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="detail-status">ステータス</label>
+            <select class="form-select" id="detail-status" name="Status">
+                @foreach (var status in Model.Statuses)
+                {
+                    <option value="@status.CodeValue" selected="@(status.CodeValue == Model.Input.Status)">@status.CodeName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field pt-field-top">
+            <label class="form-label pt-field-label" for="detail-note">管理者用備考</label>
+            <textarea class="form-control" id="detail-note" name="AdminNote" rows="4" maxlength="2000">@Model.Input.AdminNote</textarea>
+        </div>
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Inquiries" asp-action="Index">一覧へ戻る</a>
+        </div>
+    </form>
+</div>

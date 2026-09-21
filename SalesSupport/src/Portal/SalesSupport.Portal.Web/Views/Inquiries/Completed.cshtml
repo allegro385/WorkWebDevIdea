@@ -1,0 +1,18 @@
+@model InquiryCompletedViewModel
+@*
+    問い合わせの受付完了です。受付IDを表示しますが、メールの配達完了を保証する表示は行いません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <div class="alert alert-success" role="alert">問い合わせを受け付けました。</div>
+    <dl class="pt-detail-list">
+        <dt>問い合わせID</dt>
+        <dd>@Model.InquiryId</dd>
+    </dl>
+    <p>受付内容は、登録されているメールアドレスへ送信しています。添付ファイルの確認が必要な場合は、問い合わせIDで受付メールを参照してください。</p>
+    <p class="pt-links">
+        <a asp-controller="Home" asp-action="Index">トップへ戻る</a>
+    </p>
+</div>

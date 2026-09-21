@@ -1,4 +1,62 @@
+@model HomeViewModel
 @*
-    P002 ポータルトップです。お知らせとメニューカードは参照画面の実装で追加します。
-    現時点では共通ヘッダー・共通メニューからの遷移だけを提供します。
+    P002 ポータルトップです。公開中のシステムお知らせと、主要機能の入口を表示します。
+    管理画面の列はシステム管理者にだけ表示します。表示制御は認可の代替にはしません。
 *@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<section class="pt-panel">
+    <h2 class="pt-panel-title">お知らせ</h2>
+    <div class="pt-scroll pt-notice-scroll">
+        @if (Model.Notices.Count == 0)
+        {
+            <p class="pt-empty">現在、公開中のお知らせはありません。</p>
+        }
+        else
+        {
+            foreach (var notice in Model.Notices)
+            {
+                <article class="pt-notice">
+                    <p class="pt-notice-date">@(notice.ShowDate ? notice.Date.ToString("yyyy/MM/dd") : "")</p>
+                    <div>
+                        <h3 class="pt-notice-title">@notice.Title</h3>
+                        <p class="pt-multiline">@notice.Content</p>
+                    </div>
+                </article>
+            }
+        }
+    </div>
+</section>
+
+<div class="pt-card-grid">
+    <section class="pt-card">
+        <h2 class="pt-card-title">ツール一覧</h2>
+        <ul class="pt-card-links">
+            <li><a asp-controller="Tools" asp-action="Index">全ツール</a></li>
+            <li><a asp-controller="Tools" asp-action="Favorites">お気に入りツール</a></li>
+        </ul>
+    </section>
+    <section class="pt-card">
+        <h2 class="pt-card-title">サポート</h2>
+        <ul class="pt-card-links">
+            <li><a asp-controller="Preferences" asp-action="Index">個人設定</a></li>
+            <li><a asp-controller="Help" asp-action="Index">利用マニュアル・FAQ</a></li>
+            <li><a asp-controller="Inquiries" asp-action="New">問い合わせ・ご意見</a></li>
+        </ul>
+    </section>
+    @if (Model.IsAdmin)
+    {
+        <section class="pt-card">
+            <h2 class="pt-card-title">管理画面</h2>
+            <p class="pt-card-note">※システム管理者のみ</p>
+            <ul class="pt-card-links">
+                <li><a asp-area="Admin" asp-controller="Users" asp-action="Index">ユーザー管理</a></li>
+                <li><a asp-area="Admin" asp-controller="Inquiries" asp-action="Index">問い合わせ管理</a></li>
+                <li><a asp-area="Admin" asp-controller="Tools" asp-action="Index">ツール管理</a></li>
+                <li><a asp-area="Admin" asp-controller="Notices" asp-action="Index">サイト管理</a></li>
+                <li><a asp-area="Admin" asp-controller="Logs" asp-action="Index">ログ管理</a></li>
+            </ul>
+        </section>
+    }
+</div>

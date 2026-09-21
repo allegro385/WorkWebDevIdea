@@ -1,0 +1,106 @@
+@model UserImportViewModel
+@*
+    新規ユーザーの一括登録です。TSV選択、内容検証・確認、登録・初回パスワード設定メール送信、結果確認の順に進みます。
+    エラーが1件でもある場合は登録を開始しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+
+    @if (Model.Results.Count == 0)
+    {
+        <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Validate" enctype="multipart/form-data" data-ss-once>
+            <div class="pt-field pt-field-top">
+                <label class="form-label pt-field-label" for="import-file">TSVファイル</label>
+                <div>
+                    <input class="form-control" type="file" id="import-file" name="file" accept=".tsv" />
+                    <p class="pt-field-note">UTF-8のタブ区切りで、1行目にEmailとDisplayNameの見出しを入れてください。パスワードと権限の列は指定できません。</p>
+                </div>
+            </div>
+            <div class="pt-actions">
+                <button type="submit" class="btn btn-primary">内容を確認</button>
+                <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Index">一覧へ戻る</a>
+            </div>
+        </form>
+    }
+
+    @if (Model.Errors.Count != 0)
+    {
+        <table class="table pt-admin-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="pt-col-order">行番号</th>
+                    <th scope="col">エラー内容</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var error in Model.Errors)
+                {
+                    <tr>
+                        <td>@(error.LineNumber == 0 ? "-----" : error.LineNumber.ToString())</td>
+                        <td>@error.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (Model.Rows.Count != 0 && Model.ConfirmationId is { } confirmationId)
+    {
+        <table class="table pt-admin-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="pt-col-order">行番号</th>
+                    <th scope="col">メールアドレス</th>
+                    <th scope="col" class="pt-col-name">表示名</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>@row.LineNumber</td>
+                        <td>@row.Email</td>
+                        <td>@row.DisplayName</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Execute" data-ss-once>
+            <input type="hidden" name="confirmationId" value="@confirmationId" />
+            <div class="pt-actions">
+                <button type="submit" class="btn btn-primary">登録を実行</button>
+                <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Import">キャンセル</a>
+            </div>
+        </form>
+    }
+
+    @if (Model.Results.Count != 0)
+    {
+        <table class="table pt-admin-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="pt-col-order">行番号</th>
+                    <th scope="col">メールアドレス</th>
+                    <th scope="col" class="pt-col-status">結果</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var result in Model.Results)
+                {
+                    <tr>
+                        <td>@result.LineNumber</td>
+                        <td>@result.Email</td>
+                        <td>@result.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <p class="pt-field-note">未登録の行がある場合は、その行だけを新しいTSVにまとめて取り込み直してください。</p>
+        <p class="pt-links">
+            <a asp-area="Admin" asp-controller="Users" asp-action="Index">一覧へ戻る</a>
+        </p>
+    }
+</div>

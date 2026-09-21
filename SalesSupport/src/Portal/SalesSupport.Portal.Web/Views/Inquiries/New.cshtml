@@ -1,0 +1,58 @@
+@model InquiryViewModel
+@*
+    P007 問い合わせ・ご意見です。システムのお知らせ欄は表示しません。
+    送信者名とメールアドレスはログインユーザーから取得するため、入力欄を設けません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+    <partial name="_ValidationSummary" />
+    <form method="post" asp-controller="Inquiries" asp-action="New" enctype="multipart/form-data" data-ss-once>
+        <input type="hidden" asp-for="Input.SubmissionId" />
+        <div class="pt-field">
+            <label class="form-label pt-field-label" asp-for="Input.CategoryCode">
+                カテゴリ<span class="badge pt-required">必須</span>
+            </label>
+            <select class="form-select" asp-for="Input.CategoryCode">
+                <option value="">選択してください</option>
+                @foreach (var category in Model.Categories)
+                {
+                    <option value="@category.CodeValue" selected="@(category.CodeValue == Model.Input.CategoryCode)">@category.CodeName</option>
+                }
+            </select>
+            <span class="pt-field-error" asp-validation-for="Input.CategoryCode"></span>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" asp-for="Input.Target">
+                対象<span class="badge pt-required">必須</span>
+            </label>
+            <select class="form-select" asp-for="Input.Target">
+                <option value="">選択してください</option>
+                @foreach (var target in Model.Targets)
+                {
+                    <option value="@target.Value" selected="@(target.Value == Model.Input.Target)">@target.Label</option>
+                }
+            </select>
+            <span class="pt-field-error" asp-validation-for="Input.Target"></span>
+        </div>
+        <div class="pt-field pt-field-top">
+            <label class="form-label pt-field-label" asp-for="Input.Content">
+                内容<span class="badge pt-required">必須</span>
+            </label>
+            <textarea class="form-control" asp-for="Input.Content" rows="8" maxlength="2000"></textarea>
+            <span class="pt-field-error" asp-validation-for="Input.Content"></span>
+        </div>
+        <div class="pt-field pt-field-top">
+            <label class="form-label pt-field-label" for="attachment">添付ファイル</label>
+            <div>
+                <input class="form-control" type="file" id="attachment" name="attachment" />
+                <p class="pt-field-note">@Model.AttachmentHint</p>
+            </div>
+        </div>
+        <div class="pt-actions pt-actions-center">
+            <button type="submit" class="btn btn-primary">送信</button>
+        </div>
+    </form>
+</div>

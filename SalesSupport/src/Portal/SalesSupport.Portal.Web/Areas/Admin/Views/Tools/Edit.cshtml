@@ -1,0 +1,338 @@
+@model ToolEditViewModel
+@*
+    A001 ツール管理のツール編集画面です。お知らせ、バージョン更新情報、基本情報、提供内容を
+    この順に縦へ並べます。各区画は独立した保存ボタンを持ち、ほかの区画の項目を更新しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+@section Scripts {
+    <script src="~/js/site.js"></script>
+}
+<partial name="_ValidationSummary" />
+<partial name="_NoticeSection" model="Model.Notices" />
+
+<section class="pt-panel" id="versions">
+    <h2 class="pt-panel-title">バージョン更新情報</h2>
+    <partial name="_OperationMessage" model="Model.Versions.Message" />
+    <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SetCurrentVersion" asp-route-toolId="@Model.ToolId" data-ss-once>
+        <div class="pt-current-version">
+            <label class="form-label" for="current-version">現在のバージョン</label>
+            <select class="form-select" id="current-version" name="ToolHistoryId">
+                @if (Model.Versions.CurrentHistoryId is null)
+                {
+                    <option value="0">未選択</option>
+                }
+                @foreach (var version in Model.Versions.Versions)
+                {
+                    <option value="@version.ToolHistoryId" selected="@(version.ToolHistoryId == Model.Versions.CurrentHistoryId)">
+                        Ver.@version.Version（@version.ReleasedAt.ToString("yyyy/MM/dd")）
+                    </option>
+                }
+            </select>
+            @for (var index = 0; index < Model.Versions.Versions.Count; index++)
+            {
+                <input type="hidden" name="Rows[@index].ToolHistoryId" value="@Model.Versions.Versions[index].ToolHistoryId" />
+                <input type="hidden" name="Rows[@index].UpdateCount" value="@Model.Versions.Versions[index].UpdateCount" />
+            }
+            <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+    </form>
+
+    <p class="pt-legend">背景色と左端の強調線は、現在のバージョンとして選択中の履歴を示します。</p>
+    <div class="pt-scroll pt-admin-scroll">
+        <table class="table pt-admin-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="pt-col-version">バージョン</th>
+                    <th scope="col" class="pt-col-date">更新日</th>
+                    <th scope="col" class="pt-col-owner">修正担当者</th>
+                    <th scope="col">更新内容</th>
+                    <th scope="col" class="pt-col-action">編集</th>
+                    <th scope="col" class="pt-col-action">削除</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Versions.Versions.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6" class="pt-empty">登録済みのバージョン履歴はありません。</td>
+                    </tr>
+                }
+                @foreach (var version in Model.Versions.Versions)
+                {
+                    <tr class="@(version.IsCurrent ? "pt-version-current" : "")">
+                        <td>Ver.@version.Version</td>
+                        <td>@version.ReleasedAt.ToString("yyyy/MM/dd")</td>
+                        <td>@version.ModifiedByName</td>
+                        <td class="pt-multiline">@version.ChangeDescription</td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+                               asp-route-toolId="@Model.ToolId" asp-route-version="@version.ToolHistoryId">編集</a>
+                        </td>
+                        <td>
+                            @if (version.CanDelete)
+                            {
+                                <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="DeleteVersion"
+                                      asp-route-toolId="@Model.ToolId" data-ss-once data-pt-confirm="このバージョン履歴を削除します。よろしいですか？">
+                                    <input type="hidden" name="toolHistoryId" value="@version.ToolHistoryId" />
+                                    <input type="hidden" name="updateCount" value="@version.UpdateCount" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="pt-actions">
+        <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+           asp-route-toolId="@Model.ToolId" asp-route-createVersion="true">新規登録</a>
+    </div>
+
+    @if (Model.Versions.Editor is { } versionEditor)
+    {
+        <div class="pt-editor">
+            <h3 class="pt-editor-title">バージョン編集</h3>
+            <form method="post" asp-area="Admin" asp-controller="Tools"
+                  asp-action="@(versionEditor.ToolHistoryId is null ? "CreateVersion" : "UpdateVersion")"
+                  asp-route-toolId="@Model.ToolId" data-ss-once>
+                <input type="hidden" name="ToolHistoryId" value="@versionEditor.ToolHistoryId" />
+                <input type="hidden" name="UpdateCount" value="@versionEditor.UpdateCount" />
+                <div class="pt-field">
+                    <label class="form-label pt-field-label" for="version-number">バージョン<span class="badge pt-required">必須</span></label>
+                    <input class="form-control" id="version-number" name="Version" value="@versionEditor.Version" maxlength="50" placeholder="例：1.2.3" />
+                </div>
+                <div class="pt-field">
+                    <label class="form-label pt-field-label" for="version-released">リリース日<span class="badge pt-required">必須</span></label>
+                    <input class="form-control" id="version-released" name="ReleasedAt" type="date"
+                           value="@(versionEditor.ReleasedAt?.ToString("yyyy-MM-dd"))" />
+                </div>
+                <div class="pt-field">
+                    <label class="form-label pt-field-label" for="version-modifier">修正担当者</label>
+                    <select class="form-select" id="version-modifier" name="ModifiedByUserId">
+                        @foreach (var user in Model.Versions.Users)
+                        {
+                            <option value="@user.UserId" selected="@(user.UserId == versionEditor.ModifiedByUserId)">@user.DisplayName</option>
+                        }
+                    </select>
+                </div>
+                <div class="pt-field pt-field-top">
+                    <label class="form-label pt-field-label" for="version-description">更新内容<span class="badge pt-required">必須</span></label>
+                    <textarea class="form-control" id="version-description" name="ChangeDescription" rows="4" maxlength="2000">@versionEditor.ChangeDescription</textarea>
+                </div>
+                <div class="pt-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Tools" asp-action="Edit" asp-route-toolId="@Model.ToolId">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    }
+</section>
+
+<section class="pt-panel" id="basic">
+    <h2 class="pt-panel-title">基本情報</h2>
+    <partial name="_OperationMessage" model="Model.Basic.Message" />
+    <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveBasic" asp-route-toolId="@Model.ToolId"
+          data-ss-once data-pt-confirm-status="true">
+        <input type="hidden" name="UpdateCount" value="@Model.Basic.Input.UpdateCount" />
+        <input type="hidden" id="basic-status-current" value="@Model.Basic.Input.Status" />
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="basic-name">ツール名<span class="badge pt-required">必須</span></label>
+            <input class="form-control" id="basic-name" name="ToolName" value="@Model.Basic.Input.ToolName" maxlength="200" />
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="basic-category">カテゴリ</label>
+            <select class="form-select" id="basic-category" name="CategoryId">
+                @foreach (var category in Model.Basic.Categories)
+                {
+                    <option value="@category.CategoryId" selected="@(category.CategoryId == Model.Basic.Input.CategoryId)">@category.CategoryName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field">
+            <span class="form-label pt-field-label">提供種別</span>
+            <div><code-badge code-type="TOOL_TYPE" code-value="@Model.Basic.ToolType" /></div>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="basic-owner">担当者</label>
+            <select class="form-select" id="basic-owner" name="OwnerUserId">
+                @foreach (var owner in Model.Basic.Owners)
+                {
+                    <option value="@owner.UserId" selected="@(owner.UserId == Model.Basic.Input.OwnerUserId)">@owner.DisplayName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-field pt-field-top">
+            <label class="form-label pt-field-label" for="basic-summary">概要</label>
+            <textarea class="form-control" id="basic-summary" name="ToolSummary" rows="3" maxlength="1000">@Model.Basic.Input.ToolSummary</textarea>
+        </div>
+        <div class="pt-field pt-field-top">
+            <label class="form-label pt-field-label" for="basic-remarks">備考</label>
+            <textarea class="form-control" id="basic-remarks" name="Remarks" rows="3" maxlength="2000">@Model.Basic.Input.Remarks</textarea>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="basic-status">状態</label>
+            <select class="form-select" id="basic-status" name="Status">
+                @foreach (var status in Model.Basic.Statuses)
+                {
+                    <option value="@status.CodeValue" selected="@(status.CodeValue == Model.Basic.Input.Status)">@status.CodeName</option>
+                }
+            </select>
+        </div>
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">基本情報を保存</button>
+        </div>
+    </form>
+</section>
+
+<section class="pt-panel" id="content">
+    <h2 class="pt-panel-title">提供内容</h2>
+    <partial name="_OperationMessage" model="Model.Content.Message" />
+
+    @if (Model.Content.ToolType == "WEB")
+    {
+        <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveWebUrl" asp-route-toolId="@Model.ToolId" data-ss-once>
+            <input type="hidden" name="toolUpdateCount" value="@Model.Content.ToolUpdateCount" />
+            <div class="pt-field">
+                <label class="form-label pt-field-label" for="content-url">ページURL</label>
+                <input class="form-control" id="content-url" name="webAppUrl" value="@Model.Content.WebAppUrl" maxlength="2048" />
+            </div>
+            <div class="pt-actions">
+                <button type="submit" class="btn btn-primary">ページURLを保存</button>
+            </div>
+        </form>
+    }
+
+    @if (Model.Content.ToolType == "DESKTOP")
+    {
+        <h3 class="pt-editor-title">配布アプリ</h3>
+        @if (Model.Content.AppFile is { } app)
+        {
+            <dl class="pt-detail-list">
+                <dt>ファイル名</dt>
+                <dd>@app.OriginalFileName</dd>
+                <dt>最終登録・差し替え日時</dt>
+                <dd>@app.UploadedAt.ToString("yyyy/MM/dd HH:mm")</dd>
+                <dt>操作した管理者</dt>
+                <dd>@app.UploaderName（@app.UploaderEmail）</dd>
+            </dl>
+        }
+        else
+        {
+            <p class="pt-empty">配布アプリは登録されていません。</p>
+        }
+        <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveApp" asp-route-toolId="@Model.ToolId"
+              enctype="multipart/form-data" data-ss-once
+              data-pt-confirm="@(Model.Content.AppFile is null ? null : "配布アプリを差し替えます。よろしいですか？")">
+            <div class="pt-field pt-field-top">
+                <label class="form-label pt-field-label" for="content-app">配布ファイル</label>
+                <div>
+                    <input class="form-control" type="file" id="content-app" name="appFile" />
+                    <p class="pt-field-note">@Model.Content.AppHint</p>
+                </div>
+            </div>
+            <div class="pt-actions">
+                <button type="submit" class="btn btn-primary">@(Model.Content.AppFile is null ? "配布アプリを登録" : "配布アプリを差し替え")</button>
+            </div>
+        </form>
+    }
+
+    <h3 class="pt-editor-title">参考資料</h3>
+    <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveReferenceOrder" asp-route-toolId="@Model.ToolId" data-ss-once>
+        <div class="pt-scroll pt-admin-scroll">
+            <table class="table pt-admin-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="pt-col-order">表示順</th>
+                        <th scope="col" class="pt-col-name">表示名</th>
+                        <th scope="col">ファイル名</th>
+                        <th scope="col" class="pt-col-datetime">最終登録・差し替え</th>
+                        <th scope="col" class="pt-col-action">編集</th>
+                        <th scope="col" class="pt-col-action">削除</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Content.References.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="pt-empty">登録済みの参考資料はありません。</td>
+                        </tr>
+                    }
+                    @for (var index = 0; index < Model.Content.References.Count; index++)
+                    {
+                        var reference = Model.Content.References[index];
+                        <tr>
+                            <td>
+                                <input type="hidden" name="Rows[@index].FileId" value="@reference.FileId" />
+                                <input type="hidden" name="Rows[@index].UpdateCount" value="@reference.UpdateCount" />
+                                <input class="form-control pt-order-input" type="number" min="0" name="Rows[@index].SortOrder" value="@reference.SortOrder" />
+                            </td>
+                            <td>@reference.DisplayName</td>
+                            <td>@reference.OriginalFileName</td>
+                            <td>@reference.UploadedAt.ToString("yyyy/MM/dd HH:mm")<br />@reference.UploaderName</td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+                                   asp-route-toolId="@Model.ToolId" asp-route-reference="@reference.FileId">編集</a>
+                            </td>
+                            <td>
+                                @* 同じフォームのCSRFトークンを使い、送信先だけ削除の経路へ切り替えます。 *@
+                                <button type="submit" class="btn btn-sm btn-outline-danger" formmethod="post"
+                                        formaction="@Url.Action("DeleteReference", "Tools", new { area = "Admin", toolId = Model.ToolId, fileId = reference.FileId, updateCount = reference.UpdateCount })"
+                                        data-pt-confirm="この参考資料を削除します。よろしいですか？">
+                                    削除
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="pt-actions">
+            @if (Model.Content.References.Count != 0)
+            {
+                <button type="submit" class="btn btn-primary">表示順を保存</button>
+            }
+            <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+               asp-route-toolId="@Model.ToolId" asp-route-createReference="true">関連資料追加</a>
+        </div>
+    </form>
+
+    @if (Model.Content.Editor is { } referenceEditor)
+    {
+        <div class="pt-editor">
+            <h3 class="pt-editor-title">参考資料の@(referenceEditor.FileId is null ? "追加" : "編集")</h3>
+            <form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveReference" asp-route-toolId="@Model.ToolId"
+                  enctype="multipart/form-data" data-ss-once>
+                <input type="hidden" name="FileId" value="@referenceEditor.FileId" />
+                <input type="hidden" name="UpdateCount" value="@referenceEditor.UpdateCount" />
+                <div class="pt-field">
+                    <label class="form-label pt-field-label" for="reference-name">表示名<span class="badge pt-required">必須</span></label>
+                    <input class="form-control" id="reference-name" name="DisplayName" value="@referenceEditor.DisplayName" maxlength="200" />
+                </div>
+                <div class="pt-field pt-field-top">
+                    <label class="form-label pt-field-label" for="reference-file">ファイル</label>
+                    <div>
+                        <input class="form-control" type="file" id="reference-file" name="referenceFile" />
+                        <p class="pt-field-note">
+                            @Model.Content.ReferenceHint
+                            @if (referenceEditor.FileId is not null)
+                            {
+                                <span>差し替える場合だけ選択してください。</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                <div class="pt-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Tools" asp-action="Edit" asp-route-toolId="@Model.ToolId">キャンセル</a>
+                </div>
+            </form>
+        </div>
+    }
+</section>
+
+<p class="pt-links">
+    <a asp-area="Admin" asp-controller="Tools" asp-action="Index">ツール選択へ戻る</a>
+</p>

@@ -1,0 +1,118 @@
+@model NoticeSectionViewModel
+@*
+    お知らせ区画です。サイト管理とツール編集で同じ部品・同じ保存処理を使用します。
+    編集欄は「編集」または「新規登録」を押した場合だけ表示します。保存ではメールを送信しません。
+*@
+@{
+    var isTool = Model.NoticeType == "TOOL";
+    var saveAction = isTool ? "SaveToolNotice" : "Save";
+    var confirmAction = isTool ? "ConfirmToolSend" : "ConfirmSend";
+}
+<section class="pt-panel" id="notices">
+    <h2 class="pt-panel-title">お知らせ</h2>
+    <partial name="_OperationMessage" model="Model.Message" />
+    <form method="post" asp-area="Admin" asp-controller="Notices" asp-action="@confirmAction" asp-route-toolId="@Model.ToolId" data-ss-once>
+        <div class="pt-scroll pt-admin-scroll">
+            <table class="table pt-admin-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="pt-col-check">送信</th>
+                        <th scope="col" class="pt-col-status">公開状態</th>
+                        <th scope="col" class="pt-col-datetime">更新日時</th>
+                        <th scope="col" class="pt-col-datetime">最終送信日時</th>
+                        <th scope="col" class="pt-col-name">タイトル</th>
+                        <th scope="col">内容</th>
+                        <th scope="col" class="pt-col-action">編集</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Notices.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="pt-empty">登録済みのお知らせはありません。</td>
+                        </tr>
+                    }
+                    @foreach (var notice in Model.Notices)
+                    {
+                        <tr>
+                            <td><input type="checkbox" class="form-check-input" name="noticeIds" value="@notice.NoticeId" /></td>
+                            <td>@(notice.IsPublished ? "公開" : "非公開")</td>
+                            <td>@notice.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                            <td>@(notice.MailSentAt is { } sentAt ? sentAt.ToString("yyyy/MM/dd HH:mm") : "-----")</td>
+                            <td>@notice.Title</td>
+                            <td class="pt-multiline pt-clamp">@notice.Content</td>
+                            <td>
+                                @if (isTool)
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+                                       asp-route-toolId="@Model.ToolId" asp-route-notice="@notice.NoticeId">編集</a>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Notices" asp-action="Index"
+                                       asp-route-notice="@notice.NoticeId">編集</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">選択したお知らせを送信</button>
+            @if (isTool)
+            {
+                <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Tools" asp-action="Edit"
+                   asp-route-toolId="@Model.ToolId" asp-route-createNotice="true">新規登録</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Notices" asp-action="Index"
+                   asp-route-create="true">新規登録</a>
+            }
+        </div>
+    </form>
+
+    @if (Model.Editor is { } editor)
+    {
+        <div class="pt-editor">
+            <h3 class="pt-editor-title">お知らせ編集</h3>
+            <form method="post" asp-area="Admin" asp-controller="Notices" asp-action="@saveAction" asp-route-toolId="@Model.ToolId" data-ss-once>
+                <input type="hidden" name="NoticeId" value="@editor.NoticeId" />
+                <input type="hidden" name="UpdateCount" value="@editor.UpdateCount" />
+                <div class="pt-field">
+                    <label class="form-label pt-field-label" for="notice-title">タイトル<span class="badge pt-required">必須</span></label>
+                    <input class="form-control" id="notice-title" name="Title" value="@editor.Title" maxlength="200" />
+                </div>
+                <div class="pt-field pt-field-top">
+                    <label class="form-label pt-field-label" for="notice-content">内容<span class="badge pt-required">必須</span></label>
+                    <textarea class="form-control" id="notice-content" name="Content" rows="6" maxlength="10000">@editor.Content</textarea>
+                </div>
+                <div class="pt-field">
+                    <span class="form-label pt-field-label">公開状態</span>
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" id="notice-published" name="IsPublished" value="true" checked="@editor.IsPublished" />
+                            <label class="form-check-label" for="notice-published">公開</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" id="notice-unpublished" name="IsPublished" value="false" checked="@(!editor.IsPublished)" />
+                            <label class="form-check-label" for="notice-unpublished">非公開</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    @if (isTool)
+                    {
+                        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Tools" asp-action="Edit" asp-route-toolId="@Model.ToolId">キャンセル</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Notices" asp-action="Index">キャンセル</a>
+                    }
+                </div>
+            </form>
+        </div>
+    }
+</section>

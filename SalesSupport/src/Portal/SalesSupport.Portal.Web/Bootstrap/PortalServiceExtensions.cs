@@ -9,8 +9,10 @@ using SalesSupport.Common.Contracts;
 using SalesSupport.Common.DependencyInjection;
 using SalesSupport.Common.Entities.Identity;
 using SalesSupport.Common.Mail;
+using SalesSupport.Portal.Web.Areas.Admin;
 using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Data;
+using SalesSupport.Portal.Web.Mail;
 using SalesSupport.Portal.Web.Services;
 
 namespace SalesSupport.Portal.Web.Bootstrap;
@@ -30,16 +32,56 @@ public static class PortalServiceExtensions
         services.AddSingleton<IPasswordPolicy>(PasswordPolicy.Load(configuration["SalesSupport:Password:ForbiddenListPath"], environment.WebRootPath));
         AddIdentity(services);
         services.Configure<MailTemplateOptions>(PasswordLinkMailTemplates.AddDefaults);
+        services.Configure<MailTemplateOptions>(NoticeMailTemplates.AddDefaults);
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IPasswordLinkService, PasswordLinkService>();
         services.AddScoped<IInitialAdminProvisioner, InitialAdminProvisioner>();
         services.AddScoped<InitialAdminBootstrapCommand>();
         services.AddSingleton<IInitialAdminConsole, InitialAdminConsole>();
         AddRequestLimits(services, configuration);
+        AddManual(services, configuration);
+        AddScreenServices(services);
 
         services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
         return services;
     }
+
+    /// <summary>利用者画面と管理画面のサービスを登録します。DbContextを共有するサービスはScopedにします。</summary>
+    private static void AddScreenServices(IServiceCollection services)
+    {
+        services.AddScoped<IHomeService, HomeService>();
+        services.AddScoped<IToolQueryService, ToolQueryService>();
+        services.AddScoped<IToolFileService, ToolFileService>();
+        services.AddScoped<IFavoriteService, FavoriteService>();
+        services.AddScoped<IHelpService, HelpService>();
+        services.AddScoped<IPreferenceService, PreferenceService>();
+        services.AddScoped<IInquiryService, InquiryService>();
+        services.AddScoped<IInquiryIdAllocator, InquiryIdAllocator>();
+        services.AddScoped<INoticeService, NoticeService>();
+        services.AddScoped<IToolAdminService, ToolAdminService>();
+        services.AddScoped<IToolFileAdminService, ToolFileAdminService>();
+        services.AddScoped<IUserAdminService, UserAdminService>();
+        services.AddScoped<IUserImportService, UserImportService>();
+        services.AddScoped<IInquiryAdminService, InquiryAdminService>();
+        services.AddScoped<ILogExportService, LogExportService>();
+        services.AddScoped<ToolEditPageBuilder>();
+        // 確認IDはプロセス内のメモリーで保持し、再起動で失効させます。
+        services.AddSingleton<IConfirmationStore, ConfirmationStore>();
+    }
+
+    /// <summary>マニュアルPDFの管理された配置を検証します。任意の物理パスは受け付けません。</summary>
+    private static void AddManual(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<PortalManualOptions>().Bind(configuration.GetSection("SalesSupport:Manual"))
+            .Validate(x => IsSafeRelativePath(x.RelativePath), "Manual:RelativePathが不正です。")
+            .Validate(x => IsSafeRelativePath(x.FileName) && x.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase), "Manual:FileNameが不正です。")
+            .ValidateOnStart();
+    }
+
+    /// <summary>絶対パス・親移動・制御文字を含まない相対経路だけを許可します。</summary>
+    private static bool IsSafeRelativePath(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && !value.Any(char.IsControl) && !value.Contains(':') && !Path.IsPathRooted(value)
+        && value.Replace('\\', '/').Split('/').All(segment => segment is not ("" or "." or ".."));
 
     /// <summary>ロック条件、パスワード条件および用途別TokenProviderを登録します。</summary>
     private static void AddIdentity(IServiceCollection services) => services.AddIdentityCore<ApplicationUser>(options =>

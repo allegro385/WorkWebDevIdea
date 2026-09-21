@@ -1,0 +1,168 @@
+@model InquiryListViewModel
+@*
+    A005 問い合わせ管理の一覧です。各行でカテゴリ・対象・担当者・ステータス・管理者用備考を編集し、
+    「変更内容を保存」で変更行を一括保存します。1件でも失敗した場合は全件を保存しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<partial name="_OperationMessage" model="Model.Message" />
+<partial name="_ValidationSummary" />
+
+<form method="get" asp-area="Admin" asp-controller="Inquiries" asp-action="Index" class="pt-filter pt-filter-wide">
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-id">問い合わせID</label>
+        <input class="form-control" id="search-id" name="InquiryId" value="@Model.Search.InquiryId" maxlength="12" />
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-from">送信期間（開始）</label>
+        <input class="form-control" id="search-from" name="From" type="date" value="@(Model.Search.From?.ToString("yyyy-MM-dd"))" />
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-to">送信期間（終了）</label>
+        <input class="form-control" id="search-to" name="To" type="date" value="@(Model.Search.To?.ToString("yyyy-MM-dd"))" />
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-category">カテゴリ</label>
+        <select class="form-select" id="search-category" name="CategoryCode">
+            <option value="">すべて</option>
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.CodeValue" selected="@(category.CodeValue == Model.Search.CategoryCode)">@category.CodeName</option>
+            }
+        </select>
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-target">対象</label>
+        <select class="form-select" id="search-target" name="Target">
+            <option value="">すべて</option>
+            @foreach (var target in Model.Targets)
+            {
+                <option value="@target.Value" selected="@(target.Value == Model.Search.Target)">@target.Label</option>
+            }
+        </select>
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-assignee">担当者</label>
+        <select class="form-select" id="search-assignee" name="AssigneeUserId">
+            <option value="">すべて</option>
+            @foreach (var assignee in Model.Assignees)
+            {
+                <option value="@assignee.UserId" selected="@(assignee.UserId == Model.Search.AssigneeUserId)">@assignee.DisplayName</option>
+            }
+        </select>
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-status">ステータス</label>
+        <select class="form-select" id="search-status" name="Status">
+            <option value="">すべて</option>
+            @foreach (var status in Model.Statuses)
+            {
+                <option value="@status.CodeValue" selected="@(status.CodeValue == Model.Search.Status)">@status.CodeName</option>
+            }
+        </select>
+    </div>
+    <div class="pt-filter-item pt-filter-grow">
+        <label class="form-label" for="search-note">管理者用備考</label>
+        <input class="form-control" id="search-note" name="AdminNote" value="@Model.Search.AdminNote" maxlength="2000" />
+    </div>
+    <div class="pt-filter-item pt-filter-grow">
+        <label class="form-label" for="search-content">本文</label>
+        <input class="form-control" id="search-content" name="Content" value="@Model.Search.Content" maxlength="2000" />
+    </div>
+    <div class="pt-filter-actions">
+        <button type="submit" class="btn btn-primary">検索</button>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Inquiries" asp-action="Index">条件クリア</a>
+    </div>
+</form>
+
+<form method="post" asp-area="Admin" asp-controller="Inquiries" asp-action="Save" data-ss-once>
+    <input type="hidden" name="Search.InquiryId" value="@Model.Search.InquiryId" />
+    <input type="hidden" name="Search.From" value="@(Model.Search.From?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="Search.To" value="@(Model.Search.To?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="Search.CategoryCode" value="@Model.Search.CategoryCode" />
+    <input type="hidden" name="Search.Target" value="@Model.Search.Target" />
+    <input type="hidden" name="Search.AssigneeUserId" value="@Model.Search.AssigneeUserId" />
+    <input type="hidden" name="Search.Status" value="@Model.Search.Status" />
+    <input type="hidden" name="Search.AdminNote" value="@Model.Search.AdminNote" />
+    <input type="hidden" name="Search.Content" value="@Model.Search.Content" />
+    <div class="pt-scroll-x">
+        <table class="table pt-admin-table pt-inquiry-table">
+            <thead>
+                <tr>
+                    <th scope="col" class="pt-col-inquiry">問い合わせID</th>
+                    <th scope="col" class="pt-col-date">受付日</th>
+                    <th scope="col" class="pt-col-select">カテゴリ</th>
+                    <th scope="col" class="pt-col-select">対象</th>
+                    <th scope="col" class="pt-col-owner">送信者</th>
+                    <th scope="col" class="pt-col-select">担当者</th>
+                    <th scope="col" class="pt-col-select">ステータス</th>
+                    <th scope="col" class="pt-col-note">管理者用備考</th>
+                    <th scope="col">本文</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Inquiries.Count == 0)
+                {
+                    <tr>
+                        <td colspan="9" class="pt-empty">条件に一致する問い合わせは0件です。</td>
+                    </tr>
+                }
+                @for (var index = 0; index < Model.Inquiries.Count; index++)
+                {
+                    var inquiry = Model.Inquiries[index];
+                    <tr>
+                        <td>
+                            <input type="hidden" name="Input.Rows[@index].InquiryId" value="@inquiry.InquiryId" />
+                            <input type="hidden" name="Input.Rows[@index].UpdateCount" value="@inquiry.UpdateCount" />
+                            <a asp-area="Admin" asp-controller="Inquiries" asp-action="Detail" asp-route-inquiryId="@inquiry.InquiryId">@inquiry.InquiryId</a>
+                        </td>
+                        <td>@inquiry.ReceivedOn.ToString("yyyy/MM/dd")</td>
+                        <td>
+                            <select class="form-select" name="Input.Rows[@index].CategoryCode">
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category.CodeValue" selected="@(category.CodeValue == inquiry.CategoryCode)">@category.CodeName</option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select" name="Input.Rows[@index].Target">
+                                @foreach (var target in Model.Targets)
+                                {
+                                    <option value="@target.Value" selected="@(target.Value == inquiry.Target)">@target.Label</option>
+                                }
+                            </select>
+                        </td>
+                        <td class="pt-nowrap">@inquiry.SenderName</td>
+                        <td>
+                            <select class="form-select" name="Input.Rows[@index].AssigneeUserId">
+                                <option value="">未割当</option>
+                                @foreach (var assignee in Model.Assignees)
+                                {
+                                    <option value="@assignee.UserId" selected="@(assignee.UserId == inquiry.AssigneeUserId)">@assignee.DisplayName</option>
+                                }
+                            </select>
+                        </td>
+                        <td class="pt-status-@inquiry.Status">
+                            <select class="form-select" name="Input.Rows[@index].Status">
+                                @foreach (var status in Model.Statuses)
+                                {
+                                    <option value="@status.CodeValue" selected="@(status.CodeValue == inquiry.Status)">@status.CodeName</option>
+                                }
+                            </select>
+                        </td>
+                        <td><input class="form-control" name="Input.Rows[@index].AdminNote" value="@inquiry.AdminNote" maxlength="2000" /></td>
+                        <td class="pt-multiline">@inquiry.Preview</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Inquiries.Count != 0)
+    {
+        <div class="pt-actions pt-actions-end">
+            <button type="submit" class="btn btn-primary">変更内容を保存</button>
+        </div>
+    }
+</form>

@@ -1,6 +1,6 @@
 /*
   Portal固有のスタイルです。共通テーマ（sales-support.css）の指定は打ち消しません。
-  認証・パスワード画面のラベル列と入力欄の配置だけをここで定義します。
+  認証・パスワード画面のほか、利用者画面と管理画面の配置をここで定義します。
 */
 
 .pt-auth {
@@ -66,5 +66,397 @@
 
     .pt-field-error {
         grid-column: 1;
+    }
+}
+
+/* ------------------------------------------------------------------
+   画面共通の区画・一覧・入力です。色は共通テーマの変数を使用します。
+   ------------------------------------------------------------------ */
+
+.pt-form {
+    max-width: 68rem;
+}
+
+.pt-panel {
+    margin-bottom: 2rem;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.375rem;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.pt-panel-title {
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ss-line);
+    padding-bottom: 0.5rem;
+    font-size: 1.25rem;
+}
+
+/* 行の上下余白を抑えた固定高の領域とし、超過分は領域内を縦スクロールします。 */
+.pt-scroll {
+    overflow-y: auto;
+}
+
+.pt-notice-scroll {
+    max-height: 16rem;
+}
+
+.pt-version-scroll {
+    max-height: 18rem;
+}
+
+.pt-admin-scroll {
+    max-height: 22rem;
+}
+
+.pt-scroll-x {
+    overflow-x: auto;
+}
+
+/* 表見出しはスクロール時も領域の上部へ固定します。 */
+.pt-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--ss-surface);
+}
+
+.pt-notice {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0 1rem;
+    border-bottom: 1px solid var(--ss-line);
+    padding: 0.5rem 0;
+}
+
+.pt-notice-date {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.pt-notice-title {
+    margin-bottom: 0.25rem;
+    font-size: 1.05rem;
+}
+
+/* 本文の改行はCSSで表示します。HTMLとしては描画しません。 */
+.pt-multiline {
+    margin-bottom: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* 一覧では内容を2行程度のプレビューに抑えます。 */
+.pt-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pt-empty {
+    margin-bottom: 0;
+    padding: 0.75rem 0;
+}
+
+.pt-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.25rem;
+}
+
+.pt-card {
+    border: 1px solid var(--ss-line);
+    border-radius: 0.375rem;
+    padding: 1rem 1.25rem;
+}
+
+.pt-card-title {
+    margin-bottom: 0.5rem;
+    font-size: 1.15rem;
+}
+
+.pt-card-note {
+    margin-bottom: 0.5rem;
+}
+
+.pt-card-links {
+    margin-bottom: 0;
+    padding-left: 1.25rem;
+}
+
+.pt-card-links li {
+    padding-block: 0.125rem;
+}
+
+/* 選択中のタブを背景色と文字色で区別します。 */
+.pt-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.pt-tab {
+    border: 1px solid var(--ss-line);
+    border-radius: 0.375rem 0.375rem 0 0;
+    padding: 0.5rem 1.25rem;
+    text-decoration: none;
+    color: #212529;
+    background-color: #ffffff;
+    font-weight: 700;
+}
+
+.pt-tab-active {
+    background-color: var(--ss-band-start);
+    color: var(--ss-band-ink);
+}
+
+.pt-tool-table td {
+    vertical-align: top;
+}
+
+/* 限定公開の行は薄いグレーで表示します。状態バッジの色とは別扱いです。 */
+.pt-row-limited > td {
+    background-color: #f1f3f5;
+}
+
+.pt-star {
+    border: 0;
+    background: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: #8a8f98;
+    padding: 0;
+}
+
+.pt-star-on {
+    color: #e5a50a;
+}
+
+.pt-col-star { width: 3rem; }
+.pt-col-category { width: 10rem; }
+.pt-col-name { width: 14rem; }
+.pt-col-version { width: 6.25rem; }
+.pt-col-date { width: 6.875rem; }
+.pt-col-datetime { width: 9.5rem; }
+.pt-col-status { width: 7rem; }
+.pt-col-owner { width: 9rem; }
+.pt-col-order { width: 6rem; }
+.pt-col-action { width: 5rem; }
+.pt-col-check { width: 3rem; }
+.pt-col-select { width: 10rem; }
+.pt-col-note { width: 14rem; }
+.pt-col-inquiry { width: 8.5rem; }
+
+.pt-nowrap {
+    white-space: nowrap;
+}
+
+.pt-order-input {
+    width: 5rem;
+}
+
+/* 現在のバージョン行は見出し色と区別できる背景色と左端の強調線で示します。 */
+.pt-version-current > td {
+    background-color: #eef7ff;
+    border-left: 0.25rem solid var(--ss-band-start);
+}
+
+.pt-legend {
+    margin-block: 0.5rem;
+}
+
+.pt-detail-list {
+    display: grid;
+    grid-template-columns: 12rem 1fr;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.pt-detail-list dt {
+    font-weight: 700;
+}
+
+.pt-detail-list dd {
+    margin-bottom: 0;
+}
+
+.pt-content-links {
+    margin-bottom: 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.pt-content-links li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-block: 0.375rem;
+}
+
+.pt-content-note {
+    overflow-wrap: anywhere;
+}
+
+.pt-field-top {
+    align-items: start;
+}
+
+.pt-field-note {
+    margin-block: 0.25rem 0;
+}
+
+.pt-check {
+    margin-bottom: 1rem;
+}
+
+.pt-check-note {
+    margin-block: 0.25rem 0;
+    padding-left: 1.5rem;
+}
+
+.pt-actions-center {
+    justify-content: center;
+}
+
+.pt-actions-end {
+    justify-content: flex-end;
+}
+
+.pt-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.pt-filter-item {
+    min-width: 10rem;
+}
+
+.pt-filter-grow {
+    flex: 1 1 16rem;
+}
+
+.pt-filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pt-filter-wide .pt-filter-item {
+    min-width: 9rem;
+}
+
+.pt-admin-table td {
+    vertical-align: middle;
+}
+
+.pt-inquiry-table {
+    min-width: 78rem;
+}
+
+.pt-editor {
+    margin-top: 1.25rem;
+    border-top: 1px solid var(--ss-line);
+    padding-top: 1rem;
+}
+
+.pt-editor-title {
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.pt-current-version {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.pt-current-version select {
+    max-width: 22.5rem;
+}
+
+.pt-manual {
+    display: grid;
+    gap: 0.75rem;
+    justify-items: start;
+}
+
+.pt-faq-category {
+    margin-bottom: 1.125rem;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+    overflow: hidden;
+}
+
+.pt-faq-category-title {
+    margin-bottom: 0;
+    padding: 0.75rem 1.125rem;
+    background-color: var(--ss-surface);
+    font-size: 1.125rem;
+}
+
+.pt-faq-list {
+    padding: 0.875rem 1.125rem;
+}
+
+.pt-faq-item {
+    margin-bottom: 0.875rem;
+}
+
+.pt-faq-number {
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+}
+
+.pt-faq-row {
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+    gap: 0.75rem;
+    border: 1px solid var(--ss-line);
+    border-bottom: 0;
+    padding: 0.625rem 1rem;
+}
+
+.pt-faq-row:last-child {
+    border-bottom: 1px solid var(--ss-line);
+}
+
+.pt-faq-mark {
+    font-weight: 700;
+}
+
+.pt-faq-question {
+    font-weight: 700;
+}
+
+/* 状態は色だけに依存させず、名称も常に表示します。 */
+.pt-user-state {
+    display: inline-block;
+    min-width: 3.625rem;
+    border-radius: 1rem;
+    padding: 0.3125rem 0.75rem;
+    text-align: center;
+    font-weight: 700;
+}
+
+.pt-user-active { background-color: #dff5e3; color: #16752a; }
+.pt-user-inactive { background-color: #e5e7eb; color: #4b5563; }
+
+.pt-status-ACTION_REQUIRED { background-color: #fdecea; }
+.pt-status-IN_PROGRESS { background-color: #e8f1fd; }
+.pt-status-UNDER_REVIEW { background-color: #fdf3e3; }
+.pt-status-COMPLETED,
+.pt-status-NO_ACTION { background-color: #f1f3f5; }
+
+@media (max-width: 48rem) {
+    .pt-detail-list {
+        grid-template-columns: 1fr;
+    }
+
+    .pt-notice {
+        grid-template-columns: 1fr;
     }
 }

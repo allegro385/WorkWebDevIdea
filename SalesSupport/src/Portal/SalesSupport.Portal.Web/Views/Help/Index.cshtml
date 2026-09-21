@@ -1,0 +1,48 @@
+@model HelpViewModel
+@*
+    P005 利用マニュアル・FAQです。利用マニュアルとFAQを一つの画面へこの順で表示します。
+    FAQはカテゴリごとの枠内へ常時展開し、アコーディオン形式にはしません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<section class="pt-panel">
+    <h2 class="pt-panel-title">利用マニュアル</h2>
+    <div class="pt-manual">
+        <p>ポータルサイトの操作方法をまとめたPDFです。ダウンロードして参照してください。</p>
+        <a class="btn btn-primary" asp-controller="Help" asp-action="Manual">操作マニュアルを開く</a>
+    </div>
+</section>
+
+<section class="pt-panel">
+    <h2 class="pt-panel-title">FAQ</h2>
+    @if (Model.Categories.Count == 0)
+    {
+        <p class="pt-empty">公開中のFAQはありません。</p>
+    }
+    else
+    {
+        foreach (var category in Model.Categories)
+        {
+            <div class="pt-faq-category">
+                <h3 class="pt-faq-category-title">@category.CategoryName</h3>
+                <div class="pt-faq-list">
+                    @foreach (var item in category.Items)
+                    {
+                        <div class="pt-faq-item">
+                            <p class="pt-faq-number">No.@item.Number</p>
+                            <div class="pt-faq-row">
+                                <span class="pt-faq-mark">Q@item.Number</span>
+                                <p class="pt-multiline pt-faq-question">@item.Question</p>
+                            </div>
+                            <div class="pt-faq-row">
+                                <span class="pt-faq-mark">A@item.Number</span>
+                                <p class="pt-multiline">@item.Answer</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</section>
