@@ -25,7 +25,7 @@
             {
                 <p class="ss-current-tool">@shell.CurrentToolName</p>
             }
-            <h1 class="ss-page-title">@shell.PageTitle</h1>
+            <h1 class="ss-page-title @(shell.UseTitleBand ? "ss-page-title-band" : "")">@shell.PageTitle</h1>
             @RenderBody()
         </div>
     </main>

@@ -1,0 +1,39 @@
+@*
+    A003 ログ管理です。ログ種別と抽出内容を選択し、対象の全件をTSVで直接出力します。
+    抽出内容はツール利用ログを選択した場合だけ表示します。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<section class="pt-panel">
+    <h2 class="pt-panel-title">TSV出力</h2>
+    <div class="pt-card-body">
+        <form method="get" asp-area="Admin" asp-controller="Logs" asp-action="Export" class="pt-log-export-form">
+            <div>
+                <label class="form-label" for="log-kind">ログ種別</label>
+                <select class="form-select" id="log-kind" name="kind">
+                    <option value="ToolUsage">ツール利用ログ</option>
+                    <option value="UserActivity">ユーザー操作ログ</option>
+                    <option value="SystemError">システムエラーログ</option>
+                </select>
+            </div>
+            <div id="log-extraction-field">
+                <label class="form-label" for="log-extraction">抽出内容</label>
+                <select class="form-select" id="log-extraction" name="extraction">
+                    <option value="Detail">明細</option>
+                    <option value="ToolUserCount">ツール別利用者数</option>
+                </select>
+            </div>
+            <div class="pt-log-export-action">
+                <button type="submit" class="btn btn-primary">TSV出力</button>
+            </div>
+        </form>
+        <p id="log-export-note" class="pt-info">
+            ツール利用ログの明細、またはツールごとの重複を除いた利用者数を出力します。
+        </p>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/logs.js"></script>
+}

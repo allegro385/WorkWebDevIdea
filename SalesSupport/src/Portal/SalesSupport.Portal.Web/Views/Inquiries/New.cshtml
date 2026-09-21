@@ -11,6 +11,9 @@
     <partial name="_ValidationSummary" />
     <form method="post" asp-controller="Inquiries" asp-action="New" enctype="multipart/form-data" data-ss-once>
         <input type="hidden" asp-for="Input.SubmissionId" />
+        <section class="pt-panel">
+            <h2 class="pt-panel-title">入力内容</h2>
+            <div class="pt-card-body">
         <div class="pt-field">
             <label class="form-label pt-field-label" asp-for="Input.CategoryCode">
                 カテゴリ<span class="badge pt-required">必須</span>
@@ -54,5 +57,7 @@
         <div class="pt-actions pt-actions-center">
             <button type="submit" class="btn btn-primary">送信</button>
         </div>
+            </div>
+        </section>
     </form>
 </div>
