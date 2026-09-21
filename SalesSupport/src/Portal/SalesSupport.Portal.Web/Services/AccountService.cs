@@ -88,8 +88,16 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
         return new(LoginOutcome.Succeeded, publication == "PRIVATE" && verified.RoleCode != "ADMIN");
     }
 
-    /// <summary>変更確定後に既存リンクを消費し、共有Cookieを破棄します。</summary>
+    /// <summary>変更を確定し、成功・失敗のいずれも操作ログへ残します。</summary>
     public async Task<PasswordChangeResult> ChangePasswordAsync(Guid userId, string? currentPassword, string? newPassword, CancellationToken ct = default)
+    {
+        var result = await ApplyPasswordChangeAsync(userId, currentPassword, newPassword, ct);
+        await activity.WriteAsync(new ActivityEvent("PASSWORD_UPDATE", ResultCodeOf(result.Outcome), FailureReasonOf(result.Outcome)), ct);
+        return result;
+    }
+
+    /// <summary>変更確定後に既存リンクを消費し、共有Cookieを破棄します。</summary>
+    private async Task<PasswordChangeResult> ApplyPasswordChangeAsync(Guid userId, string? currentPassword, string? newPassword, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(currentPassword)) return PasswordChangeResult.From(PasswordChangeOutcome.InvalidCurrent);
         var validation = policy.Validate("NewPassword", newPassword);
@@ -146,6 +154,19 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
         await activity.WriteAsync(new ActivityEvent("LOGIN", "FAILURE", reason), ct);
         return new(LoginOutcome.Rejected);
     }
+
+    /// <summary>変更結果を操作ログの結果コードへ変換します。</summary>
+    private static string ResultCodeOf(PasswordChangeOutcome outcome) => outcome == PasswordChangeOutcome.Succeeded ? "SUCCESS" : "FAILURE";
+
+    /// <summary>変更失敗の区分を操作ログの理由コードへ変換します。成功時はnullです。</summary>
+    private static string? FailureReasonOf(PasswordChangeOutcome outcome) => outcome switch
+    {
+        PasswordChangeOutcome.Succeeded => null,
+        PasswordChangeOutcome.InvalidCurrent => "INVALID_CREDENTIALS",
+        PasswordChangeOutcome.InvalidInput => "INVALID_INPUT",
+        PasswordChangeOutcome.Conflict => "CONFLICT",
+        _ => "INACTIVE_USER"
+    };
 
     /// <summary>Identityの失敗コードを画面の区分へ変換します。英語の既定文言は表示しません。</summary>
     private static PasswordChangeResult Failure(IdentityResult result)
