@@ -1,0 +1,151 @@
+/*
+  社内システム統一テーマの共通スタイルです。色はCSS変数で定義し、Bootstrapの指定を打ち消しません。
+  環境帯はヘッダー背景で示し、帯の中や周辺へ環境名の文字を表示しません。
+*/
+:root {
+    --ss-band-start: #0674bf;
+    --ss-band-end: #0b86db;
+    --ss-band-ink: #ffffff;
+    --ss-menu-width: 11.25rem;
+    --ss-surface: #e9f8fd;
+    --ss-line: #b5e4f3;
+}
+
+.ss-header-development {
+    --ss-band-start: #7f3f46;
+    --ss-band-end: #a85b61;
+}
+
+.ss-body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
+
+.ss-container {
+    width: min(100rem, 100% - 3rem);
+    margin-inline: auto;
+}
+
+.ss-header {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    background: linear-gradient(135deg, var(--ss-band-start), var(--ss-band-end));
+    color: var(--ss-band-ink);
+}
+
+.ss-header-inner {
+    display: flex;
+    min-height: 4.375rem;
+    align-items: center;
+    gap: 2rem;
+}
+
+.ss-brand {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--ss-band-ink);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ss-nav {
+    display: flex;
+    align-self: stretch;
+}
+
+/* 文字数によらず各メニューとドロップダウンの幅をそろえます。 */
+.ss-nav-group,
+.ss-nav-group > .ss-nav-button {
+    width: var(--ss-menu-width);
+}
+
+.ss-dropdown {
+    width: var(--ss-menu-width);
+    min-width: var(--ss-menu-width);
+}
+
+.ss-nav-button {
+    color: var(--ss-band-ink);
+    font-weight: 700;
+    border: 0;
+}
+
+.ss-nav-button:hover,
+.ss-nav-button:focus-visible {
+    color: var(--ss-band-ink);
+}
+
+.ss-account {
+    margin-left: auto;
+}
+
+.ss-main {
+    flex: 1 0 auto;
+    padding-block: 1rem 3rem;
+}
+
+.ss-breadcrumb .breadcrumb {
+    margin-bottom: 1rem;
+}
+
+.ss-current-tool {
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+}
+
+.ss-page-title {
+    margin-bottom: 1.375rem;
+    font-size: 2rem;
+}
+
+.ss-badge {
+    border-radius: 1rem;
+    padding: 0.3125rem 0.8125rem;
+}
+
+/* 表示色が未登録・不正の場合は画面側の標準表示に任せます。 */
+.ss-badge:not(.ss-badge-colored) {
+    background-color: var(--ss-surface);
+    color: #212529;
+}
+
+.ss-operation-message,
+.ss-validation-summary {
+    margin-bottom: 1rem;
+}
+
+.ss-validation-list {
+    margin-bottom: 0;
+    padding-left: 1.25rem;
+}
+
+.ss-error-id {
+    margin-bottom: 0;
+}
+
+.ss-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--ss-line);
+    padding-block: 1.375rem;
+    text-align: center;
+}
+
+@media (max-width: 53.125rem) {
+    .ss-container {
+        width: min(100rem, 100% - 1.75rem);
+    }
+
+    .ss-header-inner {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding-block: 0.75rem;
+    }
+
+    .ss-nav {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+    }
+}

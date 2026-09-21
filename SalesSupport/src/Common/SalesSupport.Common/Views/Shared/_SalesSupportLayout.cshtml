@@ -1,0 +1,39 @@
+@{
+    // 画面モデルの型に依存しないよう、表示情報はViewDataのPageShellModelから取得します。
+    var shell = ViewData.GetPageShell();
+}
+@*
+    Portalと各ツールが共有するレイアウトです。Bootstrapと共通資産はここだけで読み込み、
+    ホスト側で二重に読み込みません。画面固有のスクリプトはScriptsセクションへ記述します。
+*@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@shell.PageTitle</title>
+    <link rel="stylesheet" href="~/_content/SalesSupport.Common/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/_content/SalesSupport.Common/css/sales-support.css" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="ss-body">
+    @await Component.InvokeAsync("SalesSupportHeader")
+    <main class="ss-main">
+        <div class="ss-container">
+            <partial name="_Breadcrumbs" model="shell.Breadcrumbs" />
+            @if (!string.IsNullOrWhiteSpace(shell.CurrentToolName))
+            {
+                <p class="ss-current-tool">@shell.CurrentToolName</p>
+            }
+            <h1 class="ss-page-title">@shell.PageTitle</h1>
+            @RenderBody()
+        </div>
+    </main>
+    <footer class="ss-footer">
+        <div class="ss-container">営業支援ポータルサイト</div>
+    </footer>
+    <script src="~/_content/SalesSupport.Common/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/_content/SalesSupport.Common/js/sales-support.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

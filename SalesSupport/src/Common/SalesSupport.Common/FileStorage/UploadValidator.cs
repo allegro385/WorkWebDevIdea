@@ -1,4 +1,5 @@
 using SalesSupport.Common.Contracts;
+using SalesSupport.Common.Validation;
 
 namespace SalesSupport.Common.FileStorage;
 
@@ -11,9 +12,8 @@ public interface IUploadValidator
 /// <summary>保存処理と事前検証で同じファイル条件を使います。</summary>
 public sealed class UploadValidator : IUploadValidator
 {
-    /// <summary>DB登録用の小文字拡張子を検証します。</summary>
-    public static bool IsExtension(string? extension) => extension is { Length: >= 2 and <= 20 } && extension[0] == '.'
-        && extension.AsSpan(1).IndexOfAnyExcept("abcdefghijklmnopqrstuvwxyz0123456789") < 0;
+    /// <summary>DB登録用の小文字拡張子を共通検証へ委譲します。</summary>
+    public static bool IsExtension(string? extension) => CommonValidation.IsExtension(extension);
 
     /// <summary>元のパスを除去し、最終拡張子とDB条件を照合します。</summary>
     public static string NormalizeName(string originalName, UploadPolicySnapshot policy)

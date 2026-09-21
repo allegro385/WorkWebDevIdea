@@ -19,10 +19,13 @@ public sealed class LoggingOptions { public int TimeoutSeconds { get; set; } = 3
 public sealed class RequestCorrelation { public Guid Id { get; } = Guid.NewGuid(); }
 /// <summary>認可済みのツール利用結果です。</summary>
 public sealed record UsageEvent(string ToolId, string EventType, string ResultCode);
+/// <summary>コード値だけで表した変更前後です。表示名・入力本文は保持しません。</summary>
+public sealed record ActivityChange(string Field, string? FromCode, string? ToCode);
 /// <summary>本文やメールを含めず操作種別と結果だけを伝えます。</summary>
-public sealed record ActivityEvent(string EventType, string ResultCode, string? FailureReason = null);
-/// <summary>例外のメッセージは保存せず型とコードだけを扱います。</summary>
-public sealed record SystemErrorEvent(Guid ErrorId, string? ErrorCode = null, Exception? Exception = null, string ErrorLevel = "ERROR");
+public sealed record ActivityEvent(string EventType, string ResultCode, string? FailureReason = null,
+    string? TargetType = null, string? TargetId = null, IReadOnlyList<ActivityChange>? Changes = null);
+/// <summary>例外のメッセージは保存せず型・コードと安全化済み本文だけを扱います。</summary>
+public sealed record SystemErrorEvent(Guid ErrorId, string? ErrorCode = null, string? Message = null, Exception? Exception = null, string ErrorLevel = "ERROR");
 /// <summary>ツール利用ログの境界です。</summary>
 public interface IUsageLogger
 {
@@ -43,7 +46,8 @@ public interface ISystemErrorLogger
 }
 /// <summary>独立Contextと時間制限で3種類のログを記録します。</summary>
 public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurrentUserAccessor current, IApplicationClock clock,
-    RequestCorrelation correlation, IOptions<CommonOptions> application, IOptions<LoggingOptions> settings) : IUsageLogger, IActivityLogger, ISystemErrorLogger
+    RequestCorrelation correlation, IOptions<CommonOptions> application, IOptions<LoggingOptions> settings,
+    IHttpContextAccessor http) : IUsageLogger, IActivityLogger, ISystemErrorLogger
 {
     private static readonly HashSet<string> ActivityTypes = new("LOGIN LOGOUT ACCOUNT_LOCK ACCESS_DENIED USER_CREATE USER_UPDATE USER_UNLOCK TOOL_UPDATE TOOL_ORDER_UPDATE NOTICE_CREATE NOTICE_UPDATE VERSION_CREATE VERSION_UPDATE VERSION_DELETE VERSION_SELECT FILE_CREATE FILE_REPLACE FILE_UPDATE FILE_DELETE FILE_ORDER_UPDATE INQUIRY_CREATE INQUIRY_UPDATE INQUIRY_CLASSIFICATION_UPDATE PREFERENCE_UPDATE FAVORITE_ADD FAVORITE_REMOVE MAIL_SEND".Split(' '), StringComparer.Ordinal);
     private static readonly HashSet<string> FailureReasons = new("INVALID_CREDENTIALS ACCOUNT_LOCKED UNAUTHENTICATED INACTIVE_USER STAMP_MISMATCH ROLE_DENIED SITE_PRIVATE TOOL_UNAVAILABLE INVALID_INPUT CONFLICT DEPENDENCY_UNAVAILABLE SEND_FAILED SEND_UNKNOWN NO_RECIPIENTS CANCELLED".Split(' '), StringComparer.Ordinal);
@@ -62,21 +66,61 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     {
         if (!ActivityTypes.Contains(entry.EventType) || entry.ResultCode is not ("SUCCESS" or "FAILURE" or "DENIED") || entry.FailureReason is not null && !FailureReasons.Contains(entry.FailureReason))
             return Task.FromResult(LogWriteResult.Skipped);
-        return SaveAsync(new UserActivityLog { UserId = current.User?.UserId, EventType = entry.EventType, ResultCode = entry.ResultCode, FailureReason = entry.FailureReason, OccurredAt = clock.GetUtcNow().UtcDateTime, CorrelationId = correlation.Id });
+        var request = http.HttpContext?.Request;
+        return SaveAsync(new UserActivityLog
+        {
+            UserId = current.User?.UserId, EventType = entry.EventType, ResultCode = entry.ResultCode, FailureReason = entry.FailureReason,
+            OperationTargetType = IsCode(entry.TargetType, 30) ? entry.TargetType : null,
+            OperationTargetId = IsCode(entry.TargetId, 100) ? entry.TargetId : null,
+            OperationDetails = Changes(entry.Changes), RequestPath = MaskPath(request), IpAddress = RemoteAddress(),
+            OccurredAt = clock.GetUtcNow().UtcDateTime, CorrelationId = correlation.Id
+        });
     }
 
     /// <summary>例外Message・Data・物理パスを読まず、型とメソッド名を抽出します。</summary>
     public Task<LogWriteResult> WriteAsync(SystemErrorEvent entry, CancellationToken ct = default)
     {
         if (entry.ErrorId == Guid.Empty || entry.ErrorLevel is not ("ERROR" or "CRITICAL")) return Task.FromResult(LogWriteResult.Skipped);
+        var request = http.HttpContext?.Request;
+        var message = string.IsNullOrWhiteSpace(entry.Message) ? "処理中にエラーが発生しました。" : entry.Message;
         return SaveAsync(new SystemErrorLog
         {
             ErrorId = entry.ErrorId, ErrorCode = IsCode(entry.ErrorCode, 100) ? entry.ErrorCode : null,
             OccurredAt = clock.GetUtcNow().UtcDateTime, ApplicationName = application.Value.ApplicationName,
             ToolId = application.Value.ToolId, UserId = current.User?.UserId, ErrorLevel = entry.ErrorLevel,
             ErrorType = entry.Exception?.GetType().FullName is { } type ? type[..Math.Min(type.Length, 300)] : null,
-            ErrorMessage = "処理中にエラーが発生しました。", StackTrace = SafeStack(entry.Exception), CorrelationId = correlation.Id
+            ErrorMessage = message[..Math.Min(message.Length, 2000)], StackTrace = SafeStack(entry.Exception),
+            RequestPath = MaskPath(request), HttpMethod = IsCode(request?.Method, 10) ? request!.Method : null, CorrelationId = correlation.Id
         });
+    }
+
+    /// <summary>変更内容をコード値だけで連結し、コード以外の値を捨てます。</summary>
+    private static string? Changes(IReadOnlyList<ActivityChange>? changes)
+    {
+        if (changes is null || changes.Count == 0) return null;
+        var text = string.Join(';', changes
+            .Where(x => IsCode(x.Field, 50) && (x.FromCode is null || IsCode(x.FromCode, 20)) && (x.ToCode is null || IsCode(x.ToCode, 20)))
+            .Select(x => $"{x.Field}:{x.FromCode ?? "-"}>{x.ToCode ?? "-"}"));
+        return text.Length == 0 ? null : text[..Math.Min(text.Length, 1000)];
+    }
+
+    /// <summary>クエリ文字列を除き、識別子らしい経路要素を伏せます。</summary>
+    private static string? MaskPath(Microsoft.AspNetCore.Http.HttpRequest? request)
+    {
+        if (request is null) return null;
+        var path = (request.PathBase.Add(request.Path).Value ?? "").Split('/').Select(segment => IsOpaque(segment) ? "***" : segment);
+        var text = string.Join('/', path);
+        return text.Length == 0 ? null : text[..Math.Min(text.Length, 500)];
+    }
+
+    /// <summary>GUIDや長い不透明値を経路から識別します。</summary>
+    private static bool IsOpaque(string segment) => Guid.TryParse(segment, out _) || segment.Length >= 24 && segment.Any(char.IsAsciiDigit);
+
+    /// <summary>信頼済みプロキシ適用後の接続元IPを取得します。</summary>
+    private string? RemoteAddress()
+    {
+        var address = http.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        return address is { Length: > 0 and <= 45 } ? address : null;
     }
 
     /// <summary>SQL待機と接続を独立した上限内に制限し、業務トランザクションから分離します。</summary>

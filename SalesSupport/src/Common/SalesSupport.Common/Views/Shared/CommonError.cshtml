@@ -1,0 +1,12 @@
+@model ErrorPresentation
+@{
+    Layout = "_SalesSupportLayout";
+    ViewData.SetPageShell(new PageShellModel { PageTitle = "エラー" });
+}
+@*
+    共通エラー画面です。表示文言と追跡番号だけを示し、例外・物理パス・設定値は表示しません。
+*@
+<div class="alert alert-danger ss-error" role="alert">
+    <p class="ss-error-message">@Model.Message</p>
+    <p class="ss-error-id">お問い合わせ番号：@Model.ErrorId</p>
+</div>

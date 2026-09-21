@@ -1,0 +1,27 @@
+@model IReadOnlyList<Breadcrumb>
+@inject ISalesSupportLinks Links
+@*
+    共通ヘッダー直下、画面タイトルの上へ表示します。最後の1件は現在位置としてリンクにしません。
+*@
+@if (Model is { Count: > 0 })
+{
+    <nav class="ss-breadcrumb" aria-label="パンくずリスト">
+        <ol class="breadcrumb">
+            @for (var index = 0; index < Model.Count; index++)
+            {
+                var item = Model[index];
+                var isLast = index == Model.Count - 1;
+                <li class="breadcrumb-item @(isLast ? "active" : "")" aria-current="@(isLast ? "page" : null)">
+                    @if (!isLast && item.Path is not null)
+                    {
+                        <a href="@Links.Resolve(item.Path, item.Target)">@item.Label</a>
+                    }
+                    else
+                    {
+                        @item.Label
+                    }
+                </li>
+            }
+        </ol>
+    </nav>
+}
