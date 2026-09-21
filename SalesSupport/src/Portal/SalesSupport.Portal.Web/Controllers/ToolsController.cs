@@ -34,7 +34,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
         var listLabel = favorites ? "お気に入りツール" : "ツール一覧";
         ViewData.SetPageShell(new PageShellModel
         {
-            PageTitle = detail.ToolName,
+            PageTitle = "ツール詳細",
             Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(listLabel, listPath), new Breadcrumb("ツール詳細")]
         });
         return View("Detail", detail with { FromFavorites = favorites });
@@ -60,6 +60,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
         ViewData.SetPageShell(new PageShellModel
         {
             PageTitle = title,
+            UseTitleBand = true,
             Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(title)]
         });
         return View("Index", model);

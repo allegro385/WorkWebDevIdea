@@ -66,9 +66,8 @@
 
 <section class="pt-panel">
     <h2 class="pt-panel-title">基本情報</h2>
-    <dl class="pt-detail-list">
-        <dt>お気に入り</dt>
-        <dd>
+    <div class="pt-tool-summary">
+        <div class="pt-tool-summary-head">
             <form method="post" asp-controller="Favorites" asp-action="@(Model.IsFavorite ? "Remove" : "Add")"
                   asp-route-toolId="@Model.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
                 <button type="submit" class="pt-star @(Model.IsFavorite ? "pt-star-on" : "")">
@@ -76,24 +75,24 @@
                     <span class="visually-hidden">@(Model.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
                 </button>
             </form>
-        </dd>
-        <dt>カテゴリ</dt>
-        <dd>@Model.CategoryName</dd>
-        <dt>ツール名</dt>
-        <dd>@Model.ToolName</dd>
-        <dt>概要</dt>
-        <dd class="pt-multiline">@Model.Summary</dd>
-        <dt>備考</dt>
-        <dd class="pt-multiline">@Model.Remarks</dd>
-        <dt>提供種別</dt>
-        <dd><code-badge code-type="TOOL_TYPE" code-value="@Model.ToolType" /></dd>
-        <dt>現在のバージョン</dt>
-        <dd>Ver.@Model.Version</dd>
-        <dt>更新日</dt>
-        <dd>@(Model.UpdatedOn is { } updatedOn ? updatedOn.ToString("yyyy/MM/dd") : "未設定")</dd>
-        <dt>状態</dt>
-        <dd><code-badge code-type="TOOL_STATUS" code-value="@Model.Status" /></dd>
-    </dl>
+            <h3>@Model.ToolName</h3>
+            <code-badge code-type="TOOL_STATUS" code-value="@Model.Status" />
+        </div>
+        <dl class="pt-detail-list">
+            <dt>カテゴリ</dt>
+            <dd>@Model.CategoryName</dd>
+            <dt>提供種別</dt>
+            <dd><code-badge code-type="TOOL_TYPE" code-value="@Model.ToolType" /></dd>
+            <dt>現在のバージョン</dt>
+            <dd>Ver.@Model.Version</dd>
+            <dt>更新日</dt>
+            <dd>@(Model.UpdatedOn is { } updatedOn ? updatedOn.ToString("yyyy/MM/dd") : "未設定")</dd>
+            <dt>概要</dt>
+            <dd class="pt-multiline">@Model.Summary</dd>
+            <dt>備考</dt>
+            <dd class="pt-multiline">@Model.Remarks</dd>
+        </dl>
+    </div>
 </section>
 
 <section class="pt-panel">

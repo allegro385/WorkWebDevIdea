@@ -33,29 +33,28 @@
     <section class="pt-card">
         <h2 class="pt-card-title">ツール一覧</h2>
         <ul class="pt-card-links">
-            <li><a asp-controller="Tools" asp-action="Index">全ツール</a></li>
-            <li><a asp-controller="Tools" asp-action="Favorites">お気に入りツール</a></li>
+            <li><a asp-controller="Tools" asp-action="Index"><span>全ツール</span><span aria-hidden="true">›</span></a></li>
+            <li><a asp-controller="Tools" asp-action="Favorites"><span>お気に入りツール</span><span aria-hidden="true">›</span></a></li>
         </ul>
     </section>
     <section class="pt-card">
         <h2 class="pt-card-title">サポート</h2>
         <ul class="pt-card-links">
-            <li><a asp-controller="Preferences" asp-action="Index">個人設定</a></li>
-            <li><a asp-controller="Help" asp-action="Index">利用マニュアル・FAQ</a></li>
-            <li><a asp-controller="Inquiries" asp-action="New">問い合わせ・ご意見</a></li>
+            <li><a asp-controller="Preferences" asp-action="Index"><span>個人設定</span><span aria-hidden="true">›</span></a></li>
+            <li><a asp-controller="Help" asp-action="Index"><span>利用マニュアル・FAQ</span><span aria-hidden="true">›</span></a></li>
+            <li><a asp-controller="Inquiries" asp-action="New"><span>問い合わせ・ご意見</span><span aria-hidden="true">›</span></a></li>
         </ul>
     </section>
     @if (Model.IsAdmin)
     {
         <section class="pt-card">
-            <h2 class="pt-card-title">管理画面</h2>
-            <p class="pt-card-note">※システム管理者のみ</p>
+            <h2 class="pt-card-title">管理画面 <span class="badge pt-admin-badge">管理者のみ</span></h2>
             <ul class="pt-card-links">
-                <li><a asp-area="Admin" asp-controller="Users" asp-action="Index">ユーザー管理</a></li>
-                <li><a asp-area="Admin" asp-controller="Inquiries" asp-action="Index">問い合わせ管理</a></li>
-                <li><a asp-area="Admin" asp-controller="Tools" asp-action="Index">ツール管理</a></li>
-                <li><a asp-area="Admin" asp-controller="Notices" asp-action="Index">サイト管理</a></li>
-                <li><a asp-area="Admin" asp-controller="Logs" asp-action="Index">ログ管理</a></li>
+                <li><a asp-area="Admin" asp-controller="Users" asp-action="Index"><span>ユーザー管理</span><span aria-hidden="true">›</span></a></li>
+                <li><a asp-area="Admin" asp-controller="Inquiries" asp-action="Index"><span>問い合わせ管理</span><span aria-hidden="true">›</span></a></li>
+                <li><a asp-area="Admin" asp-controller="Tools" asp-action="Index"><span>ツール管理</span><span aria-hidden="true">›</span></a></li>
+                <li><a asp-area="Admin" asp-controller="Notices" asp-action="Index"><span>サイト管理</span><span aria-hidden="true">›</span></a></li>
+                <li><a asp-area="Admin" asp-controller="Logs" asp-action="Index"><span>ログ管理</span><span aria-hidden="true">›</span></a></li>
             </ul>
         </section>
     }

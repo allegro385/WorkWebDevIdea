@@ -14,7 +14,7 @@ public sealed class HomeController(ISystemSettingsReader settings, IHomeService 
     /// <summary>P002 ポータルトップです。公開中のシステムお知らせと主要機能の入口を表示します。</summary>
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        ViewData.SetPageShell(new PageShellModel { PageTitle = "ポータルトップ" });
+        ViewData.SetPageShell(new PageShellModel { PageTitle = "トップ", UseTitleBand = true });
         var notices = await home.GetSystemNoticesAsync(ct);
         return View(new HomeViewModel(notices, current.User?.RoleCode == "ADMIN"));
     }

@@ -25,6 +25,8 @@ public sealed class PageShellModel
     public IReadOnlyList<Breadcrumb> Breadcrumbs { get; init; } = [];
     /// <summary>ツール内画面で表示する対象ツール名です。</summary>
     public string? CurrentToolName { get; init; }
+    /// <summary>トップや一覧の画面タイトルをモック準拠の強調帯で表示する場合はtrueにします。</summary>
+    public bool UseTitleBand { get; init; }
     /// <summary>通常機能への共通メニューを表示するかです。認証・入場制限案内の画面ではfalseにします。</summary>
     public bool ShowCommonMenus { get; init; } = true;
 }

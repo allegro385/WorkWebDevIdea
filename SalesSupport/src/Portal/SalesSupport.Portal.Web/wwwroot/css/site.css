@@ -78,17 +78,16 @@
 }
 
 .pt-panel {
-    margin-bottom: 2rem;
-    border: 1px solid var(--ss-line);
-    border-radius: 0.375rem;
-    padding: 1rem 1.25rem 1.25rem;
+    margin-bottom: 1.5rem;
 }
 
 .pt-panel-title {
     margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--ss-line);
-    padding-bottom: 0.5rem;
-    font-size: 1.25rem;
+    background: linear-gradient(90deg, #61d3f2, #8ce3f7);
+    padding: 0.75rem 1.25rem;
+    color: #172033;
+    font-size: 1.3125rem;
+    font-weight: 800;
 }
 
 /* 行の上下余白を抑えた固定高の領域とし、超過分は領域内を縦スクロールします。 */
@@ -98,6 +97,9 @@
 
 .pt-notice-scroll {
     max-height: 16rem;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+    padding-inline: 1.25rem;
 }
 
 .pt-version-scroll {
@@ -167,42 +169,66 @@
 .pt-card {
     border: 1px solid var(--ss-line);
     border-radius: 0.375rem;
-    padding: 1rem 1.25rem;
+    overflow: hidden;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px #00000008;
 }
 
 .pt-card-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
+    background: linear-gradient(90deg, #dff6fd, #edfaff);
+    padding: 0.875rem 1.125rem;
     font-size: 1.15rem;
 }
 
-.pt-card-note {
-    margin-bottom: 0.5rem;
+.pt-admin-badge {
+    margin-left: 0.375rem;
+    background-color: #ffecb3;
+    color: #7b5100;
+    font-size: 0.75rem;
 }
 
 .pt-card-links {
     margin-bottom: 0;
-    padding-left: 1.25rem;
+    padding-left: 0;
+    list-style: none;
 }
 
 .pt-card-links li {
-    padding-block: 0.125rem;
+    border-top: 1px solid #d6dde3;
+}
+
+.pt-card-links a {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.9375rem 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
 }
 
 /* 選択中のタブを背景色と文字色で区別します。 */
 .pt-tabs {
-    display: flex;
-    gap: 0.5rem;
+    display: inline-flex;
+    gap: 0;
     margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid #087dcc;
+    border-radius: 0.4375rem;
 }
 
 .pt-tab {
-    border: 1px solid var(--ss-line);
-    border-radius: 0.375rem 0.375rem 0 0;
-    padding: 0.5rem 1.25rem;
+    min-width: 13.125rem;
+    border-right: 1px solid #087dcc;
+    padding: 0.75rem 1.5rem;
+    text-align: center;
     text-decoration: none;
-    color: #212529;
+    color: #0871b9;
     background-color: #ffffff;
     font-weight: 700;
+}
+
+.pt-tab:last-child {
+    border-right: 0;
 }
 
 .pt-tab-active {
@@ -212,6 +238,20 @@
 
 .pt-tool-table td {
     vertical-align: top;
+}
+
+.table {
+    border: 1px solid #b8dce9;
+}
+
+.table > thead > tr > th {
+    background-color: #dff5fc;
+    text-align: left;
+}
+
+.table > :not(caption) > * > * {
+    border-right: 1px solid #cdd8df;
+    padding: 0.8125rem 1rem;
 }
 
 /* 限定公開の行は薄いグレーで表示します。状態バッジの色とは別扱いです。 */
@@ -268,19 +308,51 @@
 .pt-detail-list {
     display: grid;
     grid-template-columns: 12rem 1fr;
-    gap: 0.5rem 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
 }
 
 .pt-detail-list dt {
+    border-bottom: 1px solid #d6dde2;
+    background-color: #eef9fd;
+    padding: 0.8125rem 1rem;
     font-weight: 700;
 }
 
 .pt-detail-list dd {
+    border-bottom: 1px solid #d6dde2;
+    padding: 0.8125rem 1rem;
     margin-bottom: 0;
 }
 
+.pt-tool-summary {
+    overflow: hidden;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+}
+
+.pt-tool-summary-head {
+    display: flex;
+    align-items: center;
+    gap: 1.125rem;
+    padding: 1.25rem;
+}
+
+.pt-tool-summary-head h3 {
+    margin: 0;
+}
+
+.pt-tool-summary-head .ss-badge {
+    margin-left: auto;
+}
+
+.pt-tool-summary-head .pt-star {
+    font-size: 2.375rem;
+}
+
 .pt-content-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1.375rem;
     margin-bottom: 0;
     padding-left: 0;
     list-style: none;
@@ -288,9 +360,15 @@
 
 .pt-content-links li {
     display: flex;
+    min-height: 10.625rem;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.75rem;
-    padding-block: 0.375rem;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+    padding: 1.75rem;
+    text-align: center;
 }
 
 .pt-content-note {
@@ -382,6 +460,9 @@
     display: grid;
     gap: 0.75rem;
     justify-items: start;
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+    padding: 1.375rem;
 }
 
 .pt-faq-category {
@@ -451,6 +532,30 @@
 .pt-status-COMPLETED,
 .pt-status-NO_ACTION { background-color: #f1f3f5; }
 
+.pt-card-body {
+    border: 1px solid var(--ss-line);
+    border-radius: 0.3125rem;
+    padding: 1.25rem;
+}
+
+.pt-log-export-form {
+    display: grid;
+    grid-template-columns: minmax(13.75rem, 1fr) minmax(13.75rem, 1fr) auto;
+    align-items: end;
+    gap: 1.125rem;
+}
+
+.pt-log-export-action {
+    padding-bottom: 0.0625rem;
+}
+
+.pt-info {
+    margin: 0.9375rem 0 0;
+    border-left: 0.3125rem solid #27a6df;
+    background-color: #eef9ff;
+    padding: 0.875rem 1.125rem;
+}
+
 @media (max-width: 48rem) {
     .pt-detail-list {
         grid-template-columns: 1fr;
@@ -458,5 +563,33 @@
 
     .pt-notice {
         grid-template-columns: 1fr;
+    }
+
+    .pt-log-export-form {
+        grid-template-columns: 1fr;
+    }
+
+    .pt-tool-summary-head {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .pt-tool-summary-head .ss-badge {
+        margin-left: 0;
+    }
+
+    .pt-tabs {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pt-tab {
+        min-width: 0;
+        border-right: 0;
+        border-bottom: 1px solid #087dcc;
+    }
+
+    .pt-tab:last-child {
+        border-bottom: 0;
     }
 }
