@@ -20,6 +20,14 @@ public interface ICurrentUserAccessor
 public sealed class CurrentUserAccessor : ICurrentUserAccessor
 {
     public CurrentUser? User { get; internal set; }
+
+    /// <summary>本人性とユーザー状態を確認した認証処理が、同じ要求内の検証済み利用者を確定します。</summary>
+    /// <remarks>Cookie検証前のログイン要求でも操作ログへ本人を記録するために使用し、認可判定の代替にはしません。</remarks>
+    public void SetVerified(CurrentUser user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        User = user;
+    }
 }
 /// <summary>サイトとツールの現行状態で利用を判定します。</summary>
 public interface IAccessEvaluator

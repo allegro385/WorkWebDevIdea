@@ -77,7 +77,12 @@ public static class CommonServiceExtensions
         services.AddSingleton<IDelimitedTextWriter, DelimitedTextWriter>();
         services.AddScoped<ISalesSupportLinks, SalesSupportLinks>();
         services.AddScoped<SharedCookieEvents>();
-        services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+        services.AddAntiforgery(options =>
+        {
+            options.HeaderName = "X-CSRF-TOKEN";
+            // サイトはHTTPS専用のため、CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        });
         services.AddHttpClient();
         services.AddHttpContextAccessor();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();

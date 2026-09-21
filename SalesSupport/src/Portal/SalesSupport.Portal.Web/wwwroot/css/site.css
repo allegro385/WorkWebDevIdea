@@ -1,31 +1,70 @@
-html {
-  font-size: 14px;
+/*
+  Portal固有のスタイルです。共通テーマ（sales-support.css）の指定は打ち消しません。
+  認証・パスワード画面のラベル列と入力欄の配置だけをここで定義します。
+*/
+
+.pt-auth {
+    max-width: 44rem;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+.pt-auth-lead {
+    margin-bottom: 1.25rem;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+/* PC幅ではラベル列を十分に確保し、ラベルと必須バッジを同じ行に収めます。 */
+.pt-field {
+    display: grid;
+    grid-template-columns: 16rem 1fr;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
 }
 
-html {
-  position: relative;
-  min-height: 100%;
+.pt-field-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
-body {
-  margin-bottom: 60px;
+.pt-required {
+    background-color: #b02a37;
+    color: #ffffff;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+.pt-field-error {
+    grid-column: 2;
+    color: #b02a37;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+.pt-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.pt-links {
+    margin-top: 1.25rem;
+}
+
+.pt-support {
+    margin-top: 1.75rem;
+    border-top: 1px solid var(--ss-line);
+    padding-top: 1rem;
+}
+
+.pt-support-contact {
+    white-space: pre-wrap;
+}
+
+/* 狭い画面ではラベルの下へ入力欄を配置します。 */
+@media (max-width: 48rem) {
+    .pt-field {
+        grid-template-columns: 1fr;
+    }
+
+    .pt-field-error {
+        grid-column: 1;
+    }
 }

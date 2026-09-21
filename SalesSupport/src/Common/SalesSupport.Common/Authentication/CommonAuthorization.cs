@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
+using SalesSupport.Common.Logging;
 
 namespace SalesSupport.Common.Authentication;
 
@@ -37,8 +38,8 @@ public sealed class CommonAuthorizationHandler(IAccessEvaluator evaluator, ICurr
     }
 }
 
-/// <summary>認可結果のAPI応答と非公開案内を分離します。</summary>
-public sealed class CommonAuthorizationResultHandler(IOptions<CommonOptions> options) : IAuthorizationMiddlewareResultHandler
+/// <summary>認可結果のAPI応答と非公開案内を分離し、拒否を操作ログへ残します。</summary>
+public sealed class CommonAuthorizationResultHandler(IOptions<CommonOptions> options, IActivityLogger activity) : IAuthorizationMiddlewareResultHandler
 {
     private readonly AuthorizationMiddlewareResultHandler fallback = new();
 
@@ -48,6 +49,7 @@ public sealed class CommonAuthorizationResultHandler(IOptions<CommonOptions> opt
         if (result.Succeeded) { await next(context); return; }
         if (context.Items.TryGetValue(CommonAuthorizationHandler.DecisionKey, out var value) && value is AccessDecision decision)
         {
+            await RecordAsync(context, decision);
             if (decision.FailureReason == "SITE_PRIVATE" && !context.Request.Path.StartsWithSegments("/api"))
             {
                 context.Response.Redirect(new Uri(new Uri(options.Value.PortalBaseUrl), "private").AbsoluteUri);
@@ -56,5 +58,14 @@ public sealed class CommonAuthorizationResultHandler(IOptions<CommonOptions> opt
             if (decision.StatusCode != 401) { context.Response.StatusCode = decision.StatusCode; return; }
         }
         await fallback.HandleAsync(next, context, policy, result);
+    }
+
+    /// <summary>利用者を特定できた拒否だけを記録します。未認証のログイン誘導は通常の導線のため残しません。</summary>
+    /// <param name="context">拒否した要求です。経路とIPはログ側が記録します。</param>
+    /// <param name="decision">拒否理由を保持する判定結果です。</param>
+    private async Task RecordAsync(HttpContext context, AccessDecision decision)
+    {
+        if (decision.FailureReason is null or "UNAUTHENTICATED") return;
+        await activity.WriteAsync(new ActivityEvent("ACCESS_DENIED", "DENIED", decision.FailureReason), context.RequestAborted);
     }
 }

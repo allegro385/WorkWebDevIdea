@@ -23,6 +23,9 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
     {
         var user = current.User;
         var isAdmin = user?.RoleCode == "ADMIN";
+        // 未検証の利用者と、入場制限案内・認証画面には通常機能への導線を表示しません。
+        if (user is null || !ViewData.GetPageShell().ShowCommonMenus)
+            return View(new SalesSupportHeaderModel(null, false, options.Value.IsDevelopment, links.Portal(), [], [], links.Local("account/logout")));
         List<HeaderMenu> menus =
         [
             new("ツール一覧", [new("全ツール", links.Portal("tools")), new("お気に入りツール", links.Portal("tools/favorites"))]),
