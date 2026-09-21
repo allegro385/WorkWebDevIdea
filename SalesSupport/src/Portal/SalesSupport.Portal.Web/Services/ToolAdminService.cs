@@ -31,7 +31,7 @@ public sealed record ToolAdminResult(ToolAdminOutcome Outcome, ValidationResult 
     public static ToolAdminResult From(ToolAdminOutcome outcome) => new(outcome, new([]));
 
     /// <summary>項目エラーを伴う入力不正の結果を生成します。</summary>
-    public static ToolAdminResult Invalid(params FieldError[] errors) => new(ToolAdminOutcome.InvalidInput, new(errors));
+    public static ToolAdminResult Invalid(FieldError error) => new(ToolAdminOutcome.InvalidInput, new([error]));
 }
 
 /// <summary>ツール編集画面の区画をまとめた表示情報です。</summary>

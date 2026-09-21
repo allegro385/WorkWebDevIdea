@@ -34,7 +34,7 @@ public sealed record UserAdminResult(UserAdminOutcome Outcome, ValidationResult 
     public static UserAdminResult From(UserAdminOutcome outcome) => new(outcome, new([]));
 
     /// <summary>項目エラーを伴う入力不正の結果を生成します。</summary>
-    public static UserAdminResult Invalid(params FieldError[] errors) => new(UserAdminOutcome.InvalidInput, new(errors));
+    public static UserAdminResult Invalid(FieldError error) => new(UserAdminOutcome.InvalidInput, new([error]));
 }
 
 /// <summary>A002 ユーザー管理の検索・編集・ロック解除を扱います。</summary>
