@@ -129,11 +129,20 @@ public sealed class AccountControllerTests
         public int ValidateCount { get; private set; }
         public int ConsumeCount { get; private set; }
 
+        public int IssueCount { get; private set; }
+
         /// <summary>再設定請求の呼出し回数を記録します。</summary>
         public Task RequestAsync(string? email, CancellationToken ct = default)
         {
             RequestCount++;
             return Task.CompletedTask;
+        }
+
+        /// <summary>管理者による再発行の呼出し回数を記録します。</summary>
+        public Task<bool> IssueForUserAsync(Guid userId, CancellationToken ct = default)
+        {
+            IssueCount++;
+            return Task.FromResult(true);
         }
 
         /// <summary>リンク検証の呼出し回数を記録して指定結果を返します。</summary>

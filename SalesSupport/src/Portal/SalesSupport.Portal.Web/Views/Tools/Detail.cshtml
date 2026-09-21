@@ -1,0 +1,137 @@
+@model ToolDetailViewModel
+@*
+    P004 ツール詳細です。お知らせ、バージョン更新情報、基本情報、コンテンツの順で構成します。
+    未登録の提供内容は表示しません。Webツールは別タブで開き、この画面を残します。
+*@
+@{
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<section class="pt-panel">
+    <h2 class="pt-panel-title">お知らせ</h2>
+    <div class="pt-scroll pt-notice-scroll">
+        @if (Model.Notices.Count == 0)
+        {
+            <p class="pt-empty">現在、公開中のお知らせはありません。</p>
+        }
+        else
+        {
+            foreach (var notice in Model.Notices)
+            {
+                <article class="pt-notice">
+                    <p class="pt-notice-date">@(notice.ShowDate ? notice.Date.ToString("yyyy/MM/dd") : "")</p>
+                    <div>
+                        <h3 class="pt-notice-title">@notice.Title</h3>
+                        <p class="pt-multiline">@notice.Content</p>
+                    </div>
+                </article>
+            }
+        }
+    </div>
+</section>
+
+<section class="pt-panel">
+    <h2 class="pt-panel-title">バージョン更新情報</h2>
+    <div class="pt-scroll pt-version-scroll">
+        @if (Model.Versions.Count == 0)
+        {
+            <p class="pt-empty">公開中のバージョン更新情報はありません。</p>
+        }
+        else
+        {
+            <table class="table pt-version-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="pt-col-version">バージョン</th>
+                        <th scope="col" class="pt-col-date">更新日</th>
+                        <th scope="col">更新内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var version in Model.Versions)
+                    {
+                        <tr class="@(version.IsCurrent ? "pt-version-current" : "")">
+                            <td>Ver.@version.Version</td>
+                            <td>@version.ReleasedAt.ToString("yyyy/MM/dd")</td>
+                            <td class="pt-multiline">@version.ChangeDescription</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</section>
+
+<section class="pt-panel">
+    <h2 class="pt-panel-title">基本情報</h2>
+    <dl class="pt-detail-list">
+        <dt>お気に入り</dt>
+        <dd>
+            <form method="post" asp-controller="Favorites" asp-action="@(Model.IsFavorite ? "Remove" : "Add")"
+                  asp-route-toolId="@Model.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
+                <button type="submit" class="pt-star @(Model.IsFavorite ? "pt-star-on" : "")">
+                    <span aria-hidden="true">@(Model.IsFavorite ? "★" : "☆")</span>
+                    <span class="visually-hidden">@(Model.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
+                </button>
+            </form>
+        </dd>
+        <dt>カテゴリ</dt>
+        <dd>@Model.CategoryName</dd>
+        <dt>ツール名</dt>
+        <dd>@Model.ToolName</dd>
+        <dt>概要</dt>
+        <dd class="pt-multiline">@Model.Summary</dd>
+        <dt>備考</dt>
+        <dd class="pt-multiline">@Model.Remarks</dd>
+        <dt>提供種別</dt>
+        <dd><code-badge code-type="TOOL_TYPE" code-value="@Model.ToolType" /></dd>
+        <dt>現在のバージョン</dt>
+        <dd>Ver.@Model.Version</dd>
+        <dt>更新日</dt>
+        <dd>@(Model.UpdatedOn is { } updatedOn ? updatedOn.ToString("yyyy/MM/dd") : "未設定")</dd>
+        <dt>状態</dt>
+        <dd><code-badge code-type="TOOL_STATUS" code-value="@Model.Status" /></dd>
+    </dl>
+</section>
+
+<section class="pt-panel">
+    <h2 class="pt-panel-title">コンテンツ</h2>
+    @if (!Model.HasWebLaunch && Model.AppFile is null && Model.References.Count == 0)
+    {
+        <p class="pt-empty">提供内容は登録されていません。</p>
+    }
+    <ul class="pt-content-links">
+        @if (Model.HasWebLaunch)
+        {
+            <li>
+                <a class="btn btn-primary" asp-controller="Tools" asp-action="Launch" asp-route-toolId="@Model.ToolId"
+                   target="_blank" rel="noopener">Webページを開く</a>
+                <span class="pt-content-note">別タブで開きます。</span>
+            </li>
+        }
+        @if (Model.AppFile is { } application)
+        {
+            <li>
+                <a class="btn btn-primary" asp-controller="ToolFiles" asp-action="Download"
+                   asp-route-toolId="@Model.ToolId" asp-route-fileId="@application.FileId">アプリケーションをダウンロード</a>
+                <span class="pt-content-note">@application.OriginalFileName</span>
+            </li>
+        }
+        @foreach (var reference in Model.References)
+        {
+            <li>
+                <a asp-controller="ToolFiles" asp-action="Download"
+                   asp-route-toolId="@Model.ToolId" asp-route-fileId="@reference.FileId">@reference.DisplayName</a>
+                <span class="pt-content-note">@reference.OriginalFileName</span>
+            </li>
+        }
+    </ul>
+</section>
+
+<p class="pt-links">
+    <a asp-controller="Tools" asp-action="@(Model.FromFavorites ? "Favorites" : "Index")">
+        @(Model.FromFavorites ? "お気に入りツールへ戻る" : "ツール一覧へ戻る")
+    </a>
+</p>

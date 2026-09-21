@@ -1,0 +1,68 @@
+@model UserEditViewModel
+@*
+    A002 ユーザー管理の編集です。権限は参照表示のみとし、画面からは変更しません。
+    パスワードの直接指定とハッシュの表示は行いません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+    <partial name="_ValidationSummary" />
+    <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Update" asp-route-userId="@Model.Input.UserId" data-ss-once>
+        <input type="hidden" name="ConcurrencyStamp" value="@Model.Input.ConcurrencyStamp" />
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="user-name">表示名<span class="badge pt-required">必須</span></label>
+            <input class="form-control" id="user-name" name="DisplayName" value="@Model.Input.DisplayName" maxlength="100" />
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="user-email">メールアドレス<span class="badge pt-required">必須</span></label>
+            <input class="form-control" id="user-email" name="Email" type="email" value="@Model.Input.Email" maxlength="256" />
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" for="user-state">状態</label>
+            <select class="form-select" id="user-state" name="IsActive">
+                <option value="true" selected="@Model.Input.IsActive">有効</option>
+                <option value="false" selected="@(!Model.Input.IsActive)">無効</option>
+            </select>
+        </div>
+        <div class="pt-field">
+            <span class="form-label pt-field-label">権限</span>
+            <div><code-badge code-type="USER_ROLE" code-value="@Model.RoleCode" /></div>
+        </div>
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Index">一覧へ戻る</a>
+        </div>
+    </form>
+
+    <section class="pt-panel">
+        <h2 class="pt-panel-title">ログイン状態</h2>
+        <dl class="pt-detail-list">
+            <dt>ロック状態</dt>
+            <dd>@(Model.IsLocked ? "ロック中" : "ロックなし")</dd>
+            <dt>ロック終了日時</dt>
+            <dd>@(Model.LockoutEnd is { } lockoutEnd ? lockoutEnd.ToString("yyyy/MM/dd HH:mm") : "-----")</dd>
+            <dt>ログイン失敗回数</dt>
+            <dd>@Model.AccessFailedCount 回</dd>
+            <dt>初回パスワード</dt>
+            <dd>@(Model.HasPassword ? "設定済み" : "未設定")</dd>
+            <dt>最終利用日時</dt>
+            <dd>@(Model.LastAccessAt is { } lastAccessAt ? lastAccessAt.ToString("yyyy/MM/dd HH:mm") : "-----")</dd>
+        </dl>
+        <div class="pt-actions">
+            @if (Model.IsLocked)
+            {
+                <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Unlock" asp-route-userId="@Model.Input.UserId" data-ss-once>
+                    <input type="hidden" name="concurrencyStamp" value="@Model.Input.ConcurrencyStamp" />
+                    <button type="submit" class="btn btn-outline-primary">ロック解除</button>
+                </form>
+            }
+            <form method="post" asp-area="Admin" asp-controller="Users" asp-action="SendPasswordLink" asp-route-userId="@Model.Input.UserId" data-ss-once>
+                <button type="submit" class="btn btn-outline-primary">
+                    @(Model.HasPassword ? "パスワード再設定メールを送信" : "初回パスワード設定メールを送信")
+                </button>
+            </form>
+        </div>
+    </section>
+</div>

@@ -1,0 +1,37 @@
+@model NoticeSendConfirmViewModel
+@*
+    お知らせ送信の確認です。選択件数と送信対象人数を表示し、確認IDを一度だけ使用して送信します。
+    送信結果は配達成功を保証しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <p>選択したお知らせを送信します。宛先はBCCへ設定し、宛先ごとの個別送信は行いません。</p>
+    <dl class="pt-detail-list">
+        @if (Model.ToolName is not null)
+        {
+            <dt>対象ツール</dt>
+            <dd>@Model.ToolName</dd>
+        }
+        <dt>送信するお知らせ</dt>
+        <dd>@Model.NoticeCount 件</dd>
+        <dt>送信対象人数</dt>
+        <dd>@Model.RecipientCount 人</dd>
+    </dl>
+    <form method="post" asp-area="Admin" asp-controller="Notices"
+          asp-action="@(Model.NoticeType == "TOOL" ? "SendToolNotice" : "Send")" asp-route-toolId="@Model.ToolId" data-ss-once>
+        <input type="hidden" name="confirmationId" value="@Model.ConfirmationId" />
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">送信する</button>
+            @if (Model.ToolId is not null)
+            {
+                <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Tools" asp-action="Edit" asp-route-toolId="@Model.ToolId">キャンセル</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Notices" asp-action="Index">キャンセル</a>
+            }
+        </div>
+    </form>
+</div>

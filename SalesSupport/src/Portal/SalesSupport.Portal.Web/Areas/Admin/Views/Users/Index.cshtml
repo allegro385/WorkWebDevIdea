@@ -1,0 +1,88 @@
+@model UserListViewModel
+@*
+    A002 ユーザー管理の一覧です。状態は「有効／無効」、ロック状態は「ロック中／ロックなし」と分けて表示します。
+    内部ユーザーIDは画面へ表示しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<partial name="_OperationMessage" model="Model.Message" />
+
+<form method="get" asp-area="Admin" asp-controller="Users" asp-action="Index" class="pt-filter">
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-name">表示名</label>
+        <input class="form-control" id="search-name" name="DisplayName" value="@Model.Search.DisplayName" maxlength="100" />
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-email">メールアドレス</label>
+        <input class="form-control" id="search-email" name="Email" value="@Model.Search.Email" maxlength="256" />
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-role">権限</label>
+        <select class="form-select" id="search-role" name="RoleCode">
+            <option value="">すべて</option>
+            @foreach (var role in Model.Roles)
+            {
+                <option value="@role.CodeValue" selected="@(role.CodeValue == Model.Search.RoleCode)">@role.CodeName</option>
+            }
+        </select>
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-state">状態</label>
+        <select class="form-select" id="search-state" name="State">
+            <option value="">すべて</option>
+            <option value="ACTIVE" selected="@(Model.Search.State == "ACTIVE")">有効</option>
+            <option value="INACTIVE" selected="@(Model.Search.State == "INACTIVE")">無効</option>
+        </select>
+    </div>
+    <div class="pt-filter-item">
+        <label class="form-label" for="search-lock">ロック状態</label>
+        <select class="form-select" id="search-lock" name="LockState">
+            <option value="">すべて</option>
+            <option value="LOCKED" selected="@(Model.Search.LockState == "LOCKED")">ロック中</option>
+            <option value="UNLOCKED" selected="@(Model.Search.LockState == "UNLOCKED")">ロックなし</option>
+        </select>
+    </div>
+    <div class="pt-filter-actions">
+        <button type="submit" class="btn btn-primary">検索</button>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Index">条件クリア</a>
+        <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Users" asp-action="Import">新規登録（TSV取り込み）</a>
+    </div>
+</form>
+
+<table class="table pt-admin-table">
+    <thead>
+        <tr>
+            <th scope="col" class="pt-col-name">表示名</th>
+            <th scope="col">メールアドレス</th>
+            <th scope="col" class="pt-col-status">権限</th>
+            <th scope="col" class="pt-col-status">状態</th>
+            <th scope="col" class="pt-col-status">ロック状態</th>
+            <th scope="col" class="pt-col-datetime">最終利用日時</th>
+            <th scope="col" class="pt-col-action">編集</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Users.Count == 0)
+        {
+            <tr>
+                <td colspan="7" class="pt-empty">条件に一致するユーザーはありません。</td>
+            </tr>
+        }
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.DisplayName</td>
+                <td>@user.Email</td>
+                <td><code-badge code-type="USER_ROLE" code-value="@user.RoleCode" /></td>
+                <td><span class="pt-user-state @(user.IsActive ? "pt-user-active" : "pt-user-inactive")">@(user.IsActive ? "有効" : "無効")</span></td>
+                <td>@(user.IsLocked ? "ロック中" : "ロックなし")</td>
+                <td>@(user.LastAccessAt is { } lastAccessAt ? lastAccessAt.ToString("yyyy/MM/dd HH:mm") : "-----")</td>
+                <td>
+                    <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Users" asp-action="Edit"
+                       asp-route-userId="@user.UserId">編集</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

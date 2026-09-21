@@ -38,6 +38,12 @@ public interface IPasswordLinkService
 {
     /// <summary>再設定請求を受け付けます。結果は対象の有無にかかわらず区別できません。</summary>
     Task RequestAsync(string? email, CancellationToken ct = default);
+
+    /// <summary>管理者の操作として対象ユーザーへ設定リンクを発行し、一度だけ送信します。</summary>
+    /// <param name="userId">対象のユーザーです。</param>
+    /// <param name="ct">要求のキャンセルトークンです。</param>
+    /// <returns>発行できた場合はtrueを返します。送信の配達結果は保証しません。</returns>
+    Task<bool> IssueForUserAsync(Guid userId, CancellationToken ct = default);
     /// <summary>GETでの表示可否だけを判定します。発行番号は消費しません。</summary>
     Task<bool> ValidateAsync(Guid userId, string? token, PasswordLinkKind kind, CancellationToken ct = default);
     /// <summary>パスワード確定と発行番号の削除を同一トランザクションで行います。</summary>
@@ -63,6 +69,16 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
             TargetType: target is null ? null : "USER", TargetId: target), ct);
     }
 
+    /// <summary>管理者の依頼による再発行です。利用者の請求間隔は適用せず、旧リンクは無効化します。</summary>
+    public async Task<bool> IssueForUserAsync(Guid userId, CancellationToken ct = default)
+    {
+        var issued = await IssueAsync(userId, enforceInterval: false, ct);
+        if (issued is not null) await SendAsync(issued, ct);
+        await activity.WriteAsync(new ActivityEvent("PASSWORD_RESET_REQUEST", issued is null ? "FAILURE" : "SUCCESS",
+            issued is null ? "INACTIVE_USER" : null, "USER", userId.ToString("N")), ct);
+        return issued is not null;
+    }
+
     /// <summary>宛先と対象ユーザーを確認し、発行できる場合だけ発行内容を返します。</summary>
     private async Task<IssuedLink?> AcceptAsync(string? email, CancellationToken ct)
     {
@@ -70,7 +86,7 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
         var normalized = users.NormalizeEmail(email);
         var userId = await db.Users.AsNoTracking().Where(x => x.NormalizedEmail == normalized).Select(x => x.Id).SingleOrDefaultAsync(ct);
         if (userId == Guid.Empty) return null;
-        return await IssueAsync(userId, ct);
+        return await IssueAsync(userId, enforceInterval: true, ct);
     }
 
     /// <summary>期限・改変・消費済みを標準の検証へ委譲し、DBを変更しません。</summary>
@@ -124,7 +140,10 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
     }
 
     /// <summary>受付間隔を確認し、新しい発行番号とトークンを同一トランザクションで確定します。</summary>
-    private async Task<IssuedLink?> IssueAsync(Guid userId, CancellationToken ct)
+    /// <param name="userId">対象のユーザーです。</param>
+    /// <param name="enforceInterval">利用者の請求としてアカウント単位の受付間隔を適用するかどうかです。</param>
+    /// <param name="ct">要求のキャンセルトークンです。</param>
+    private async Task<IssuedLink?> IssueAsync(Guid userId, bool enforceInterval, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
@@ -134,7 +153,8 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
 
             var now = clock.GetUtcNow();
             var last = await users.GetAuthenticationTokenAsync(user, PasswordLinkTokens.Provider, PasswordLinkTokens.LastRequestUtc);
-            if (DateTimeOffset.TryParse(last, null, System.Globalization.DateTimeStyles.RoundtripKind, out var previous) && now - previous < RequestInterval)
+            if (enforceInterval && DateTimeOffset.TryParse(last, null, System.Globalization.DateTimeStyles.RoundtripKind, out var previous)
+                && now - previous < RequestInterval)
                 return null;
 
             var kind = user.PasswordHash is null ? PasswordLinkKind.Initial : PasswordLinkKind.Reset;

@@ -1,0 +1,33 @@
+@model PreferenceViewModel
+@*
+    P006 個人設定です。常設のお知らせ欄は設けず、処理結果は操作後にだけ表示します。
+    既定値はいずれも「受信する」です。画面テーマの選択項目は設けません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+    <partial name="_ValidationSummary" />
+    <form method="post" asp-controller="Preferences" asp-action="Index" data-ss-once>
+        <input type="hidden" asp-for="Input.UpdateCount" />
+        <h2 class="pt-panel-title">通知設定</h2>
+        <div class="pt-check">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Input.SystemNoticeMailEnabled" />
+                <label class="form-check-label" asp-for="Input.SystemNoticeMailEnabled">システムのお知らせ：メールを受信する</label>
+            </div>
+            <p class="pt-check-note">ポータル全体のメンテナンス予定や障害情報など、システムのお知らせをメールで受け取ります。</p>
+        </div>
+        <div class="pt-check">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" asp-for="Input.FavoriteToolNoticeMailEnabled" />
+                <label class="form-check-label" asp-for="Input.FavoriteToolNoticeMailEnabled">お気に入りツールのお知らせ：メールを受信する</label>
+            </div>
+            <p class="pt-check-note">お気に入りに登録したツールのお知らせをメールで受け取ります。</p>
+        </div>
+        <div class="pt-actions pt-actions-center">
+            <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+    </form>
+</div>

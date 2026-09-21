@@ -1,0 +1,83 @@
+@model ToolListViewModel
+@*
+    P003 ツール一覧・P008 お気に入りツールです。表示項目・並び順・操作は両画面で統一します。
+    星印はお気に入りの登録・解除だけを行い、詳細画面へは遷移しません。
+*@
+@{
+    // お気に入り操作後に同じ一覧へ戻すため、現在の画面をサイト内の戻り先として渡します。
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+}
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<nav class="pt-tabs" aria-label="表示するツールの種類">
+    <a class="pt-tab @(Model.FavoritesOnly ? "" : "pt-tab-active")" asp-controller="Tools" asp-action="Index"
+       aria-current="@(Model.FavoritesOnly ? null : "page")">全ツール（@Model.AllCount）</a>
+    <a class="pt-tab @(Model.FavoritesOnly ? "pt-tab-active" : "")" asp-controller="Tools" asp-action="Favorites"
+       aria-current="@(Model.FavoritesOnly ? "page" : null)">お気に入りツール（@Model.FavoriteCount）</a>
+</nav>
+
+@if (Model.Tools.Count == 0)
+{
+    <p class="pt-empty">
+        @if (Model.FavoritesOnly)
+        {
+            <span>お気に入りに登録したツールはありません。</span>
+            <a asp-controller="Tools" asp-action="Index">全ツール画面</a>
+            <span>から星印を選択して登録してください。</span>
+        }
+        else
+        {
+            <span>表示できるツールがありません。</span>
+        }
+    </p>
+}
+else
+{
+    <table class="table pt-tool-table">
+        <thead>
+            <tr>
+                <th scope="col" class="pt-col-star"><span class="visually-hidden">お気に入り</span>☆</th>
+                <th scope="col" class="pt-col-category">カテゴリ</th>
+                <th scope="col" class="pt-col-name">ツール名</th>
+                <th scope="col">ツール概要</th>
+                <th scope="col" class="pt-col-version">バージョン</th>
+                <th scope="col" class="pt-col-date">更新日</th>
+                <th scope="col" class="pt-col-status">状態</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var tool in Model.Tools)
+            {
+                <tr class="@(tool.IsLimited ? "pt-row-limited" : "")">
+                    <td class="pt-col-star">
+                        <form method="post" asp-controller="Favorites" asp-action="@(tool.IsFavorite ? "Remove" : "Add")"
+                              asp-route-toolId="@tool.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
+                            <button type="submit" class="pt-star @(tool.IsFavorite ? "pt-star-on" : "")"
+                                    title="@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")">
+                                <span aria-hidden="true">@(tool.IsFavorite ? "★" : "☆")</span>
+                                <span class="visually-hidden">@tool.ToolName を@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
+                            </button>
+                        </form>
+                    </td>
+                    <td>@tool.CategoryName</td>
+                    <td>
+                        @if (tool.CanOpenDetail)
+                        {
+                            <a asp-controller="Tools" asp-action="Detail" asp-route-toolId="@tool.ToolId"
+                               asp-route-favorites="@(Model.FavoritesOnly ? "true" : null)">@tool.ToolName</a>
+                        }
+                        else
+                        {
+                            @tool.ToolName
+                        }
+                    </td>
+                    <td class="pt-multiline">@tool.Summary</td>
+                    <td>Ver.@tool.Version</td>
+                    <td>@(tool.UpdatedOn is { } updatedOn ? updatedOn.ToString("yyyy/MM/dd") : "未設定")</td>
+                    <td><code-badge code-type="TOOL_STATUS" code-value="@tool.Status" /></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
