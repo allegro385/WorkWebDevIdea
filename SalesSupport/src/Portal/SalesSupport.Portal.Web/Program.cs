@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.RateLimiting;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.DependencyInjection;
 using SalesSupport.Common.ErrorHandling;
 using SalesSupport.Portal.Web.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSalesSupportPortal(builder.Configuration);
+builder.Services.AddSalesSupportPortal(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 app.UseSalesSupportForwardedHeaders();
@@ -19,6 +20,8 @@ app.UseHttpsRedirection();
 app.MapStaticAssets();
 app.UseRouting();
 app.UseAuthentication();
+// 接続元単位の制限は認証の後、認可の前に適用し、超過分を待機させません。
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapSalesSupportLogout();

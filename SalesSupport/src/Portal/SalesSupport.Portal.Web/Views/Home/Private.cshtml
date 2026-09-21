@@ -1,0 +1,14 @@
+@model PrivateNoticeViewModel
+@*
+    P011 入場制限案内画面です。公開状態の表示名称や利用者情報は表示しません。
+    案内文はDB運用で設定した値をそのまま改行表示し、HTMLとしては描画しません。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-auth">
+    <p class="pt-support-contact">@Model.Message</p>
+    <p class="pt-links">
+        <a asp-controller="Account" asp-action="Login">ログイン画面へ</a>
+    </p>
+</div>

@@ -1,0 +1,40 @@
+@model LoginViewModel
+@*
+    P001 ログイン画面です。失敗理由は区別せず、初回利用案内と連絡先だけを補足します。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-auth">
+    <partial name="_ValidationSummary" />
+    <form method="post" asp-controller="Account" asp-action="Login" data-ss-once>
+        <input type="hidden" asp-for="Input.ReturnUrl" />
+        <div class="pt-field">
+            <label class="form-label pt-field-label" asp-for="Input.Email">
+                メールアドレス<span class="badge pt-required">必須</span>
+            </label>
+            <input class="form-control" asp-for="Input.Email" type="email" maxlength="256" autocomplete="username" autofocus />
+            <span class="pt-field-error" asp-validation-for="Input.Email"></span>
+        </div>
+        <div class="pt-field">
+            <label class="form-label pt-field-label" asp-for="Input.Password">
+                パスワード<span class="badge pt-required">必須</span>
+            </label>
+            <input class="form-control" asp-for="Input.Password" type="password" autocomplete="current-password" />
+            <span class="pt-field-error" asp-validation-for="Input.Password"></span>
+        </div>
+        <div class="pt-actions">
+            <button type="submit" class="btn btn-primary">ログイン</button>
+        </div>
+    </form>
+    <p class="pt-links">
+        <a asp-controller="Account" asp-action="PasswordRequest">パスワードを忘れた方</a>
+    </p>
+    <div class="pt-support">
+        <p>アカウントをお持ちでない方は、社内システム担当へ利用申請してください。</p>
+        @if (Model.SupportContact is not null)
+        {
+            <p class="pt-support-contact">@Model.SupportContact</p>
+        }
+    </div>
+</div>
