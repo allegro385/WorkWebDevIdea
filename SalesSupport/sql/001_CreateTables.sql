@@ -413,6 +413,7 @@ CREATE TABLE log.ToolUsageLogs
     CONSTRAINT CK_ToolUsageLogs_EventType CHECK (EventType IN ('DESKTOP_DOWNLOAD', 'WEB_OPEN', 'WEB_EXECUTE')),
     CONSTRAINT CK_ToolUsageLogs_ResultCode CHECK (ResultCode IN ('SUCCESS', 'FAILURE'))
 );
+CREATE INDEX IX_ToolUsageLogs_OccurredAt ON log.ToolUsageLogs (OccurredAt);
 
 CREATE TABLE log.UserActivityLogs
 (
@@ -431,6 +432,7 @@ CREATE TABLE log.UserActivityLogs
     CONSTRAINT CK_UserActivityLogs_EventType CHECK (LEN(LTRIM(RTRIM(EventType))) > 0),
     CONSTRAINT CK_UserActivityLogs_ResultCode CHECK (ResultCode IN ('SUCCESS', 'FAILURE', 'DENIED'))
 );
+CREATE INDEX IX_UserActivityLogs_OccurredAt ON log.UserActivityLogs (OccurredAt);
 
 CREATE TABLE log.SystemErrorLogs
 (
@@ -454,6 +456,7 @@ CREATE TABLE log.SystemErrorLogs
     CONSTRAINT CK_SystemErrorLogs_ErrorMessage CHECK (LEN(LTRIM(RTRIM(ErrorMessage))) > 0),
     CONSTRAINT CK_SystemErrorLogs_HttpMethod CHECK (HttpMethod IS NULL OR HttpMethod IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'))
 );
+CREATE INDEX IX_SystemErrorLogs_OccurredAt ON log.SystemErrorLogs (OccurredAt);
 
 COMMIT TRANSACTION;
 GO

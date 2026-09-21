@@ -46,3 +46,4 @@ EXEC sys.sp_addextendedproperty @name=N'SalesSupport.AllowDummyData', @value=N'Y
 - これは新規構築SQLの修正であり、既存DBへのALTER移行ではない。001を既存DBへ再実行しない。実DBへの適用は行っていない。
 - 追加確定事項を反映：ToolFiles.UploadedByUserId（AspNetUsersへの外部キー）・UploadedAt必須列、SITE＋USER_IMPORT（.tsv、1,000,000バイト）、バージョン各組0～99・先頭ゼロ禁止。TSV100件上限はPortalで検証する。
 - 既存DBへの移行ではアップロード情報の実値確認、不適合バージョンの個別修正が必要。新規構築SQLで既存DBを更新しない。
+- `log`スキーマ3表へ`OccurredAt`の非クラスター化インデックスを追加。ログ検索は期間で絞るため、件数増加時の全件スキャンを避ける。
