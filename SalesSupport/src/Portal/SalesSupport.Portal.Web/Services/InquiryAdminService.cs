@@ -59,7 +59,7 @@ public sealed record InquiryAdminResult(InquiryAdminOutcome Outcome, ValidationR
     public static InquiryAdminResult From(InquiryAdminOutcome outcome) => new(outcome, new([]));
 
     /// <summary>項目エラーを伴う入力不正の結果を生成します。</summary>
-    public static InquiryAdminResult Invalid(params FieldError[] errors) => new(InquiryAdminOutcome.InvalidInput, new(errors));
+    public static InquiryAdminResult Invalid(FieldError error) => new(InquiryAdminOutcome.InvalidInput, new([error]));
 }
 
 /// <summary>A005 問い合わせ管理の検索・参照・更新を扱います。</summary>
