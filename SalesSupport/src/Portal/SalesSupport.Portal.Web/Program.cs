@@ -17,7 +17,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.MapStaticAssets();
+// 既定の認可方針は保護対象の画面にだけ適用し、ログイン画面と入場制限案内が読み込む共通資産は匿名で配信します。
+app.MapStaticAssets().AllowAnonymous();
 app.UseRouting();
 app.UseAuthentication();
 // 接続元単位の制限は認証の後、認可の前に適用し、超過分を待機させません。

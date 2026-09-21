@@ -187,7 +187,7 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
         input.CurrentPassword = null;
         input.NewPassword = null;
         input.NewPasswordConfirmation = null;
-        ViewData.SetPageShell(Shell("パスワード変更"));
+        ViewData.SetPageShell(PortalShell("パスワード変更"));
         return View("PasswordChange", input);
     }
 
@@ -200,6 +200,10 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
 
     /// <summary>認証画面では通常機能への共通メニューを表示しません。</summary>
     private static PageShellModel Shell(string title) => new() { PageTitle = title, ShowCommonMenus = false };
+
+    /// <summary>ログイン中に開く画面では、共通メニューとトップへ戻る経路を残します。</summary>
+    private static PageShellModel PortalShell(string title) =>
+        new() { PageTitle = title, Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(title)] };
 
     /// <summary>トークンを含むURLから第三者へRefererを送信させません。</summary>
     private void SuppressReferrer() => Response.Headers.Append("Referrer-Policy", "no-referrer");
