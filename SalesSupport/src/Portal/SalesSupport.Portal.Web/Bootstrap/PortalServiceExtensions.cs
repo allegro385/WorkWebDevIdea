@@ -32,6 +32,9 @@ public static class PortalServiceExtensions
         services.Configure<MailTemplateOptions>(PasswordLinkMailTemplates.AddDefaults);
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IPasswordLinkService, PasswordLinkService>();
+        services.AddScoped<IInitialAdminProvisioner, InitialAdminProvisioner>();
+        services.AddScoped<InitialAdminBootstrapCommand>();
+        services.AddSingleton<IInitialAdminConsole, InitialAdminConsole>();
         AddRequestLimits(services, configuration);
 
         services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
