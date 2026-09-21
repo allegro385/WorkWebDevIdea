@@ -57,6 +57,14 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
     {
         if (!ModelState.IsValid) return RequestView(input);
         await links.RequestAsync(input.Email, ct);
+        return RedirectToAction(nameof(PasswordRequestAccepted));
+    }
+
+    /// <summary>再設定メール請求の受付結果を再送信なしで表示します。</summary>
+    [HttpGet("password/request/accepted")]
+    [AllowAnonymous]
+    public IActionResult PasswordRequestAccepted()
+    {
         ViewData.SetPageShell(Shell("パスワード再設定の請求"));
         return View("PasswordRequestAccepted");
     }
@@ -104,8 +112,7 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
         switch (result.Outcome)
         {
             case PasswordChangeOutcome.Succeeded:
-                ViewData.SetPageShell(Shell("パスワード変更"));
-                return View("PasswordChanged");
+                return RedirectToAction(nameof(PasswordChanged));
             case PasswordChangeOutcome.InvalidInput:
                 ModelState.AddValidationResult(result.Errors);
                 return ChangeView(input);
@@ -119,6 +126,15 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
                 ModelState.AddModelError(string.Empty, "パスワードを変更できませんでした。管理者へお問い合わせください。");
                 return ChangeView(input);
         }
+    }
+
+    /// <summary>パスワード変更の完了結果を再送信なしで表示します。</summary>
+    [HttpGet("password/changed")]
+    [AllowAnonymous]
+    public IActionResult PasswordChanged()
+    {
+        ViewData.SetPageShell(Shell("パスワード変更"));
+        return View("PasswordChanged");
     }
 
     /// <summary>リンクの有効性だけを確認し、無効なら共通の案内へ切り替えます。</summary>
@@ -135,6 +151,8 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
         SuppressReferrer();
         // 用途は経路から決定し、フォームの値で切り替えられないようにします。
         input.Kind = kind;
+        // 入力エラーを返す前にもリンクを検証し、改変・期限切れ・消費済みを共通案内へ寄せます。
+        if (!await links.ValidateAsync(input.User, input.Token, kind, ct)) return InvalidLinkView();
         if (input.Password != input.PasswordConfirmation)
         {
             ModelState.AddModelError(nameof(input.PasswordConfirmation), "新しいパスワードと確認用パスワードが一致しません。");
@@ -144,8 +162,7 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
         switch (result.Outcome)
         {
             case PasswordLinkOutcome.Succeeded:
-                ViewData.SetPageShell(Shell(input.Title));
-                return View("PasswordLinkCompleted", input);
+                return RedirectToAction(kind == PasswordLinkKind.Initial ? nameof(PasswordSetupCompleted) : nameof(PasswordResetCompleted));
             case PasswordLinkOutcome.InvalidInput:
                 ModelState.AddValidationResult(result.Errors);
                 return LinkView(input);
@@ -156,6 +173,16 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
                 return InvalidLinkView();
         }
     }
+
+    /// <summary>初回パスワード設定の完了結果を再送信なしで表示します。</summary>
+    [HttpGet("password/setup/completed")]
+    [AllowAnonymous]
+    public IActionResult PasswordSetupCompleted() => LinkCompletedView(PasswordLinkKind.Initial);
+
+    /// <summary>パスワード再設定の完了結果を再送信なしで表示します。</summary>
+    [HttpGet("password/reset/completed")]
+    [AllowAnonymous]
+    public IActionResult PasswordResetCompleted() => LinkCompletedView(PasswordLinkKind.Reset);
 
     /// <summary>ログイン画面を組み立てます。入力されたパスワードは復元しません。</summary>
     private IActionResult LoginView(LoginInput input)
@@ -196,6 +223,14 @@ public sealed class AccountController(IAccountService accounts, IPasswordLinkSer
     {
         ViewData.SetPageShell(Shell("設定リンク"));
         return View("PasswordLinkInvalid");
+    }
+
+    /// <summary>用途別の設定完了画面を組み立てます。</summary>
+    private IActionResult LinkCompletedView(PasswordLinkKind kind)
+    {
+        var input = new PasswordLinkInput { Kind = kind };
+        ViewData.SetPageShell(Shell(input.Title));
+        return View("PasswordLinkCompleted", input);
     }
 
     /// <summary>認証画面では通常機能への共通メニューを表示しません。</summary>
