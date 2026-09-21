@@ -43,7 +43,7 @@ Data Protectionの鍵はWindows DPAPIで保護するため、起動できるの�
 
 ## 検証
 
-リポジトリルートから実行します。
+リポジトリルートから実行します。使用するSDKは`SalesSupport/global.json`で10.0.401に固定しています。別のフィーチャーバンドのSDKしかない環境では「A compatible .NET SDK was not found」で停止するため、global.jsonを書き換えず、指定版数のSDKを導入してください。
 
 ```text
 dotnet build SalesSupport/SalesSupport.Portal.slnx
