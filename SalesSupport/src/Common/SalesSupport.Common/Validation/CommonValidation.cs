@@ -13,6 +13,20 @@ public static partial class CommonValidation
     /// <summary>背景色が16進数6桁の形式かを判定します。</summary>
     public static bool IsColor(string? value) => value is not null && ColorPattern().IsMatch(value);
 
+    /// <summary>英数字・下線・ハイフンだけのコード値かを、桁数上限付きで判定します。</summary>
+    public static bool IsCode(string? value, int maxLength)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLength);
+        return value is { Length: > 0 } && value.Length <= maxLength && value.All(x => char.IsAsciiLetterOrDigit(x) || x is '_' or '-');
+    }
+
+    /// <summary>DB登録・照合に使用する小文字拡張子の形式かを判定します。</summary>
+    public static bool IsExtension(string? value) => value is { Length: >= 2 and <= 20 } && value[0] == '.'
+        && value.AsSpan(1).IndexOfAnyExcept("abcdefghijklmnopqrstuvwxyz0123456789") < 0;
+
+    /// <summary>任意入力の空欄をNULLへそろえます。必須判定には使用しません。</summary>
+    public static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
     /// <summary>外部転送や制御文字を許可しない戻り先を検証します。</summary>
     public static bool IsLocalReturnUrl(string? value)
     {

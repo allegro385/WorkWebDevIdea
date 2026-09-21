@@ -13,6 +13,8 @@ public sealed record ValidationResult(IReadOnlyList<FieldError> Errors)
 }
 /// <summary>画面へ公開するエラー情報です。</summary>
 public sealed record ErrorPresentation(Guid ErrorId, string Message, int StatusCode);
+/// <summary>送信の受付結果です。Succeededは配達完了を意味しません。</summary>
+public enum DeliveryOutcome { Succeeded, Failed, Unknown }
 /// <summary>現在ユーザーAPIの応答です。</summary>
 public sealed record CurrentUserResponse(Guid UserId, string DisplayName, string RoleCode);
 /// <summary>本人の通知設定と競合判定情報です。</summary>

@@ -9,8 +9,9 @@ using SalesSupport.Common.Logging;
 
 namespace SalesSupport.Common.ErrorHandling;
 
-/// <summary>登録コードまたはツール番号で障害を識別します。</summary>
-public sealed record ErrorRequest(string? ErrorCode = null, string? ToolId = null, int? ErrorNo = null, Exception? Exception = null, int StatusCode = 500);
+/// <summary>登録コードまたはツール番号で障害を識別します。関連情報はログ専用です。</summary>
+public sealed record ErrorRequest(string? ErrorCode = null, string? ToolId = null, int? ErrorNo = null, Exception? Exception = null,
+    int StatusCode = 500, IReadOnlyDictionary<string, string>? Details = null);
 /// <summary>安全な表示と一度だけの記録を行います。</summary>
 public interface IErrorHandler
 {
@@ -20,6 +21,7 @@ public interface IErrorHandler
 /// <summary>表示用定義を検索し、ログ側へ一方向に通知します。</summary>
 public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factory, ISystemErrorLogger logger) : IErrorHandler
 {
+
     /// <summary>例外や秘密値を表示へ混入させません。</summary>
     public async Task<ErrorPresentation> HandleAsync(ErrorRequest request, CancellationToken ct = default)
     {
@@ -44,9 +46,10 @@ public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factor
             }
             catch (Exception) { /* 表示用DBも利用できない場合は固定文言を維持します。 */ }
         }
-        await logger.WriteAsync(new SystemErrorEvent(id, code, request.Exception, level), ct);
+        await logger.WriteAsync(new SystemErrorEvent(id, code, Exception: request.Exception, ErrorLevel: level, Details: request.Details), ct);
         return new(id, message, request.StatusCode is 400 or 409 or 500 or 503 ? request.StatusCode : 500);
     }
+
 }
 /// <summary>認証より前に例外境界を配置するホスト用拡張です。</summary>
 public static class CommonErrorExtensions

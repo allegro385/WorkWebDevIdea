@@ -1,0 +1,15 @@
+@model OperationMessage?
+@*
+    保存結果・同時更新の競合・入力失敗を画面内へ表示します。例外や物理パスは渡しません。
+*@
+@if (Model is not null)
+{
+    var style = Model.Kind switch
+    {
+        OperationMessageKind.Success => "alert-success",
+        OperationMessageKind.Warning => "alert-warning",
+        OperationMessageKind.Conflict => "alert-warning",
+        _ => "alert-danger"
+    };
+    <div class="alert @style ss-operation-message" role="alert">@Model.Text</div>
+}

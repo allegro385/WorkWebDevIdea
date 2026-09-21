@@ -1,0 +1,42 @@
+@model SalesSupportHeaderModel
+@*
+    画面上部へ固定する共通ヘッダーです。環境帯は背景色だけで示し、環境名の文字は表示しません。
+    ドロップダウンはBootstrapの機能を使用し、クリックとキーボードの両方で操作できます。
+*@
+<header class="ss-header @(Model.IsDevelopment ? "ss-header-development" : "")">
+    <div class="ss-container ss-header-inner">
+        <a class="ss-brand" href="@Model.PortalTopUrl">営業支援ポータルサイト</a>
+        <nav class="ss-nav" aria-label="共通メニュー">
+            @foreach (var menu in Model.Menus)
+            {
+                <div class="dropdown ss-nav-group">
+                    <button class="btn ss-nav-button dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">@menu.Label</button>
+                    <ul class="dropdown-menu ss-dropdown">
+                        @foreach (var link in menu.Links)
+                        {
+                            <li><a class="dropdown-item" href="@link.Url">@link.Label</a></li>
+                        }
+                    </ul>
+                </div>
+            }
+        </nav>
+        @if (Model.DisplayName is not null)
+        {
+            <div class="dropdown ss-account">
+                <button class="btn ss-nav-button dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">@Model.DisplayName</button>
+                <ul class="dropdown-menu dropdown-menu-end ss-dropdown">
+                    @foreach (var link in Model.AccountLinks)
+                    {
+                        <li><a class="dropdown-item" href="@link.Url">@link.Label</a></li>
+                    }
+                    <li>
+                        <form method="post" action="@Model.LogoutUrl" data-ss-once>
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="dropdown-item">ログアウト</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+</header>

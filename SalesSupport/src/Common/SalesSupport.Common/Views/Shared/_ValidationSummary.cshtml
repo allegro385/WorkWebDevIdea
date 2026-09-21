@@ -1,0 +1,14 @@
+@*
+    ModelStateのエラーだけを一覧表示します。入力値そのものは表示しません。
+*@
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger ss-validation-summary" role="alert">
+        <ul class="ss-validation-list">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(state => state.Errors))
+            {
+                <li>@error.ErrorMessage</li>
+            }
+        </ul>
+    </div>
+}
