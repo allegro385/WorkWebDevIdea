@@ -4,3 +4,4 @@
 **/App_Data/
 **/archive/
 **/appsettings.Development.json
+!SalesSupport/src/Portal/SalesSupport.Portal.Web/appsettings.Development.json

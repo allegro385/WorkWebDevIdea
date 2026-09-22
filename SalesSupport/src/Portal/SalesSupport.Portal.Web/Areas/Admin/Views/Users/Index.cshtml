@@ -8,7 +8,11 @@
 }
 <partial name="_OperationMessage" model="Model.Message" />
 
-<form method="get" asp-area="Admin" asp-controller="Users" asp-action="Index" class="pt-filter">
+<div class="pt-toolbar">
+    <a class="btn btn-primary" asp-area="Admin" asp-controller="Users" asp-action="Import">新規登録（TSV取り込み）</a>
+</div>
+<h2 class="pt-panel-title">検索条件</h2>
+<form method="get" asp-area="Admin" asp-controller="Users" asp-action="Index" class="pt-filter pt-filter-panel pt-user-filter">
     <div class="pt-filter-item">
         <label class="form-label" for="search-name">表示名</label>
         <input class="form-control" id="search-name" name="DisplayName" value="@Model.Search.DisplayName" maxlength="100" />
@@ -46,7 +50,6 @@
     <div class="pt-filter-actions">
         <button type="submit" class="btn btn-primary">検索</button>
         <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Index">条件クリア</a>
-        <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Users" asp-action="Import">新規登録（TSV取り込み）</a>
     </div>
 </form>
 

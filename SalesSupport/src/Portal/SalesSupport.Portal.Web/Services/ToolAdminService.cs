@@ -96,7 +96,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
         if (!string.IsNullOrEmpty(filter.Status)) query = query.Where(x => x.Tool.Status == filter.Status);
 
         return await query
-            .OrderBy(x => x.CategorySortOrder).ThenBy(x => x.Tool.SortOrder).ThenBy(x => x.Tool.ToolName).ThenBy(x => x.Tool.ToolId)
+            .OrderBy(x => x.Tool.SortOrder).ThenBy(x => x.CategorySortOrder).ThenBy(x => x.Tool.ToolName).ThenBy(x => x.Tool.ToolId)
             .Select(x => new ToolSelectionItem(x.Tool.ToolId, x.Tool.SortOrder, x.CategoryName, x.Tool.ToolName, x.OwnerName,
                 x.Tool.Status,
                 db.ToolVersionHistories.Where(h => h.ToolId == x.Tool.ToolId && h.IsCurrent).Select(h => h.Version).FirstOrDefault() ?? "",

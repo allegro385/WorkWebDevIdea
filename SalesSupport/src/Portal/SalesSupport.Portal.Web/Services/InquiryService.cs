@@ -37,13 +37,12 @@ public sealed record InquiryAcceptance(InquiryOutcome Outcome, string? InquiryId
 
 /// <summary>受け付ける1件分の入力です。送信者は検証済みの本人から決定します。</summary>
 /// <param name="UserId">送信者本人のユーザーIDです。</param>
-/// <param name="IsAdmin">限定公開ツールを対象として選択できるかどうかです。</param>
 /// <param name="CategoryCode">汎用コードマスタのINQUIRY_CATEGORYの値です。</param>
 /// <param name="Target">`PORTAL`、`OTHER`または`TOOL:`とToolIdで表した対象です。</param>
 /// <param name="Content">問い合わせ本文です。</param>
 /// <param name="AttachmentContent">添付ファイルの内容です。添付なしではnullです。</param>
 /// <param name="AttachmentName">添付ファイルの元の名前です。</param>
-public sealed record InquirySubmission(Guid UserId, bool IsAdmin, string? CategoryCode, string? Target, string? Content,
+public sealed record InquirySubmission(Guid UserId, string? CategoryCode, string? Target, string? Content,
     Stream? AttachmentContent, string? AttachmentName);
 
 /// <summary>問い合わせの選択肢取得と受付処理を扱います。</summary>
@@ -53,7 +52,7 @@ public interface IInquiryService
     Task<IReadOnlyList<CodeOption>> GetCategoriesAsync(CancellationToken ct = default);
 
     /// <summary>ポータルサイト、選択できるツールおよびその他で対象の選択肢を構成します。</summary>
-    Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(bool isAdmin, CancellationToken ct = default);
+    Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(CancellationToken ct = default);
 
     /// <summary>添付ファイルの許可拡張子と容量上限の案内文を取得します。</summary>
     Task<string> GetAttachmentHintAsync(CancellationToken ct = default);
@@ -74,12 +73,12 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
     public Task<IReadOnlyList<CodeOption>> GetCategoriesAsync(CancellationToken ct = default) =>
         codes.GetOptionsAsync("INQUIRY_CATEGORY", ct);
 
-    /// <summary>非公開ツールは選択肢へ表示しません。限定公開ツールは管理者にだけ表示します。</summary>
-    public async Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(bool isAdmin, CancellationToken ct = default)
+    /// <summary>一般公開・限定公開のツールを全利用者の問い合わせ対象へ表示します。</summary>
+    public async Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(CancellationToken ct = default)
     {
         var tools = await (from tool in db.Tools.AsNoTracking()
                            join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
-                           where tool.Status == "PUBLIC" || isAdmin && tool.Status == "PRIVATE"
+                           where tool.Status == "PUBLIC" || tool.Status == "PRIVATE"
                            orderby category.SortOrder, tool.SortOrder, tool.ToolName, tool.ToolId
                            select new { tool.ToolId, tool.ToolName }).ToListAsync(ct);
 
@@ -115,7 +114,7 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
         var (targetType, toolId) = ParseTarget(submission.Target);
         List<FieldError> errors = [];
         if (category is null) errors.Add(new(nameof(InquiryInput.CategoryCode), "INVALID_INPUT", "カテゴリを選択してください。"));
-        if (targetType is null || targetType == "TOOL" && !await IsSelectableToolAsync(toolId, submission.IsAdmin, ct))
+        if (targetType is null || targetType == "TOOL" && !await IsSelectableToolAsync(toolId, ct))
             errors.Add(new(nameof(InquiryInput.Target), "INVALID_INPUT", "対象を選択してください。"));
         if (CommonValidation.ValidateText(nameof(InquiryInput.Content), submission.Content, 2000, required: true) is { } contentError)
             errors.Add(contentError);
@@ -203,9 +202,9 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
     };
 
     /// <summary>選択肢として表示できる状態のツールかどうかを再確認します。</summary>
-    private async Task<bool> IsSelectableToolAsync(string? toolId, bool isAdmin, CancellationToken ct) =>
+    private async Task<bool> IsSelectableToolAsync(string? toolId, CancellationToken ct) =>
         toolId is not null && await db.Tools.AsNoTracking()
-            .AnyAsync(x => x.ToolId == toolId && (x.Status == "PUBLIC" || isAdmin && x.Status == "PRIVATE"), ct);
+            .AnyAsync(x => x.ToolId == toolId && (x.Status == "PUBLIC" || x.Status == "PRIVATE"), ct);
 
     /// <summary>ツール担当者、または有効なシステム管理者全員をBCCの宛先にします。</summary>
     private async Task<IReadOnlyList<string>> ResolveBccAsync(string targetType, string? toolId, CancellationToken ct)

@@ -126,6 +126,7 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 ## 6. ユーザー管理・初期登録
 
 - 一般ユーザーの新規登録はTSVだけとし、単独登録画面・APIを設けない。各行のEmail=UserName、DisplayNameを検証し、RoleCode=USER、IsActive=trueで、UserManager.CreateAsyncと通知2項目が有効のUserPreference作成を同一トランザクションで行う。パスワードは管理者が設定しない。確定後に初回リンクを発行・送信する。
+- ローカルの複数ユーザー試験だけに使用する`add-test-user`コマンドは、ASP.NET Core環境名`Development`かつPortal環境コード`DEVELOPMENT`を必須とする。対話入力のパスワードを通常の禁止リストとIdentityで検証し、UserManagerとUserPreferenceを同一トランザクションで保存する。一般ユーザーを有効・メール確認済みで作成し、メール送信は行わない。Web画面・APIの単独登録機能にはしない。
 - 編集はConcurrencyStampを受け取り比較し、表示名・メール・有効状態だけを更新する。登録済みRoleCodeは画面から変更しない。ユーザーを物理削除しない。
 - 無効化前に自分自身・最後の有効管理者・担当中のTools/問い合わせを検査する。担当の引継ぎは既存編集画面で先に行う。複数ユーザーにまたがる管理者数の検査はSerializableトランザクションで行い、デッドロックを自動再試行せず再読込を促す。
 - 担当者を設定する各サービスも対象ユーザー行をロックして有効ADMINを確認する。無効化側と同じ規約で直列化し、確認直後の担当追加を防ぐ。複数ユーザーのロック順はUserId順に統一する。
@@ -187,6 +188,9 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 - 明示的に新しく確認した手動再送は許可する。永続キュー・送信試行テーブル・自動配信は追加しない。確認IDの保持方式は一括取込と同じ有効期限付き・本人束縛・再起動失効方式とする。
 
 ## 10. 問い合わせ受付・管理
+
+- 利用者の問い合わせ対象は一般公開・限定公開のツールを共通に表示し、POSTでも現在の状態を再検証する。非公開は選択不可とする。対象としての表示はツール本体の認可を変更しない。
+- 管理一覧のステータス色は`INQUIRY_STATUS`のCodeMaster.ColorCodeを表示用に検証した値から取得し、固定CSSのコード別色は持たない。
 
 ### 受付
 
