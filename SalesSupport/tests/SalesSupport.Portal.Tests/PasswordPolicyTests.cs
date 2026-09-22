@@ -84,18 +84,18 @@ public sealed class PasswordPolicyTests
     [Fact]
     public void LoadReadsForbiddenListFromFile()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"forbidden-{Guid.NewGuid():N}.txt");
-        File.WriteAllText(path, "﻿" + Valid + "\n\n" + Valid.ToLowerInvariant() + "\n", System.Text.Encoding.UTF8);
+        var name = $"forbidden-{Guid.NewGuid():N}.txt";
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory, name), "﻿" + Valid + "\n\n" + Valid.ToLowerInvariant() + "\n", System.Text.Encoding.UTF8);
         try
         {
-            var policy = PasswordPolicy.Load(path, Path.Combine(Path.GetTempPath(), "wwwroot-none"));
+            var policy = PasswordPolicy.Load(name, Path.Combine(AppContext.BaseDirectory, "wwwroot-none"));
             Assert.Contains(policy.Validate("Password", Valid).Errors, error => error.Code == "FORBIDDEN");
             Assert.Contains(policy.Validate("Password", Valid.ToLowerInvariant()).Errors, error => error.Code == "FORBIDDEN");
         }
-        finally { File.Delete(path); }
+        finally { File.Delete(Path.Combine(AppContext.BaseDirectory, name)); }
     }
 
-    /// <summary>未設定・相対パス・欠落したファイルを構成エラーにすることを確認します。</summary>
+    /// <summary>未設定・欠落したファイルを構成エラーにすることを確認します。</summary>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -105,23 +105,25 @@ public sealed class PasswordPolicyTests
         Assert.Throws<ConfigurationException>(() => PasswordPolicy.Load(path, null));
     }
 
-    /// <summary>実在しない絶対パスを構成エラーにすることを確認します。</summary>
+    /// <summary>実在するファイルでも絶対パスの指定を構成エラーにすることを確認します。</summary>
     [Fact]
-    public void LoadRejectsMissingFile()
+    public void LoadRejectsAbsolutePath()
     {
-        var path = Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.txt");
-        Assert.Throws<ConfigurationException>(() => PasswordPolicy.Load(path, null));
+        var path = Path.Combine(AppContext.BaseDirectory, $"absolute-{Guid.NewGuid():N}.txt");
+        File.WriteAllText(path, Valid, System.Text.Encoding.UTF8);
+        try { Assert.Throws<ConfigurationException>(() => PasswordPolicy.Load(path, null)); }
+        finally { File.Delete(path); }
     }
 
     /// <summary>Web公開領域の配下に置いた禁止リストを拒否することを確認します。</summary>
     [Fact]
     public void LoadRejectsFileInsideWebRoot()
     {
-        var webRoot = Path.Combine(Path.GetTempPath(), $"wwwroot-{Guid.NewGuid():N}");
+        var name = $"wwwroot-{Guid.NewGuid():N}";
+        var webRoot = Path.Combine(AppContext.BaseDirectory, name);
         Directory.CreateDirectory(webRoot);
-        var path = Path.Combine(webRoot, "forbidden.txt");
-        File.WriteAllText(path, Valid, System.Text.Encoding.UTF8);
-        try { Assert.Throws<ConfigurationException>(() => PasswordPolicy.Load(path, webRoot)); }
+        File.WriteAllText(Path.Combine(webRoot, "forbidden.txt"), Valid, System.Text.Encoding.UTF8);
+        try { Assert.Throws<ConfigurationException>(() => PasswordPolicy.Load(name + "/forbidden.txt", webRoot)); }
         finally { Directory.Delete(webRoot, recursive: true); }
     }
 }

@@ -128,7 +128,8 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | 1 | 共通設定ファイル（JSON、必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
 | 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`Portal__EnvironmentCode`等 |
 
-- 共通設定ファイルの絶対パスは環境変数`SalesSupport__CommonConfigPath`で各アプリへ与える。未設定、相対パス、不在、書式不正は起動時に構成エラーとし、既定の場所を探索しない。
+- 共通設定ファイルの場所は環境変数`SalesSupport__CommonConfigPath`で各アプリへ与える。値は各アプリの実行フォルダーからの相対パスとし、未設定、絶対パス、不在、書式不正は起動時に構成エラーとする。既定の場所は探索しない。
+- 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
 - アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`は各アプリの環境変数で与える。
 - ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は従来どおり各アプリの設定から取得する。
@@ -143,10 +144,10 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
-| SalesSupport:DataProtection:KeyDirectory | 全アプリ | 配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
-| SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 絶対パス、公開・配置領域外 |
+| SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
+| SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
 | SalesSupport:Storage:PermanentRoot | 永続ファイル利用アプリ | 同上。一時領域と分離 |
-| SalesSupport:Mail:Enabled | Portalはtrue、Toolはfalseが既定 | 未使用ツールにはSMTP設定を要求しない |
+| SalesSupport:Mail:Enabled | Portalはtrue、Toolはfalseが既定 | Commonがアプリ種別から決めるため共通設定ファイルへ書かない |
 | SalesSupport:Mail:Host／Port／TlsMode | Mail有効時 | ポート1～65535。StartTls／SslOnConnectを明示 |
 | SalesSupport:Mail:UserName／Password | 認証が必要な場合 | 一組で設定、ソース管理外 |
 | SalesSupport:Mail:From／ReplyTo | From必須、ReplyTo任意 | メール形式、改行禁止 |

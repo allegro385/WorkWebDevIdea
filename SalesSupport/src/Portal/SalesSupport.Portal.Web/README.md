@@ -36,7 +36,7 @@
 
 接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
 
-環境変数`SalesSupport__CommonConfigPath`へ共通設定ファイルの絶対パスを設定してください。未設定・相対パス・不在・書式不正は構成エラーです。
+環境変数`SalesSupport__CommonConfigPath`へ、Portalの実行フォルダーから共通設定ファイルへの相対パスを設定してください。未設定・絶対パス・不在・書式不正は構成エラーです。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
 
 | キー | 内容 |
 | --- | --- |
@@ -57,7 +57,7 @@
 | キー | 内容 |
 | --- | --- |
 | `Portal:SupportContact` | ログイン画面へ表示する社内システム担当の連絡先。未設定なら表示しません |
-| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）の絶対パス。Web公開領域の配下は拒否します |
+| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）への、Portalの実行フォルダーからの相対パス。絶対パスとWeb公開領域の配下は拒否します |
 | `SalesSupport:RateLimits:LoginPermitLimit` | ログイン要求の上限（既定30回/1分） |
 | `SalesSupport:RateLimits:PasswordRequestPermitLimit` | 再設定請求の上限（既定30回/1時間） |
 | `SalesSupport:Manual:RelativePath` | 利用マニュアルPDFの配置。永続保存領域からの相対パスで、既定は`Manual/sales-support-portal-manual.pdf` |
@@ -91,7 +91,7 @@ dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
-起動には共通設定ファイルが必要です。`SalesSupport/config/salessupport.common.sample.json`をリポジトリ外へコピーして開発用の実値を記入し、環境変数`SalesSupport__CommonConfigPath`へ絶対パスを設定してから実行してください。ビルドと単体テストには不要です。
+起動には共通設定ファイルが必要です。`SalesSupport/config/salessupport.common.sample.json`をリポジトリ外へコピーして開発用の実値を記入し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
 
 単体テストはDB・SMTPへ接続しません。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 

@@ -13,16 +13,16 @@
       "BaseUrl": "https://sales-support/"
     },
     "DataProtection": {
-      "KeyDirectory": ""
+      "KeyDirectory": "../keys"
     },
     "Storage": {
-      "TemporaryRoot": "",
-      "PermanentRoot": "",
+      "TemporaryRoot": "../storage/temp",
+      "PermanentRoot": "../storage/files",
       "CleanupTimeoutSeconds": 5
     },
     "Mail": {
       "Host": "",
-      "Port": 0,
+      "Port": 587,
       "TlsMode": "StartTls",
       "UserName": "",
       "Password": "",

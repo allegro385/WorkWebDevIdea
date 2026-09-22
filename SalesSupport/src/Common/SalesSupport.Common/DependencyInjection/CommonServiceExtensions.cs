@@ -29,10 +29,13 @@ public static class CommonServiceExtensions
     /// <summary>共通データ取得・入力出力を登録します。共通設定はCommonの設定ファイルから取得し、Identity StoreはPortalが登録します。</summary>
     public static IServiceCollection AddSalesSupportCommon(this IServiceCollection services, ApplicationKind kind)
     {
-        var configuration = CommonConfigurationFile.Load();
+        var common = CommonConfiguration.Load();
+        var configuration = common.Values;
         // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。
         var connections = new ConnectionStringProvider(configuration);
         services.AddSingleton<IConnectionStringProvider>(connections);
+        // 設定内のフォルダーは共通設定ファイルからの相対パスで指定するため、起動時に絶対パスへ解決します。
+        var keyDirectory = common.ResolvePath(configuration["SalesSupport:DataProtection:KeyDirectory"], "SalesSupport:DataProtection:KeyDirectory");
         services.AddOptions<CommonOptions>().Configure(options =>
         {
             options.Kind = kind;
@@ -40,7 +43,7 @@ public static class CommonServiceExtensions
             options.ApplicationName = configuration["SalesSupport:Application:Name"] ?? "";
             options.ToolId = configuration["SalesSupport:Application:ToolId"];
             options.PortalBaseUrl = configuration["SalesSupport:Portal:BaseUrl"] ?? "";
-            options.KeyDirectory = configuration["SalesSupport:DataProtection:KeyDirectory"] ?? "";
+            options.KeyDirectory = keyDirectory ?? "";
         }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "Portal:EnvironmentCodeが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
@@ -51,7 +54,7 @@ public static class CommonServiceExtensions
         services.AddDbContextFactory<LogDbContext>(options => options.UseSqlServer(connections.SalesSupportDatabase));
         services.AddOptions<LoggingOptions>().Bind(configuration.GetSection("SalesSupport:Logging"))
             .Validate(x => x.TimeoutSeconds > 0, "Logging:TimeoutSecondsが不正です。").ValidateOnStart();
-        AddStorage(services, configuration);
+        AddStorage(services, common);
         AddMail(services, configuration, kind);
         AddHttp(services, configuration);
         services.AddOptions<ProxyOptions>().Bind(configuration.GetSection("SalesSupport:Proxy"))
@@ -108,8 +111,7 @@ public static class CommonServiceExtensions
             options.SlidingExpiration = true;
             options.EventsType = typeof(SharedCookieEvents);
         });
-        var keyDirectory = configuration["SalesSupport:DataProtection:KeyDirectory"];
-        if (string.IsNullOrWhiteSpace(keyDirectory) || !Path.IsPathFullyQualified(keyDirectory) || !Directory.Exists(keyDirectory))
+        if (string.IsNullOrWhiteSpace(keyDirectory) || !Directory.Exists(keyDirectory))
             throw new ConfigurationException("SalesSupport:DataProtection:KeyDirectory");
         var protection = services.AddDataProtection().SetApplicationName("SalesSupport").PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("共有鍵の保護にはWindows DPAPIが必要です。");
@@ -118,10 +120,16 @@ public static class CommonServiceExtensions
     }
 
     /// <summary>設定された保存領域だけを検証します。起動処理でフォルダーを作成しません。</summary>
-    private static void AddStorage(IServiceCollection services, IConfiguration configuration)
+    private static void AddStorage(IServiceCollection services, CommonConfiguration common)
     {
         services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StorageOptions>, StoragePathValidation>();
-        services.AddOptions<StorageOptions>().Bind(configuration.GetSection("SalesSupport:Storage"))
+        services.AddOptions<StorageOptions>().Bind(common.Values.GetSection("SalesSupport:Storage"))
+            // 保存領域も共通設定ファイルからの相対パスで指定するため、検証より前に絶対パスへ解決します。
+            .PostConfigure(options =>
+            {
+                options.TemporaryRoot = common.ResolvePath(options.TemporaryRoot, "Storage:TemporaryRoot");
+                options.PermanentRoot = common.ResolvePath(options.PermanentRoot, "Storage:PermanentRoot");
+            })
             .Validate(x => x.CleanupTimeoutSeconds > 0, "Storage:CleanupTimeoutSecondsが不正です。")
             .Validate(x => IsUsableRoot(x.TemporaryRoot), "Storage:TemporaryRootが不正です。")
             .Validate(x => IsUsableRoot(x.PermanentRoot), "Storage:PermanentRootが不正です。")
