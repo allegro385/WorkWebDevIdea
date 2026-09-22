@@ -1,6 +1,7 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using SalesSupport.Common.Configuration;
 using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Bootstrap;
 using Xunit;
@@ -61,11 +62,8 @@ public sealed class LocalTestUserCommandTests
         var provisioner = new StubProvisioner();
         var console = new StubConsole(["user@example.invalid", "利用者"], [password, password]);
         var environment = new StubEnvironment { EnvironmentName = "Development" };
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Portal:EnvironmentCode"] = "DEVELOPMENT"
-        }).Build();
-        var command = new LocalTestUserCommand(environment, configuration, provisioner, PasswordPolicy.FromEntries([password]), console);
+        var options = Options.Create(new CommonOptions { EnvironmentCode = "DEVELOPMENT" });
+        var command = new LocalTestUserCommand(environment, options, provisioner, PasswordPolicy.FromEntries([password]), console);
 
         Assert.Equal(3, await command.RunAsync());
         Assert.Empty(provisioner.Inputs);
@@ -76,11 +74,8 @@ public sealed class LocalTestUserCommandTests
         StubProvisioner provisioner, StubConsole console)
     {
         var environment = new StubEnvironment { EnvironmentName = hostEnvironment };
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Portal:EnvironmentCode"] = portalEnvironment
-        }).Build();
-        return new LocalTestUserCommand(environment, configuration, provisioner, PasswordPolicy.FromEntries([]), console);
+        var options = Options.Create(new CommonOptions { EnvironmentCode = portalEnvironment });
+        return new LocalTestUserCommand(environment, options, provisioner, PasswordPolicy.FromEntries([]), console);
     }
 
     /// <summary>保存要求を記録するテスト用の作成処理です。</summary>

@@ -98,8 +98,11 @@ ApplicationUserのマッピングはCommonから提供し、Portalは再定義�
 ### 登録インターフェース
 
 ```csharp
-services.AddSalesSupportCommon(configuration, ApplicationKind.Portal);
-// 各ツールでは ApplicationKind.Tool。ToolIdは設定から取得。
+services.AddSalesSupportCommon(ApplicationKind.Portal);
+// 各ツールでは ApplicationKind.Tool。共通設定はCommonが共通設定ファイルから取得し、ToolIdはアプリごとの環境変数から取得。
+// ホストのDbContextはCommonの接続文字列を使用する。
+services.AddDbContext<PortalDbContext>((provider, options) =>
+    options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
 ```
 
 | 寿命 | 対象 |
@@ -116,19 +119,35 @@ CommonのDBサービスはIDbContextFactoryから処理ごとにContextを取得
 
 ## 4. Configuration
 
+### 設定の取得元
+
+Commonが必要とする設定は、Commonが所有する共通設定ファイル1つで管理する。ポータルと各ツールは自身の設定ファイルへ接続文字列その他の共通設定を持たず、Commonが読み取った値をDependency Injectionで受け取る。
+
+| 段 | 取得元 | 対象 |
+| --- | --- | --- |
+| 1 | 共通設定ファイル（JSON、必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
+| 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`Portal__EnvironmentCode`等 |
+
+- 共通設定ファイルの場所は環境変数`SalesSupport__CommonConfigPath`で各アプリへ与える。値は各アプリの実行フォルダーからの相対パスとし、未設定、絶対パス、不在、書式不正は起動時に構成エラーとする。既定の場所は探索しない。
+- 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
+- ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
+- アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と障害ログに使う`Application:Name`は各アプリの環境変数で与える。
+- ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は従来どおり各アプリの設定から取得する。
+- 接続文字列の取得口はCommonの`IConnectionStringProvider.SalesSupportDatabase`だけとする。利用側は`IConfiguration`から接続文字列を読み取らない。
+
 ### 外部設定
 
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
-| ConnectionStrings:SalesSupport | 全アプリ・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
+| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
 | Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
-| SalesSupport:Application:ToolId | Toolだけ必須 | 1～20文字。DB上のWEBツールと実行時照合 |
+| SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
-| SalesSupport:DataProtection:KeyDirectory | 全アプリ | 配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
-| SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 絶対パス、公開・配置領域外 |
+| SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
+| SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
 | SalesSupport:Storage:PermanentRoot | 永続ファイル利用アプリ | 同上。一時領域と分離 |
-| SalesSupport:Mail:Enabled | Portalはtrue、Toolはfalseが既定 | 未使用ツールにはSMTP設定を要求しない |
+| SalesSupport:Mail:Enabled | Portalはtrue、Toolはfalseで固定 | Commonがアプリ種別から設定読み込み後に確定する。各ツールはメールを使用しない。共通設定ファイル・環境変数の値では変更できない |
 | SalesSupport:Mail:Host／Port／TlsMode | Mail有効時 | ポート1～65535。StartTls／SslOnConnectを明示 |
 | SalesSupport:Mail:UserName／Password | 認証が必要な場合 | 一組で設定、ソース管理外 |
 | SalesSupport:Mail:From／ReplyTo | From必須、ReplyTo任意 | メール形式、改行禁止 |
@@ -140,7 +159,7 @@ CommonのDBサービスはIDbContextFactoryから処理ごとにContextを取得
 | SalesSupport:Storage:CleanupTimeoutSeconds | 5秒 | 正の整数。清掃の待機上限 |
 | SalesSupport:Proxy:KnownProxies | 既定空 | 信頼済みのIPだけを設定 |
 
-- ASP.NET Core標準の設定プロバイダー順に従い、配置環境変数で上書き可能とする。`Portal__EnvironmentCode`との既存契約を維持する。
+- 共通設定ファイルの後に配置環境変数を適用し、環境変数を優先する。`Portal__EnvironmentCode`との既存契約を維持する。実行中の再読込みは行わず、共通設定ファイルの変更はポータルと全Webツールの再起動で反映する。
 - Cookie名は `.SalesSupport.Auth`、スキームは `Identity.Application`、Data ProtectionのApplicationNameは `SalesSupport` に統一する。いずれもCommonの定数。Cookie Path=/、Domain未指定。別環境は別ホスト・別キー領域で分離し、同一Cookieが混在する配置を行わない。
 - IOptions<T>＋ValidateOnStartを使用し、必要な機能の設定だけ検証する。設定の変更反映はアプリ再起動で行う。
 - DB設定は起動時に全件固定しない。公開状態・アップロード条件は対象要求ごとに取得する。

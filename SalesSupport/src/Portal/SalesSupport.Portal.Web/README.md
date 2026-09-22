@@ -24,28 +24,40 @@
 | A006 サイト管理（システムお知らせの保存・確認付き手動送信） | 実装済み |
 | 最初の管理者を作成する導入用コマンドモード | 実装済み |
 
-画面を追加した範囲はビルド・単体テスト・ブラウザー操作のいずれも未実施です（[検証](#検証)を参照）。
+画面を追加した範囲はビルド・単体テストを実施済みです。ブラウザー操作は実DBに接続できる開発環境で別途確認してください（[検証](#検証)を参照）。
 
 ログインには初回パスワード設定済みかつ有効なユーザーが必要です。最初の管理者は本書の導入用コマンドで作成し、DDLやダミーデータへ直接パスワードハッシュを投入しないでください。
 
 ## 実行に必要な設定
 
-共通値は`appsettings.json`、開発用の非機密値は`appsettings.Development.json`、本番用の非機密値は`appsettings.Production.json`へ置きます。ASP.NET Coreの環境名に対応するファイルが自動で読み込まれ、環境変数がその値を上書きします。接続文字列、SMTP認証情報、鍵・保存先等の環境固有値はファイルへ書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。必要な値が欠けると起動時に構成エラーで停止します。
+設定の取得元は共通設定ファイルとPortal固有の設定です。必要な値が欠けると起動時に構成エラーで停止します。
 
-開発用ファイルのSMTPは`127.0.0.1:2525`を指す画面確認用の値です。SMTPサーバーを別途用意しない限りメールは送れません。本番用ファイルには公開URL、DB、SMTP、鍵・保存先の値を含めず、配備環境で明示して設定します。`Portal:EnvironmentCode`は各環境ファイルで設定しますが、環境変数に同名キーがある場合はそちらが優先されます。
+### 1. Commonの共通設定ファイル（接続文字列を含む共通設定）
+
+接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
+
+環境変数`SalesSupport__CommonConfigPath`へ、Portalの実行フォルダーから共通設定ファイルへの相対パスを設定してください。未設定・絶対パス・不在・書式不正は構成エラーです。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
 
 | キー | 内容 |
 | --- | --- |
 | `ConnectionStrings:SalesSupport` | SQL Serverの接続文字列 |
 | `Portal:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
-| `Portal:SupportContact` | ログイン画面へ表示する社内システム担当の連絡先。未設定なら表示しません |
 | `SalesSupport:Application:Name` | 画面・メールで使用するシステム名 |
 | `SalesSupport:Portal:BaseUrl` | httpsで末尾スラッシュ付きのPortal公開URL |
 | `SalesSupport:DataProtection:KeyDirectory` | 各アプリから参照できる実在の鍵共有フォルダー |
-| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）の絶対パス。Web公開領域の配下は拒否します |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | 一時・永続のファイル保存領域。Webルートと配置先の外に置きます |
 | `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です |
 | `SalesSupport:Proxy:KnownProxies` | 転送ヘッダーを信頼するプロキシのIP。未設定では転送ヘッダーを採用しません |
+| `SalesSupport:Http:TimeoutSeconds` / `SalesSupport:Logging:TimeoutSeconds` | 外部HTTPとログ処理の制限時間（既定30秒・3秒） |
+
+### 2. Portal固有の設定（`appsettings.json`・環境変数）
+
+`appsettings.json`と環境別の`appsettings.Development.json`／`appsettings.Production.json`はPortal固有の非機密値だけに使用します。機密値は配置環境の設定で与えます。Commonが読む値はこれらのファイルからは取得されません。
+
+| キー | 内容 |
+| --- | --- |
+| `Portal:SupportContact` | ログイン画面へ表示する社内システム担当の連絡先。未設定なら表示しません |
+| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）への、Portalの実行フォルダーからの相対パス。絶対パスとWeb公開領域の配下は拒否します |
 | `SalesSupport:RateLimits:LoginPermitLimit` | ログイン要求の上限（既定30回/1分） |
 | `SalesSupport:RateLimits:PasswordRequestPermitLimit` | 再設定請求の上限（既定30回/1時間） |
 | `SalesSupport:Manual:RelativePath` | 利用マニュアルPDFの配置。永続保存領域からの相対パスで、既定は`Manual/sales-support-portal-manual.pdf` |
@@ -77,9 +89,9 @@ dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- bootstra
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
 ```
 
-このコマンドはASP.NET Coreの環境名が`Development`で、`Portal:EnvironmentCode`が`DEVELOPMENT`のときだけ動作します。`dotnet run`の既定起動プロファイルは`https`で、開発環境を設定します。メールアドレス、表示名、パスワードを対話入力し、パスワードは画面・コマンド引数・設定ファイルへ出しません。`UserManager`経由で`USER`・有効・メール確認済みとして登録し、通知設定と同じDBトランザクションで保存します。初回設定メールは送らず、登録後すぐにログインできます。重複メールアドレスは拒否します。本番の新規ユーザー登録は管理画面のTSV取込を使用します。
+このコマンドはASP.NET Coreの環境名が`Development`で、共通設定の`Portal:EnvironmentCode`が`DEVELOPMENT`のときだけ動作します。`dotnet run`の既定起動プロファイルは`https`で、ASP.NET Coreの開発環境を設定します。メールアドレス、表示名、パスワードを対話入力し、パスワードは画面・コマンド引数・設定ファイルへ出しません。`UserManager`経由で`USER`・有効・メール確認済みとして登録し、通知設定と同じDBトランザクションで保存します。初回設定メールは送らず、登録後すぐにログインできます。重複メールアドレスは拒否します。本番の新規ユーザー登録は管理画面のTSV取込を使用します。
 
-`ConnectionStrings:SalesSupport`は開発専用DBへ向け、`SalesSupport:DataProtection:KeyDirectory`には既存の絶対パス、`SalesSupport:Password:ForbiddenListPath`にはWeb公開領域外のUTF-8ファイルを設定してください。TSV取込や添付も試す場合は、`SalesSupport:Storage:TemporaryRoot`と`PermanentRoot`に、アプリ配置先の外にある別々の実在フォルダーを設定します。これらの値と秘密はコミットしません。
+共通設定ファイルの`ConnectionStrings:SalesSupport`は開発専用DBへ向け、`Portal:EnvironmentCode`を`DEVELOPMENT`にしてください。鍵と保存領域は共通設定ファイルのフォルダーからの相対パスで、禁止パスワードのUTF-8ファイルはPortalの実行フォルダーからの相対パスで指定します。Web公開領域とアプリの配置先の外に置き、実在する別々のフォルダーを指定してください。これらの実値と秘密はコミットしません。
 
 ## 検証
 
@@ -91,9 +103,11 @@ dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
+起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`をリポジトリ外へコピーして開発用DBの接続文字列と実際の配置パスを設定し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
+
 単体テストはDB・SMTPへ接続しません。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 
-利用者画面・管理画面を追加した変更では、上記のビルド・単体テストを実施していません。SDKを導入できる環境で`dotnet build`と`dotnet test`を実行し、EF Coreのクエリ変換、モデルバインド、Razorの描画をあわせて確認してください。
+2026-09-22の統合検証ではCommon 70件、Portal 58件の単体テストと両ソリューションのビルドに成功しました。実DBでのEF Coreクエリ実行、モデルバインド、ブラウザーでのRazor表示は未検証です。
 
 ## 暫定・残件
 

@@ -226,7 +226,7 @@ CREATE TABLE portal.Notices
     CONSTRAINT FK_Notices_Tools FOREIGN KEY (ToolId) REFERENCES portal.Tools (ToolId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT CK_Notices_TypeTarget CHECK ((NoticeType = 'SYSTEM' AND ToolId IS NULL) OR (NoticeType = 'TOOL' AND ToolId IS NOT NULL)),
     CONSTRAINT CK_Notices_Title CHECK (LEN(LTRIM(RTRIM(Title))) > 0),
-    CONSTRAINT CK_Notices_Content CHECK (LEN(LTRIM(RTRIM(Content))) > 0 AND LEN(Content) <= 10000)
+    CONSTRAINT CK_Notices_Content CHECK (LEN(LTRIM(RTRIM(Content))) > 0 AND DATALENGTH(Content) <= 20000)
 );
 
 CREATE TABLE portal.FaqCategories
@@ -259,7 +259,7 @@ CREATE TABLE portal.FaqItems
     CONSTRAINT FK_FaqItems_FaqCategories FOREIGN KEY (CategoryId) REFERENCES portal.FaqCategories (CategoryId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT UQ_FaqItems_Category_SortOrder UNIQUE (CategoryId, SortOrder),
     CONSTRAINT CK_FaqItems_Question CHECK (LEN(LTRIM(RTRIM(Question))) > 0),
-    CONSTRAINT CK_FaqItems_Answer CHECK (LEN(LTRIM(RTRIM(Answer))) > 0 AND LEN(Answer) <= 10000),
+    CONSTRAINT CK_FaqItems_Answer CHECK (LEN(LTRIM(RTRIM(Answer))) > 0 AND DATALENGTH(Answer) <= 20000),
     CONSTRAINT CK_FaqItems_SortOrder CHECK (SortOrder >= 0)
 );
 

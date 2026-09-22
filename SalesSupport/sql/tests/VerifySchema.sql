@@ -24,6 +24,34 @@ END TRY
 BEGIN CATCH
     IF ERROR_NUMBER() <> 547 THROW;
 END CATCH;
+-- LENは末尾空白を数えないため、本文の上限はDATALENGTHで確認する。
+INSERT portal.Notices (NoticeType, Title, Content, IsPublished)
+VALUES ('SYSTEM', N'Boundary notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000), 0);
+BEGIN TRY
+    INSERT portal.Notices (NoticeType, Title, Content, IsPublished)
+    VALUES ('SYSTEM', N'Overflow notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000) + N' ', 0);
+    THROW 51007, 'Notice trailing space accepted', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() <> 547 THROW;
+END CATCH;
+INSERT portal.FaqCategories (CategoryName, SortOrder) VALUES (N'Boundary FAQ', 0);
+DECLARE @FaqCategoryId int = SCOPE_IDENTITY();
+INSERT portal.FaqItems (CategoryId, Question, Answer, SortOrder, IsPublished)
+VALUES (@FaqCategoryId, N'Boundary answer?', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000), 0, 0);
+BEGIN TRY
+    INSERT portal.FaqItems (CategoryId, Question, Answer, SortOrder, IsPublished)
+    VALUES (@FaqCategoryId, N'Overflow answer?', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000) + N' ', 1, 0);
+    THROW 51008, 'FAQ trailing space accepted', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() <> 547 THROW;
+END CATCH;
+IF (SELECT COUNT(*) FROM portal.CodeMaster WHERE CodeType = 'TOOL_STATUS' AND
+    (CodeValue = 'PUBLIC' AND ColorCode = '#39B54A' OR
+     CodeValue = 'PRIVATE' AND ColorCode = '#EADFFF' OR
+     CodeValue = 'HIDDEN' AND ColorCode = '#E1E3E6')) <> 3
+    THROW 51009, 'Tool status colors invalid', 1;
 INSERT portal.ToolCategories (CategoryName, SortOrder) VALUES (N'Audit test', 0), (N'Audit test', 0);
 IF EXISTS (SELECT 1 FROM portal.ToolCategories WHERE CategoryName = N'Audit test' AND
     (UpdateCount <> 0 OR CreatedAt <> UpdatedAt OR CreatedBy <> USER_NAME() OR UpdatedBy <> USER_NAME()))
@@ -44,4 +72,4 @@ IF (SELECT UpdateCount FROM portal.SystemSettings WHERE SettingCategory = 'SITE'
     THROW 51005, 'Nested audit skipped', 1;
 IF (SELECT COUNT(*) FROM portal.CodeMaster) <> 20 THROW 51006, 'Master count invalid', 1;
 ROLLBACK TRANSACTION;
-PRINT 'PASS: constraints, audit, nested trigger, duplicate category, master count';
+PRINT 'PASS: constraints, body length, tool colors, audit, nested trigger, duplicate category, master count';

@@ -4,4 +4,7 @@
 **/App_Data/
 **/archive/
 **/appsettings.Development.json
+**/salessupport.common*.json
+!SalesSupport/config/salessupport.common.sample.json
+!SalesSupport/config/salessupport.common.Development.sample.json
 !SalesSupport/src/Portal/SalesSupport.Portal.Web/appsettings.Development.json

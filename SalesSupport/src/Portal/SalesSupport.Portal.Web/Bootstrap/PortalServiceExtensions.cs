@@ -23,11 +23,9 @@ public static class PortalServiceExtensions
     /// <summary>Commonの契約を利用してPortalの要求処理に必要なサービスを登録します。</summary>
     public static IServiceCollection AddSalesSupportPortal(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
     {
-        services.AddSalesSupportCommon(configuration, ApplicationKind.Portal);
-        var connection = configuration.GetConnectionString("SalesSupport");
-        if (string.IsNullOrWhiteSpace(connection)) throw new ConfigurationException("ConnectionStrings:SalesSupport");
-
-        services.AddDbContext<PortalDbContext>(options => options.UseSqlServer(connection));
+        services.AddSalesSupportCommon(ApplicationKind.Portal);
+        // 接続文字列はCommonが共通設定ファイルから取得した値を使用し、Portalの設定ファイルからは読み取りません。
+        services.AddDbContext<PortalDbContext>((provider, options) => options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
         // 禁止リストは起動時に一度だけ読み込み、欠落・読込不能を構成エラーとして扱います。
         services.AddSingleton<IPasswordPolicy>(PasswordPolicy.Load(configuration["SalesSupport:Password:ForbiddenListPath"], environment.WebRootPath));
         AddIdentity(services);

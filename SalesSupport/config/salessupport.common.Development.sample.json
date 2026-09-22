@@ -1,0 +1,45 @@
+{
+  "ConnectionStrings": {
+    "SalesSupport": ""
+  },
+  "Portal": {
+    "EnvironmentCode": "DEVELOPMENT"
+  },
+  "SalesSupport": {
+    "Application": {
+      "Name": "営業支援ポータル"
+    },
+    "Portal": {
+      "BaseUrl": "https://localhost:7065/"
+    },
+    "DataProtection": {
+      "KeyDirectory": "../keys"
+    },
+    "Storage": {
+      "TemporaryRoot": "../storage/temp",
+      "PermanentRoot": "../storage/files",
+      "CleanupTimeoutSeconds": 5
+    },
+    "Mail": {
+      "Host": "127.0.0.1",
+      "Port": 2525,
+      "TlsMode": "StartTls",
+      "UserName": "",
+      "Password": "",
+      "From": "noreply@example.invalid",
+      "ReplyTo": "",
+      "DevelopmentRecipient": "dev@example.invalid",
+      "TimeoutSeconds": 30,
+      "MaxRecipients": 1
+    },
+    "Http": {
+      "TimeoutSeconds": 30
+    },
+    "Logging": {
+      "TimeoutSeconds": 3
+    },
+    "Proxy": {
+      "KnownProxies": []
+    }
+  }
+}

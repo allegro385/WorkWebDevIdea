@@ -11,7 +11,7 @@ SQL Server用の初期構築スクリプトです。対象データベースを�
 - すべてSQL Server向けです。接続先データベースを明示してから実行してください。
 - `001_CreateTables.sql`は空のデータベース専用です。対象テーブルが一つでも存在する場合は停止します。
 - `002_SeedMasterData.sql`は同じキーの行を更新し、不足行を追加するため再実行できます。運用で追加した行は削除しません。
-- `900_SeedDummyData.sql`は本番投入禁止です。SQLCMD変数`$(EnvironmentName)`の`DEVELOPMENT`指定に加え、DBレベル拡張プロパティ`SalesSupport.AllowDummyData=YES`が必要です。これは運用上の二重確認であり、本番の自動判別ではありません。
+- `900_SeedDummyData.sql`は本番投入禁止です。スクリプト先頭の`@ExpectedDevelopmentDatabase`を実際の開発DB名へ書き換え、接続中のDB名との一致を確認してから実行してください。DBに`EnvironmentName`拡張プロパティがある場合は`DEVELOPMENT`以外を拒否します。DB名確認は運用上の確認であり、本番の自動判別ではありません。
 - ダミー投入は既存データを削除しません。ダミーID・名称の衝突時は停止します。再投入には新しい開発専用DBを用意してください。
 - ダミースクリプトはIdentityユーザーを直接作成しません。あらかじめアプリケーションのUserManager経由で、有効な`ADMIN`ユーザーと`USER`ユーザーを一名以上登録してください。
 - `ToolFiles`のダミー行は作成しません。物理ファイルを伴わない不整合な参照を避けるためです。
@@ -23,40 +23,32 @@ SQL Server用の初期構築スクリプトです。対象データベースを�
 ```powershell
 sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\001_CreateTables.sql -b
 sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterData.sql -b
-sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -v EnvironmentName=DEVELOPMENT -i .\sql\900_SeedDummyData.sql -b
 ```
+
+ダミーデータ投入には次のSSMS手順を使用します。`sqlcmd`や拡張プロパティ追加の事前コマンドは不要です。
 
 ### 既に管理者を作成した開発用DBへダミーデータを追加する
 
-以下は`SalesSupport`ディレクトリから実行します。先にPortalの開発専用`add-test-user`コマンドで有効な一般ユーザーを一名以上作成してください。既存DBにテーブルがある場合、`001_CreateTables.sql`は再実行しません。`002_SeedMasterData.sql`は必要なマスタが未投入の場合に適用します。
+先にPortalの開発専用`add-test-user`コマンドで有効な一般ユーザーを一名以上作成してください。既存DBにテーブルがある場合、`001_CreateTables.sql`は再実行しません。`002_SeedMasterData.sql`は必要なマスタが未投入の場合に適用します。
 
-対象が開発専用DBであることを接続先とDB名で確認してから、DBレベル拡張プロパティを一度だけ追加し、`900_SeedDummyData.sql`を実行します。以下の`SalesSupport`は実際の開発用DB名へ置き換えてください。
+1. SSMSで開発専用SQL Serverへ接続し、ツールバーのDB選択で対象の開発DBを選びます。接続先サーバー名とDB名を確認してください。
+2. `900_SeedDummyData.sql`をSSMSで開き、先頭の`@ExpectedDevelopmentDatabase = N'__開発DB名を入力__'`を対象DB名へ書き換えます。SQLCMDモードは不要です。
+3. ファイル全体を実行します。接続中のDB名と記入した名前が異なる場合、および既存の`EnvironmentName`拡張プロパティが`DEVELOPMENT`以外の場合は、データ変更前に停止します。
 
-```powershell
-sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -Q "EXEC sys.sp_addextendedproperty @name=N'SalesSupport.AllowDummyData', @value=N'YES';" -b
-sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -v EnvironmentName=DEVELOPMENT -i .\sql\900_SeedDummyData.sql -b
-```
-
-既に拡張プロパティがある場合、追加コマンドは失敗するため再実行せず値を確認してください。ダミーSQLも同じDBへ再投入せず、必要なら新しい開発専用DBを用意します。`sqlcmd`がない環境ではSQL Server Management StudioのSQLCMDモードでスクリプトを実行できます。DBの接続先を選び、`EnvironmentName`を`DEVELOPMENT`に設定してください。
+同じDBへダミーSQLを再投入せず、必要なら新しい開発専用DBを用意します。スクリプトは`SalesSupport.AllowDummyData`拡張プロパティを要求・追加しません。既存DBにこのプロパティが残っていても投入条件には使用しません。
 
 問い合わせ番号は`portal.AllocateInquiryId`を専用の短いトランザクションとして呼び出します。番号確保後の問い合わせ保存が失敗しても、確保済み番号は再利用しません。
 
-開発専用DBだけで、管理者が次を一度実行してダミー投入を許可します。本番DBには設定しません。
+## 初期構築SQLの整合修正
 
-```sql
-EXEC sys.sp_addextendedproperty @name=N'SalesSupport.AllowDummyData', @value=N'YES';
-```
-
-## 2026-09-21 整合修正
-
-後続の資料更新で、本文上限をDATALENGTHで判定する方針と、ツール状態の初期色をモックに合わせる方針を記載した。今回の依頼は資料・モックへの反映のため、001の本文CHECKと002のTOOL_STATUS色はまだ変更していない。次回SQL整合時の対象とする。
+001の本文CHECKは`DATALENGTH <= 20000`で末尾空白も含めて判定し、002のTOOL_STATUS色はDB設計の初期色に合わせた。既存DBへは001を再実行せず、制約の変更には別途ALTER移行を用意する。002を再実行すると該当コードの色が更新される。
 
 - 公開状態NULL拒否、業務日付のYYYY-MM-DD形式、数字3組のバージョン、拡張子の小文字・空値検証を修正。
 - 監査はUSER_NAME、登録時0・作成更新日時一致、更新時の作成監査保持、対象トリガー自身だけの再入防止に統一。
 - 未合意のカテゴリ名称・コード表示順の一意制約を除去。FAQカテゴリ内表示順等の既定制約は維持。
-- 002のコード・設定・ポリシーは確定仕様と一致するため値の変更なし。再投入を検証対象とする。
+- 002のコード・設定・ポリシーは確定仕様と一致する。TOOL_STATUS色は設計に合わせて変更し、再投入を検証対象とする。
 - 空の専用DBへ001・002を適用後、`tests/VerifySchema.sql`で制約・監査を検証できる。テスト変更はロールバックする。
-- これは新規構築SQLの修正であり、既存DBへのALTER移行ではない。001を既存DBへ再実行しない。実DBへの適用は行っていない。
+- これは新規構築SQLの修正であり、既存DBへのALTER移行ではない。001を既存DBへ再実行しない。既存業務DBへの適用は行っていない。
 - 追加確定事項を反映：ToolFiles.UploadedByUserId（AspNetUsersへの外部キー）・UploadedAt必須列、SITE＋USER_IMPORT（.tsv、1,000,000バイト）、バージョン各組0～99・先頭ゼロ禁止。TSV100件上限はPortalで検証する。
 - 既存DBへの移行ではアップロード情報の実値確認、不適合バージョンの個別修正が必要。新規構築SQLで既存DBを更新しない。
 - `log`スキーマ3表へ`OccurredAt`の非クラスター化インデックスを追加。ログ検索は期間で絞るため、件数増加時の全件スキャンを避ける。

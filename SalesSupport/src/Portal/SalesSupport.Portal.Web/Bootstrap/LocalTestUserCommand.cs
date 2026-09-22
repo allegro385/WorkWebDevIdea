@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Entities.Identity;
 using SalesSupport.Common.Validation;
 using SalesSupport.Portal.Web.Authentication;
@@ -61,7 +63,7 @@ public sealed class LocalTestUserProvisioner(PortalDbContext db, UserManager<App
 }
 
 /// <summary>開発環境でだけ一般ユーザーを対話入力で追加する導入補助コマンドです。</summary>
-public sealed class LocalTestUserCommand(IHostEnvironment environment, IConfiguration configuration,
+public sealed class LocalTestUserCommand(IHostEnvironment environment, IOptions<CommonOptions> commonOptions,
     ILocalTestUserProvisioner provisioner, IPasswordPolicy passwords, IInitialAdminConsole console)
 {
     /// <summary>Web起動や初期管理者作成と区別するコマンド名です。</summary>
@@ -73,7 +75,7 @@ public sealed class LocalTestUserCommand(IHostEnvironment environment, IConfigur
     /// <summary>二つの開発環境設定を確認し、秘密入力を表示せず一人分を作成します。</summary>
     public async Task<int> RunAsync(CancellationToken ct = default)
     {
-        if (!environment.IsDevelopment() || configuration["Portal:EnvironmentCode"] != "DEVELOPMENT")
+        if (!environment.IsDevelopment() || commonOptions.Value.EnvironmentCode != "DEVELOPMENT")
         {
             console.WriteLine("試験用ユーザーの追加は開発環境でだけ実行できます。");
             return 2;
