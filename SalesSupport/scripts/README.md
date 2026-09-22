@@ -63,7 +63,7 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 | `src/Template/` | `src/<名称>/` |
 | `template.slnx` | `<名称>.slnx` |
 | `__TOOL_ID__` | ToolId |
-| `__TOOL_NAME__` | `-ToolName`の値 |
+| `__TOOL_NAME__` | `-ToolName`の値をJSON文字列としてエスケープしたもの |
 | `7075` / `5275` | `-HttpsPort` / `-HttpPort`の値（指定時のみ） |
 
 テンプレートの`README.md`は複製せず、生成したツール用のREADMEを新しく作成します。`bin`・`obj`・`.vs`は複製しません。
@@ -82,6 +82,7 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 
 - プレースホルダーと旧テンプレート名が残っていないこと（ファイル名を含む）
 - ソリューションのプロジェクト参照と各プロジェクトの`ProjectReference`が実在すること
+- 生成したJSONが構文として有効で、ローカル起動設定のToolIdとアプリ名が入力値と一致すること（表示名に引用符やバックスラッシュがある場合も確認）
 - `dotnet restore`・`dotnet build`・`dotnet test`が成功すること（`-SkipBuild`指定時と.NET SDKがない場合は未実行として表示します）
 
 ## スクリプトが行わないこと

@@ -246,11 +246,43 @@ function Test-ProjectPaths {
     return ,$findings
 }
 
+<#
+.SYNOPSIS
+    生成したJSONの構文とローカル起動用のToolId・表示名を検査します。
+#>
+function Test-GeneratedJson {
+    param([string[]]$Roots, [string]$LaunchSettingsPath, [string]$ExpectedToolId, [string]$ExpectedName)
+
+    $findings = @()
+    foreach ($root in $Roots) {
+        foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.json') {
+            try { [void](ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($file.FullName)) -ErrorAction Stop) }
+            catch { $findings += "$($file.FullName)：JSONの構文が不正です。" }
+        }
+    }
+    try {
+        $settings = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($LaunchSettingsPath)) -ErrorAction Stop
+        $variables = $settings.profiles.https.environmentVariables
+        if ($variables.'SalesSupport__Application__ToolId' -cne $ExpectedToolId -or
+            $variables.'SalesSupport__Application__Name' -cne $ExpectedName) {
+            $findings += "$LaunchSettingsPath：ToolIdまたはアプリ名が入力値と一致しません。"
+        }
+    }
+    catch {
+        $message = "$LaunchSettingsPath：JSONの構文が不正です。"
+        if ($findings -notcontains $message) { $findings += $message }
+    }
+    return ,$findings
+}
+
 # ----- 1. 入力の検証と名称の導出 -----
 $identifier = ConvertTo-ToolIdentifier -Value $ToolId
 $toolIdValue = $ToolId.Trim()
 $displayName = $ToolName
 if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = $toolIdValue }
+# プレースホルダーはJSONの文字列値の内側にあるため、表示名をJSON文字列としてエスケープしてから差し込みます。
+$jsonDisplayName = ConvertTo-Json -InputObject $displayName -Compress
+$escapedDisplayName = $jsonDisplayName.Substring(1, $jsonDisplayName.Length - 2)
 
 if ([string]::IsNullOrWhiteSpace($SalesSupportRoot)) { $SalesSupportRoot = Split-Path -Parent $PSScriptRoot }
 $SalesSupportRoot = [System.IO.Path]::GetFullPath($SalesSupportRoot)
@@ -283,7 +315,7 @@ $replacements = @(
     @{ From = "src/$templateSourceFolder/"; To = "src/$identifier/" },
     @{ From = $templateSolutionName; To = $solutionName },
     @{ From = $toolIdPlaceholder; To = $toolIdValue },
-    @{ From = $toolNamePlaceholder; To = $displayName }
+    @{ From = $toolNamePlaceholder; To = $escapedDisplayName }
 )
 if ($HttpsPort -gt 0) { $replacements += @{ From = $templateHttpsPort; To = $HttpsPort.ToString() } }
 if ($HttpPort -gt 0) { $replacements += @{ From = $templateHttpPort; To = $HttpPort.ToString() } }
@@ -354,7 +386,9 @@ foreach ($token in $tokens) {
     if ($solutionText.Contains($token)) { $leftovers += "$destinationSolutionPath：$token" }
 }
 $pathFindings = Test-ProjectPaths -SolutionPath $destinationSolutionPath -SolutionRoot $SalesSupportRoot
-$findings = @($leftovers) + @($pathFindings)
+$launchSettingsPath = Join-Path $destinationProjectPath 'Properties/launchSettings.json'
+$jsonFindings = Test-GeneratedJson -Roots @($destinationProjectPath, $destinationTestsPath) -LaunchSettingsPath $launchSettingsPath -ExpectedToolId $toolIdValue -ExpectedName $displayName
+$findings = @($leftovers) + @($pathFindings) + @($jsonFindings)
 if ($findings.Count -gt 0) {
     Write-Host ""
     Write-Host "生成物の検査で問題が見つかりました。完成品として扱わないでください。" -ForegroundColor Red
@@ -362,7 +396,7 @@ if ($findings.Count -gt 0) {
     Write-Host "生成先：$destinationProjectPath、$destinationTestsPath、$destinationSolutionPath"
     exit 1
 }
-Write-Step "プレースホルダーの残存と参照先の検査に成功しました。"
+Write-Step "プレースホルダーの残存、参照先、JSONの検査に成功しました。"
 
 # ----- 6. restore・build・test -----
 if ($SkipBuild) {
