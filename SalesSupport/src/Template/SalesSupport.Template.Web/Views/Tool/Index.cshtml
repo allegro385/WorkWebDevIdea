@@ -1,0 +1,89 @@
+@model EstimateViewModel
+@*
+    テンプレートの入力画面です。文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択の
+    代表的な入力例を静的なRazorフォームで並べています。入力項目を動的生成する汎用フォーム基盤は設けません。
+    題材と項目は複製後に差し替える前提です。フォームの送信先、CSRFトークン、検証表示の仕組みは共通の作法として残します。
+*@
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="tt-form">
+    <partial name="_OperationMessage" model="Model.Message" />
+    <partial name="_ValidationSummary" />
+    <form method="post" asp-controller="Tool" asp-action="Execute" enctype="multipart/form-data" data-ss-once>
+        <section class="tt-panel">
+            <h2 class="tt-panel-title">入力内容</h2>
+            <div class="tt-card-body">
+                <div class="tt-field">
+                    <label class="form-label tt-field-label" asp-for="Input.ProjectName">
+                        案件名<span class="badge tt-required">必須</span>
+                    </label>
+                    <input class="form-control" asp-for="Input.ProjectName" maxlength="60" />
+                    <span class="tt-field-error" asp-validation-for="Input.ProjectName"></span>
+                </div>
+                <div class="tt-field">
+                    <label class="form-label tt-field-label" asp-for="Input.Quantity">
+                        数量<span class="badge tt-required">必須</span>
+                    </label>
+                    <input class="form-control" asp-for="Input.Quantity" type="number" min="1" max="9999" step="1" />
+                    <span class="tt-field-error" asp-validation-for="Input.Quantity"></span>
+                </div>
+                <div class="tt-field">
+                    <label class="form-label tt-field-label" asp-for="Input.UnitPrice">
+                        単価（円）<span class="badge tt-required">必須</span>
+                    </label>
+                    <input class="form-control" asp-for="Input.UnitPrice" type="number" min="0" max="9999999" step="1" />
+                    <span class="tt-field-error" asp-validation-for="Input.UnitPrice"></span>
+                </div>
+                <div class="tt-field">
+                    <label class="form-label tt-field-label" asp-for="Input.AppliedOn">
+                        適用日<span class="badge tt-required">必須</span>
+                    </label>
+                    <input class="form-control" asp-for="Input.AppliedOn" type="date" />
+                    <span class="tt-field-error" asp-validation-for="Input.AppliedOn"></span>
+                </div>
+                <div class="tt-field">
+                    <label class="form-label tt-field-label" asp-for="Input.CategoryCode">
+                        区分<span class="badge tt-required">必須</span>
+                    </label>
+                    <select class="form-select" asp-for="Input.CategoryCode">
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category.Code" selected="@(category.Code == Model.Input.CategoryCode)">@category.Name</option>
+                        }
+                    </select>
+                    <span class="tt-field-error" asp-validation-for="Input.CategoryCode"></span>
+                </div>
+                <div class="tt-field tt-field-top">
+                    <span class="form-label tt-field-label">出力方法</span>
+                    <div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Screen" id="output-screen" />
+                            <label class="form-check-label" for="output-screen">画面に表示する</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Download" id="output-download" />
+                            <label class="form-check-label" for="output-download">TSVファイルをダウンロードする</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="tt-field tt-field-top">
+                    <label class="form-label tt-field-label" for="detailFile">明細ファイル</label>
+                    <div>
+                        <input class="form-control" type="file" id="detailFile" name="detailFile" />
+                        <p class="tt-field-note">@Model.DetailFileHint</p>
+                        @* ファイルの項目エラーはServiceが同じ項目名で返すため、入力欄の横へ表示します。 *@
+                        @Html.ValidationMessage(EstimateService.DetailFileField, new { @class = "tt-field-error" })
+                    </div>
+                </div>
+                <div class="tt-actions tt-actions-center">
+                    <button type="submit" class="btn btn-primary">実行</button>
+                </div>
+            </div>
+        </section>
+    </form>
+    <p class="tt-note">
+        実行のたびに入力内容から計算し直します。同じ内容で続けて実行しても、登録・送信などの副作用はありません。
+        複製後に副作用のある処理を追加する場合は、二重実行を防ぐ方法をあわせて設計してください。
+    </p>
+</div>

@@ -93,6 +93,7 @@
 
 - リポジトリルートからCommonをビルド：`dotnet build SalesSupport/SalesSupport.Common.slnx`
 - リポジトリルートからPortalをビルド：`dotnet build SalesSupport/SalesSupport.Portal.slnx`
+- リポジトリルートからテンプレートツールをビルド：`dotnet build SalesSupport/template.slnx`
 - HTTPS起動確認：`dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https`
 - テストプロジェクト・補助スクリプトは存在と用途を確認して使用し、追加時は実際の実行手順を更新する。テンプレートの起動成功をログイン検証成功と扱わない。
 
