@@ -37,6 +37,8 @@ public static class PortalServiceExtensions
         services.AddScoped<IPasswordLinkService, PasswordLinkService>();
         services.AddScoped<IInitialAdminProvisioner, InitialAdminProvisioner>();
         services.AddScoped<InitialAdminBootstrapCommand>();
+        services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
+        services.AddScoped<LocalTestUserCommand>();
         services.AddSingleton<IInitialAdminConsole, InitialAdminConsole>();
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);

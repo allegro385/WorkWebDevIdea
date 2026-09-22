@@ -30,7 +30,9 @@
 
 ## 実行に必要な設定
 
-`appsettings.json`へ機密値を書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。いずれかが欠けると起動時に構成エラーで停止します。既定値での代替は行いません。
+共通値は`appsettings.json`、開発用の非機密値は`appsettings.Development.json`、本番用の非機密値は`appsettings.Production.json`へ置きます。ASP.NET Coreの環境名に対応するファイルが自動で読み込まれ、環境変数がその値を上書きします。接続文字列、SMTP認証情報、鍵・保存先等の環境固有値はファイルへ書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。必要な値が欠けると起動時に構成エラーで停止します。
+
+開発用ファイルのSMTPは`127.0.0.1:2525`を指す画面確認用の値です。SMTPサーバーを別途用意しない限りメールは送れません。本番用ファイルには公開URL、DB、SMTP、鍵・保存先の値を含めず、配備環境で明示して設定します。`Portal:EnvironmentCode`は各環境ファイルで設定しますが、環境変数に同名キーがある場合はそちらが優先されます。
 
 | キー | 内容 |
 | --- | --- |
@@ -66,6 +68,18 @@ dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- bootstra
 メールアドレス、表示名、パスワードと確認入力を順に求めます。パスワード入力ではIME、コピー＆ペースト、Backspaceを利用でき、入力内容は画面に表示されません。不一致時は最大3回まで再入力できます。パスワードをコマンド引数やログには記録しません。有効な`ADMIN`が既に存在する場合は何も作成せず終了します。作成時は`UserManager.CreateAsync`を使用し、通知設定2項目を有効にした`UserPreference`と同一トランザクションで確定します。
 
 パスワードは通常画面と同じ14～64文字・ASCII・禁止リストの条件を満たす必要があります。DB接続、テーブル、禁止リスト等の通常起動設定も必要です。SQLへの直接INSERTやパスワードハッシュの手動投入で代替しないでください。
+
+## ローカル試験用の一般ユーザーを追加する
+
+開発専用DBへ複数の一般ユーザーを追加してログインを試す場合は、Portalを停止し、リポジトリルートから次を一人につき一度実行します。`bootstrap-admin`と異なり、既存管理者や既存一般ユーザーがいても別のメールアドレスで追加できます。
+
+```text
+dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
+```
+
+このコマンドはASP.NET Coreの環境名が`Development`で、`Portal:EnvironmentCode`が`DEVELOPMENT`のときだけ動作します。`dotnet run`の既定起動プロファイルは`https`で、開発環境を設定します。メールアドレス、表示名、パスワードを対話入力し、パスワードは画面・コマンド引数・設定ファイルへ出しません。`UserManager`経由で`USER`・有効・メール確認済みとして登録し、通知設定と同じDBトランザクションで保存します。初回設定メールは送らず、登録後すぐにログインできます。重複メールアドレスは拒否します。本番の新規ユーザー登録は管理画面のTSV取込を使用します。
+
+`ConnectionStrings:SalesSupport`は開発専用DBへ向け、`SalesSupport:DataProtection:KeyDirectory`には既存の絶対パス、`SalesSupport:Password:ForbiddenListPath`にはWeb公開領域外のUTF-8ファイルを設定してください。TSV取込や添付も試す場合は、`SalesSupport:Storage:TemporaryRoot`と`PermanentRoot`に、アプリ配置先の外にある別々の実在フォルダーを設定します。これらの値と秘密はコミットしません。
 
 ## 検証
 

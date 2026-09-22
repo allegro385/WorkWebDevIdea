@@ -13,6 +13,11 @@ if (InitialAdminBootstrapCommand.IsRequested(args))
     await using var scope = app.Services.CreateAsyncScope();
     return await scope.ServiceProvider.GetRequiredService<InitialAdminBootstrapCommand>().RunAsync();
 }
+if (LocalTestUserCommand.IsRequested(args))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<LocalTestUserCommand>().RunAsync();
+}
 
 app.UseSalesSupportForwardedHeaders();
 app.UseSalesSupportErrors();

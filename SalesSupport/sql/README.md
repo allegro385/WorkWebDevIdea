@@ -26,6 +26,19 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -v EnvironmentName=DEVELOPMENT -i .\sql\900_SeedDummyData.sql -b
 ```
 
+### 既に管理者を作成した開発用DBへダミーデータを追加する
+
+以下は`SalesSupport`ディレクトリから実行します。先にPortalの開発専用`add-test-user`コマンドで有効な一般ユーザーを一名以上作成してください。既存DBにテーブルがある場合、`001_CreateTables.sql`は再実行しません。`002_SeedMasterData.sql`は必要なマスタが未投入の場合に適用します。
+
+対象が開発専用DBであることを接続先とDB名で確認してから、DBレベル拡張プロパティを一度だけ追加し、`900_SeedDummyData.sql`を実行します。以下の`SalesSupport`は実際の開発用DB名へ置き換えてください。
+
+```powershell
+sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -Q "EXEC sys.sp_addextendedproperty @name=N'SalesSupport.AllowDummyData', @value=N'YES';" -b
+sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -v EnvironmentName=DEVELOPMENT -i .\sql\900_SeedDummyData.sql -b
+```
+
+既に拡張プロパティがある場合、追加コマンドは失敗するため再実行せず値を確認してください。ダミーSQLも同じDBへ再投入せず、必要なら新しい開発専用DBを用意します。`sqlcmd`がない環境ではSQL Server Management StudioのSQLCMDモードでスクリプトを実行できます。DBの接続先を選び、`EnvironmentName`を`DEVELOPMENT`に設定してください。
+
 問い合わせ番号は`portal.AllocateInquiryId`を専用の短いトランザクションとして呼び出します。番号確保後の問い合わせ保存が失敗しても、確保済み番号は再利用しません。
 
 開発専用DBだけで、管理者が次を一度実行してダミー投入を許可します。本番DBには設定しません。
