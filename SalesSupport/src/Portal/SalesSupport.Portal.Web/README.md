@@ -30,20 +30,34 @@
 
 ## 実行に必要な設定
 
-`appsettings.json`へ機密値を書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。いずれかが欠けると起動時に構成エラーで停止します。既定値での代替は行いません。
+設定の取得元は2つです。いずれかが欠けると起動時に構成エラーで停止し、既定値での代替は行いません。
+
+### 1. Commonの共通設定ファイル（接続文字列を含む共通設定）
+
+接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
+
+環境変数`SalesSupport__CommonConfigPath`へ共通設定ファイルの絶対パスを設定してください。未設定・相対パス・不在・書式不正は構成エラーです。
 
 | キー | 内容 |
 | --- | --- |
 | `ConnectionStrings:SalesSupport` | SQL Serverの接続文字列 |
 | `Portal:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
-| `Portal:SupportContact` | ログイン画面へ表示する社内システム担当の連絡先。未設定なら表示しません |
 | `SalesSupport:Application:Name` | 画面・メールで使用するシステム名 |
 | `SalesSupport:Portal:BaseUrl` | httpsで末尾スラッシュ付きのPortal公開URL |
 | `SalesSupport:DataProtection:KeyDirectory` | 各アプリから参照できる実在の鍵共有フォルダー |
-| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）の絶対パス。Web公開領域の配下は拒否します |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | 一時・永続のファイル保存領域。Webルートと配置先の外に置きます |
 | `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です |
 | `SalesSupport:Proxy:KnownProxies` | 転送ヘッダーを信頼するプロキシのIP。未設定では転送ヘッダーを採用しません |
+| `SalesSupport:Http:TimeoutSeconds` / `SalesSupport:Logging:TimeoutSeconds` | 外部HTTPとログ処理の制限時間（既定30秒・3秒） |
+
+### 2. Portal固有の設定（`appsettings.json`・環境変数）
+
+`appsettings.json`へ機密値を書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。
+
+| キー | 内容 |
+| --- | --- |
+| `Portal:SupportContact` | ログイン画面へ表示する社内システム担当の連絡先。未設定なら表示しません |
+| `SalesSupport:Password:ForbiddenListPath` | 禁止パスワードのUTF-8テキスト（1行1件）の絶対パス。Web公開領域の配下は拒否します |
 | `SalesSupport:RateLimits:LoginPermitLimit` | ログイン要求の上限（既定30回/1分） |
 | `SalesSupport:RateLimits:PasswordRequestPermitLimit` | 再設定請求の上限（既定30回/1時間） |
 | `SalesSupport:Manual:RelativePath` | 利用マニュアルPDFの配置。永続保存領域からの相対パスで、既定は`Manual/sales-support-portal-manual.pdf` |
@@ -76,6 +90,8 @@ dotnet build SalesSupport/SalesSupport.Portal.slnx
 dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
+
+起動には共通設定ファイルが必要です。`SalesSupport/config/salessupport.common.sample.json`をリポジトリ外へコピーして開発用の実値を記入し、環境変数`SalesSupport__CommonConfigPath`へ絶対パスを設定してから実行してください。ビルドと単体テストには不要です。
 
 単体テストはDB・SMTPへ接続しません。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 

@@ -224,7 +224,7 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 3. 保護画面は既定Siteポリシー、管理はADMIN、匿名経路は明示する。静的ファイルには機密・提供ファイルを置かない。
 4. Commonの契約とDDL差分を整合→Identityと状態制御→参照画面→設定・管理更新→ファイル・メール→TSV・導入処理の順に実装する。
 
-接続文字列、SMTP、Portalの実URL、保存領域、鍵共有、実運用連絡先は配置設定。設定欠落をデモ値や許可状態で代替しない。サイト公開状態はDB運用で変更し、サイト管理画面へ設定編集を追加しない。
+接続文字列、SMTP、Portalの実URL、保存領域、鍵共有は共通設定ファイルの配置設定とし、Portalは接続文字列を自身の設定から読まずCommonの`IConnectionStringProvider`から受け取る。実運用連絡先などPortal固有の設定はPortalの設定から取得する。設定欠落をデモ値や許可状態で代替しない。サイト公開状態はDB運用で変更し、サイト管理画面へ設定編集を追加しない。
 
 ## 13. 検証・受入条件
 

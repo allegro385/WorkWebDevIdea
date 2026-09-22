@@ -26,11 +26,13 @@ namespace SalesSupport.Common.DependencyInjection;
 /// <summary>共通基盤をホストへ登録します。</summary>
 public static class CommonServiceExtensions
 {
-    /// <summary>共通データ取得・入力出力を登録します。Identity StoreはPortalが登録します。</summary>
-    public static IServiceCollection AddSalesSupportCommon(this IServiceCollection services, IConfiguration configuration, ApplicationKind kind)
+    /// <summary>共通データ取得・入力出力を登録します。共通設定はCommonの設定ファイルから取得し、Identity StoreはPortalが登録します。</summary>
+    public static IServiceCollection AddSalesSupportCommon(this IServiceCollection services, ApplicationKind kind)
     {
-        var connection = configuration.GetConnectionString("SalesSupport");
-        if (string.IsNullOrWhiteSpace(connection)) throw new ConfigurationException("ConnectionStrings:SalesSupport");
+        var configuration = CommonConfigurationFile.Load();
+        // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。
+        var connections = new ConnectionStringProvider(configuration);
+        services.AddSingleton<IConnectionStringProvider>(connections);
         services.AddOptions<CommonOptions>().Configure(options =>
         {
             options.Kind = kind;
@@ -45,8 +47,8 @@ public static class CommonServiceExtensions
           .Validate(x => Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
           .Validate(x => Path.IsPathFullyQualified(x.KeyDirectory) && Directory.Exists(x.KeyDirectory), "DataProtection:KeyDirectoryが必要です。")
           .ValidateOnStart();
-        services.AddDbContextFactory<CommonDbContext>(options => options.UseSqlServer(connection).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
-        services.AddDbContextFactory<LogDbContext>(options => options.UseSqlServer(connection));
+        services.AddDbContextFactory<CommonDbContext>(options => options.UseSqlServer(connections.SalesSupportDatabase).UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+        services.AddDbContextFactory<LogDbContext>(options => options.UseSqlServer(connections.SalesSupportDatabase));
         services.AddOptions<LoggingOptions>().Bind(configuration.GetSection("SalesSupport:Logging"))
             .Validate(x => x.TimeoutSeconds > 0, "Logging:TimeoutSecondsが不正です。").ValidateOnStart();
         AddStorage(services, configuration);
