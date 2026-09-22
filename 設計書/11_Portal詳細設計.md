@@ -189,6 +189,9 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ## 10. 問い合わせ受付・管理
 
+- 利用者の問い合わせ対象は一般公開・限定公開のツールを共通に表示し、POSTでも現在の状態を再検証する。非公開は選択不可とする。対象としての表示はツール本体の認可を変更しない。
+- 管理一覧のステータス色は`INQUIRY_STATUS`のCodeMaster.ColorCodeを表示用に検証した値から取得し、固定CSSのコード別色は持たない。
+
 ### 受付
 
 1. Categoryと対象の選択を必須にし、INQUIRY_TARGETマスタは作らない。PORTAL／OTHERはToolId=null、TOOLは表示・選択可能なToolsのIDを検証する。

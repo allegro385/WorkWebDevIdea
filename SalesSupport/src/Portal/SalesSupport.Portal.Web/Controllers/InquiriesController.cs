@@ -37,7 +37,7 @@ public sealed class InquiriesController(IInquiryService inquiries, ICurrentUserA
         if (!ModelState.IsValid) return await NewViewAsync(input, null, ct);
 
         await using var content = attachment?.OpenReadStream();
-        var submission = new InquirySubmission(user.UserId, user.RoleCode == "ADMIN", input.CategoryCode, input.Target,
+        var submission = new InquirySubmission(user.UserId, input.CategoryCode, input.Target,
             input.Content, content, attachment?.FileName);
         var acceptance = await inquiries.SubmitAsync(submission, ct);
         switch (acceptance.Outcome)
@@ -76,7 +76,7 @@ public sealed class InquiriesController(IInquiryService inquiries, ICurrentUserA
         {
             Input = input,
             Categories = await inquiries.GetCategoriesAsync(ct),
-            Targets = await inquiries.GetTargetsAsync(user.RoleCode == "ADMIN", ct),
+            Targets = await inquiries.GetTargetsAsync(ct),
             AttachmentHint = await inquiries.GetAttachmentHintAsync(ct),
             Message = message
         });
