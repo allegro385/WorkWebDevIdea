@@ -1,10 +1,10 @@
 # SalesSupport 共通設定ファイル
 
-Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなくこのファイル1つで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。
+Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなく配置環境ごとに1ファイルで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。本番向けは`salessupport.common.sample.json`、開発向けは`salessupport.common.Development.sample.json`です。いずれも実値は含みません。
 
 ## 配置
 
-1. `salessupport.common.sample.json`をサーバーへコピーし、`salessupport.common.json`等の名前で**Web公開領域とアプリの配置フォルダーの外**へ置きます。
+1. 環境に合う雛形をコピーし、`salessupport.common.json`等の名前で**Web公開領域とアプリの配置フォルダーの外**へ置きます。
 2. 下表の「導入時に設定」の項目へ実値を記入します。未設定のままでは起動時に構成エラーで停止し、既定値での代替は行いません。
 3. Portalと各WebツールのIISアプリケーションへ、環境変数`SalesSupport__CommonConfigPath`でこのファイルへの**相対パス**を設定します（`web.config`の`<environmentVariables>`）。全アプリが同じファイルを指します。
 4. ファイルのACLは、対象アプリケーションプールの読取りと運用管理者だけに限定します。Data Protectionの鍵フォルダーと同じ扱いです。
@@ -41,7 +41,7 @@ D:\SalesSupport\
 | 区分 | 与え方 | 例 |
 | --- | --- | --- |
 | 全アプリ共通 | 共通設定ファイル | `ConnectionStrings:SalesSupport`、`SalesSupport:Mail:*` |
-| アプリ固有 | 各アプリの環境変数 | `SalesSupport__Application__ToolId`（Webツールごとに必須） |
+| アプリ固有 | 各アプリの環境変数 | `SalesSupport__Application__ToolId`（Webツールごとに必須）、`SalesSupport__Application__Name`（ログに表示するアプリ名） |
 | アプリ固有の設定 | 各アプリの`appsettings.json`・環境変数 | Portalの`Portal:SupportContact`、`SalesSupport:RateLimits:*`等 |
 
 設定の変更はアプリの再起動で反映します。Commonは実行中に設定ファイルを再読込しません。共通設定ファイルを変更した場合はPortalと全Webツールを再起動します。
@@ -67,10 +67,18 @@ D:\SalesSupport\
 | `SalesSupport:Logging:TimeoutSeconds` | `3` | 既定値 |
 | `SalesSupport:Proxy:KnownProxies` | `[]` | 既定値。空では転送ヘッダーを採用しません |
 
-`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`はPortalで有効・ツールで無効をCommonが判定するため、共通設定ファイルへ書くと全アプリへ一律に適用されます。`ToolId`はツールごとに異なるため環境変数で与えます。
+開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。接続文字列は空なので、使い捨ての開発用DBを指定してください。
+
+`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`はPortalで有効・ツールで無効をCommonが判定するため、共通設定ファイルへ書くと全アプリへ一律に適用されます。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`がPortal名になります。
+
+## 既存設定からの移行
+
+既存のPortalの`appsettings.Development.json`／`appsettings.Production.json`や環境変数で指定していた`ConnectionStrings:SalesSupport`、`Portal:EnvironmentCode`、`SalesSupport:Application:Name`、`SalesSupport:Portal:BaseUrl`、鍵・保存先、SMTP等の共通値を、配置する共通設定ファイルへ移してください。Portal固有の禁止パスワード一覧、連絡先、要求制限、マニュアル設定はPortal側に残します。
+
+鍵・保存先の指定は共通設定ファイルを基準にした相対パスに、禁止パスワード一覧はPortalの実行フォルダーを基準にした相対パスに変更してください。従来の絶対パスは起動時に拒否されます。開発環境では共通設定ファイルの`Portal:EnvironmentCode`を`DEVELOPMENT`に設定し、SMTPに使用する値も同ファイルまたは環境変数で与えます。環境別のPortal設定ファイルに残した共通値はCommonからは読み取られません。
 
 ## 秘密情報の取扱い
 
-- 接続文字列、SMTPの資格情報を含むため、実値を記入したファイルをリポジトリへ追加しないでください。`**/salessupport.common.json`は`.gitignore`で除外しています。
+- 接続文字列、SMTPの資格情報を含むため、実値を記入したファイルをリポジトリへ追加しないでください。`salessupport.common*.json`は2つの雛形を除き`.gitignore`で除外しています。名前を変えた実ファイルも追加前に内容を確認してください。
 - 実値を作業記録、ログ、画面、メールへ出力しないでください。
 - 開発環境でもこの雛形をコピーして使用します。開発用の実値はリポジトリ外へ置き、`SalesSupport__CommonConfigPath`で指定します。

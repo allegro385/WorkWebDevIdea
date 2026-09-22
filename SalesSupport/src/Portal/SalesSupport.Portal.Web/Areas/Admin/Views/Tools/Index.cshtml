@@ -6,10 +6,17 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
+@section Scripts {
+    <script src="~/js/tool-order.js"></script>
+}
 <partial name="_OperationMessage" model="Model.Message" />
 <partial name="_ValidationSummary" />
 
-<form method="get" asp-area="Admin" asp-controller="Tools" asp-action="Index" class="pt-filter">
+@{
+    var canReorder = Model.Filter.CategoryId is null && Model.Filter.OwnerUserId is null && string.IsNullOrEmpty(Model.Filter.Status);
+}
+<h2 class="pt-panel-title">検索条件</h2>
+<form method="get" asp-area="Admin" asp-controller="Tools" asp-action="Index" class="pt-filter pt-filter-panel pt-tool-filter">
     <div class="pt-filter-item">
         <label class="form-label" for="filter-category">カテゴリ</label>
         <select class="form-select" id="filter-category" name="CategoryId">
@@ -46,47 +53,62 @@
     </div>
 </form>
 
-<form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveOrder" data-ss-once>
-    <table class="table pt-admin-table">
+<h2 class="pt-panel-title">ツール一覧</h2>
+<form method="post" asp-area="Admin" asp-controller="Tools" asp-action="SaveOrder" data-ss-once id="tool-order-form">
+    <div class="pt-list-toolbar">
+        <p>@(canReorder ? "表示順は一覧上で複数ツールをまとめて変更します。" : "並び替えは条件をクリアして全件表示で行ってください。")</p>
+        @if (Model.Tools.Count != 0 && canReorder)
+        {
+            <button type="submit" class="btn btn-primary">並び順を保存</button>
+        }
+    </div>
+    <div class="pt-scroll-x">
+    <table class="table pt-admin-table pt-tool-table">
         <thead>
             <tr>
-                <th scope="col" class="pt-col-order">表示順</th>
+                <th scope="col" class="pt-col-order">順番</th>
                 <th scope="col" class="pt-col-category">カテゴリ</th>
                 <th scope="col" class="pt-col-name">ツール名</th>
                 <th scope="col" class="pt-col-owner">担当者</th>
                 <th scope="col" class="pt-col-status">状態</th>
                 <th scope="col" class="pt-col-version">現在のバージョン</th>
+                <th scope="col" class="pt-col-reorder">並べ替え</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tool-order-rows">
             @if (Model.Tools.Count == 0)
             {
                 <tr>
-                    <td colspan="6" class="pt-empty">条件に一致するツールはありません。</td>
+                    <td colspan="7" class="pt-empty">条件に一致するツールはありません。</td>
                 </tr>
             }
             @for (var index = 0; index < Model.Tools.Count; index++)
             {
                 var tool = Model.Tools[index];
                 <tr>
-                    <td>
+                    <td class="pt-order-number">
                         <input type="hidden" name="Rows[@index].ToolId" value="@tool.ToolId" />
                         <input type="hidden" name="Rows[@index].UpdateCount" value="@tool.UpdateCount" />
-                        <input class="form-control pt-order-input" type="number" min="0" name="Rows[@index].SortOrder" value="@tool.SortOrder" />
+                        <input type="hidden" class="pt-order-value" name="Rows[@index].SortOrder" value="@(index + 1)" />
+                        <span class="pt-order-label">@(index + 1)</span>
                     </td>
                     <td>@tool.CategoryName</td>
                     <td><a asp-area="Admin" asp-controller="Tools" asp-action="Edit" asp-route-toolId="@tool.ToolId">@tool.ToolName</a></td>
                     <td>@tool.OwnerName</td>
                     <td><code-badge code-type="TOOL_STATUS" code-value="@tool.Status" /></td>
                     <td>@(string.IsNullOrEmpty(tool.Version) ? "未選択" : "Ver." + tool.Version)</td>
+                    <td>
+                        @if (canReorder)
+                        {
+                            <div class="pt-order-controls">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-direction="up" aria-label="@tool.ToolName を上へ移動">↑</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-direction="down" aria-label="@tool.ToolName を下へ移動">↓</button>
+                            </div>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
-    @if (Model.Tools.Count != 0)
-    {
-        <div class="pt-actions">
-            <button type="submit" class="btn btn-primary">表示順を保存</button>
-        </div>
-    }
+    </div>
 </form>

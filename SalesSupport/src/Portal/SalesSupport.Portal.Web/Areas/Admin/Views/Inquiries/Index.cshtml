@@ -6,23 +6,28 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
+@section Scripts {
+    <script src="~/js/inquiry-search.js"></script>
+}
 <partial name="_OperationMessage" model="Model.Message" />
 <partial name="_ValidationSummary" />
 
-<form method="get" asp-area="Admin" asp-controller="Inquiries" asp-action="Index" class="pt-filter pt-filter-wide">
-    <div class="pt-filter-item">
-        <label class="form-label" for="search-id">問い合わせID</label>
+<h2 class="pt-panel-title">検索条件</h2>
+<form method="get" asp-area="Admin" asp-controller="Inquiries" asp-action="Index" class="pt-inquiry-filter">
+    <div class="pt-filter-item pt-inquiry-filter-id">
+        <label class="form-label" for="search-id">問い合わせID（完全一致）</label>
         <input class="form-control" id="search-id" name="InquiryId" value="@Model.Search.InquiryId" maxlength="12" />
     </div>
-    <div class="pt-filter-item">
-        <label class="form-label" for="search-from">送信期間（開始）</label>
-        <input class="form-control" id="search-from" name="From" type="date" value="@(Model.Search.From?.ToString("yyyy-MM-dd"))" />
+    <div class="pt-filter-item pt-inquiry-filter-period">
+        <span class="form-label">送信期間（任意）</span>
+        <div class="pt-inquiry-date-range">
+            <input class="form-control" id="search-from" name="From" type="date" value="@(Model.Search.From?.ToString("yyyy-MM-dd"))" aria-label="送信期間の開始日" />
+            <span aria-hidden="true">～</span>
+            <input class="form-control" id="search-to" name="To" type="date" value="@(Model.Search.To?.ToString("yyyy-MM-dd"))" aria-label="送信期間の終了日" />
+            <button class="btn btn-outline-primary" id="clear-inquiry-period" type="button">期間をクリア</button>
+        </div>
     </div>
-    <div class="pt-filter-item">
-        <label class="form-label" for="search-to">送信期間（終了）</label>
-        <input class="form-control" id="search-to" name="To" type="date" value="@(Model.Search.To?.ToString("yyyy-MM-dd"))" />
-    </div>
-    <div class="pt-filter-item">
+    <div class="pt-filter-item pt-inquiry-filter-short">
         <label class="form-label" for="search-category">カテゴリ</label>
         <select class="form-select" id="search-category" name="CategoryCode">
             <option value="">すべて</option>
@@ -32,7 +37,7 @@
             }
         </select>
     </div>
-    <div class="pt-filter-item">
+    <div class="pt-filter-item pt-inquiry-filter-short">
         <label class="form-label" for="search-target">対象</label>
         <select class="form-select" id="search-target" name="Target">
             <option value="">すべて</option>
@@ -42,7 +47,7 @@
             }
         </select>
     </div>
-    <div class="pt-filter-item">
+    <div class="pt-filter-item pt-inquiry-filter-short">
         <label class="form-label" for="search-assignee">担当者</label>
         <select class="form-select" id="search-assignee" name="AssigneeUserId">
             <option value="">すべて</option>
@@ -52,7 +57,7 @@
             }
         </select>
     </div>
-    <div class="pt-filter-item">
+    <div class="pt-filter-item pt-inquiry-filter-short">
         <label class="form-label" for="search-status">ステータス</label>
         <select class="form-select" id="search-status" name="Status">
             <option value="">すべて</option>
@@ -62,20 +67,21 @@
             }
         </select>
     </div>
-    <div class="pt-filter-item pt-filter-grow">
-        <label class="form-label" for="search-note">管理者用備考</label>
+    <div class="pt-filter-item pt-inquiry-filter-text">
+        <label class="form-label" for="search-note">管理者用備考（部分一致）</label>
         <input class="form-control" id="search-note" name="AdminNote" value="@Model.Search.AdminNote" maxlength="2000" />
     </div>
-    <div class="pt-filter-item pt-filter-grow">
-        <label class="form-label" for="search-content">本文</label>
+    <div class="pt-filter-item pt-inquiry-filter-text">
+        <label class="form-label" for="search-content">本文（部分一致）</label>
         <input class="form-control" id="search-content" name="Content" value="@Model.Search.Content" maxlength="2000" />
     </div>
-    <div class="pt-filter-actions">
+    <div class="pt-filter-actions pt-inquiry-filter-actions">
         <button type="submit" class="btn btn-primary">検索</button>
         <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Inquiries" asp-action="Index">条件クリア</a>
     </div>
 </form>
 
+<h2 class="pt-panel-title">問い合わせ一覧</h2>
 <form method="post" asp-area="Admin" asp-controller="Inquiries" asp-action="Save" data-ss-once>
     <input type="hidden" name="Search.InquiryId" value="@Model.Search.InquiryId" />
     <input type="hidden" name="Search.From" value="@(Model.Search.From?.ToString("yyyy-MM-dd"))" />
@@ -93,9 +99,9 @@
                     <th scope="col" class="pt-col-inquiry">問い合わせID</th>
                     <th scope="col" class="pt-col-date">受付日</th>
                     <th scope="col" class="pt-col-select">カテゴリ</th>
-                    <th scope="col" class="pt-col-select">対象</th>
-                    <th scope="col" class="pt-col-owner">送信者</th>
-                    <th scope="col" class="pt-col-select">担当者</th>
+                    <th scope="col" class="pt-inquiry-col-target">対象</th>
+                    <th scope="col" class="pt-inquiry-col-sender">送信者</th>
+                    <th scope="col" class="pt-inquiry-col-assignee">担当者</th>
                     <th scope="col" class="pt-col-select">ステータス</th>
                     <th scope="col" class="pt-col-note">管理者用備考</th>
                     <th scope="col">本文</th>
@@ -111,6 +117,7 @@
                 @for (var index = 0; index < Model.Inquiries.Count; index++)
                 {
                     var inquiry = Model.Inquiries[index];
+                    var statusColor = Model.Statuses.FirstOrDefault(status => status.CodeValue == inquiry.Status)?.ColorCode;
                     <tr>
                         <td>
                             <input type="hidden" name="Input.Rows[@index].InquiryId" value="@inquiry.InquiryId" />
@@ -144,11 +151,11 @@
                                 }
                             </select>
                         </td>
-                        <td class="pt-status-@inquiry.Status">
+                        <td class="pt-inquiry-status" style="@(statusColor is null ? null : $"--pt-status-color:{statusColor}")">
                             <select class="form-select" name="Input.Rows[@index].Status">
                                 @foreach (var status in Model.Statuses)
                                 {
-                                    <option value="@status.CodeValue" selected="@(status.CodeValue == inquiry.Status)">@status.CodeName</option>
+                                    <option value="@status.CodeValue" data-color="@status.ColorCode" selected="@(status.CodeValue == inquiry.Status)">@status.CodeName</option>
                                 }
                             </select>
                         </td>

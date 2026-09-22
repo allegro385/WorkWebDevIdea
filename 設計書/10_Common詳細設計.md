@@ -131,7 +131,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 - 共通設定ファイルの場所は環境変数`SalesSupport__CommonConfigPath`で各アプリへ与える。値は各アプリの実行フォルダーからの相対パスとし、未設定、絶対パス、不在、書式不正は起動時に構成エラーとする。既定の場所は探索しない。
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
-- アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`は各アプリの環境変数で与える。
+- アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と障害ログに使う`Application:Name`は各アプリの環境変数で与える。
 - ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は従来どおり各アプリの設定から取得する。
 - 接続文字列の取得口はCommonの`IConnectionStringProvider.SalesSupportDatabase`だけとする。利用側は`IConfiguration`から接続文字列を読み取らない。
 

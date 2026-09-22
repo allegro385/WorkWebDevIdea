@@ -37,7 +37,7 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
         var rows = await (from tool in db.Tools.AsNoTracking()
                           join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                           where tool.Status == "PUBLIC" || tool.Status == "PRIVATE"
-                          orderby category.SortOrder, tool.SortOrder, tool.ToolName, tool.ToolId
+                          orderby tool.SortOrder, category.SortOrder, tool.ToolName, tool.ToolId
                           select new
                           {
                               tool.ToolId,

@@ -24,13 +24,13 @@
 | A006 サイト管理（システムお知らせの保存・確認付き手動送信） | 実装済み |
 | 最初の管理者を作成する導入用コマンドモード | 実装済み |
 
-画面を追加した範囲はビルド・単体テスト・ブラウザー操作のいずれも未実施です（[検証](#検証)を参照）。
+画面を追加した範囲はビルド・単体テストを実施済みです。ブラウザー操作は実DBに接続できる開発環境で別途確認してください（[検証](#検証)を参照）。
 
 ログインには初回パスワード設定済みかつ有効なユーザーが必要です。最初の管理者は本書の導入用コマンドで作成し、DDLやダミーデータへ直接パスワードハッシュを投入しないでください。
 
 ## 実行に必要な設定
 
-設定の取得元は2つです。いずれかが欠けると起動時に構成エラーで停止し、既定値での代替は行いません。
+設定の取得元は共通設定ファイルとPortal固有の設定です。必要な値が欠けると起動時に構成エラーで停止します。
 
 ### 1. Commonの共通設定ファイル（接続文字列を含む共通設定）
 
@@ -52,7 +52,7 @@
 
 ### 2. Portal固有の設定（`appsettings.json`・環境変数）
 
-`appsettings.json`へ機密値を書かず、配置環境の設定（環境変数・ユーザーシークレット等）で与えます。
+`appsettings.json`と環境別の`appsettings.Development.json`／`appsettings.Production.json`はPortal固有の非機密値だけに使用します。機密値は配置環境の設定で与えます。Commonが読む値はこれらのファイルからは取得されません。
 
 | キー | 内容 |
 | --- | --- |
@@ -81,6 +81,18 @@ dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- bootstra
 
 パスワードは通常画面と同じ14～64文字・ASCII・禁止リストの条件を満たす必要があります。DB接続、テーブル、禁止リスト等の通常起動設定も必要です。SQLへの直接INSERTやパスワードハッシュの手動投入で代替しないでください。
 
+## ローカル試験用の一般ユーザーを追加する
+
+開発専用DBへ複数の一般ユーザーを追加してログインを試す場合は、Portalを停止し、リポジトリルートから次を一人につき一度実行します。`bootstrap-admin`と異なり、既存管理者や既存一般ユーザーがいても別のメールアドレスで追加できます。
+
+```text
+dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
+```
+
+このコマンドはASP.NET Coreの環境名が`Development`で、共通設定の`Portal:EnvironmentCode`が`DEVELOPMENT`のときだけ動作します。`dotnet run`の既定起動プロファイルは`https`で、ASP.NET Coreの開発環境を設定します。メールアドレス、表示名、パスワードを対話入力し、パスワードは画面・コマンド引数・設定ファイルへ出しません。`UserManager`経由で`USER`・有効・メール確認済みとして登録し、通知設定と同じDBトランザクションで保存します。初回設定メールは送らず、登録後すぐにログインできます。重複メールアドレスは拒否します。本番の新規ユーザー登録は管理画面のTSV取込を使用します。
+
+共通設定ファイルの`ConnectionStrings:SalesSupport`は開発専用DBへ向け、`Portal:EnvironmentCode`を`DEVELOPMENT`にしてください。鍵と保存領域は共通設定ファイルのフォルダーからの相対パスで、禁止パスワードのUTF-8ファイルはPortalの実行フォルダーからの相対パスで指定します。Web公開領域とアプリの配置先の外に置き、実在する別々のフォルダーを指定してください。これらの実値と秘密はコミットしません。
+
 ## 検証
 
 リポジトリルートから実行します。使用するSDKは`SalesSupport/global.json`で10.0.401に固定しています。別のフィーチャーバンドのSDKしかない環境では「A compatible .NET SDK was not found」で停止するため、global.jsonを書き換えず、指定版数のSDKを導入してください。
@@ -91,11 +103,11 @@ dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
-起動には共通設定ファイルが必要です。`SalesSupport/config/salessupport.common.sample.json`をリポジトリ外へコピーして開発用の実値を記入し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
+起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`をリポジトリ外へコピーして開発用DBの接続文字列と実際の配置パスを設定し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
 
 単体テストはDB・SMTPへ接続しません。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 
-利用者画面・管理画面を追加した変更では、上記のビルド・単体テストを実施していません。SDKを導入できる環境で`dotnet build`と`dotnet test`を実行し、EF Coreのクエリ変換、モデルバインド、Razorの描画をあわせて確認してください。
+2026-09-22の統合検証ではCommon 70件、Portal 58件の単体テストと両ソリューションのビルドに成功しました。実DBでのEF Coreクエリ実行、モデルバインド、ブラウザーでのRazor表示は未検証です。
 
 ## 暫定・残件
 

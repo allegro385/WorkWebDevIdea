@@ -9,14 +9,14 @@
     var confirmAction = isTool ? "ConfirmToolSend" : "ConfirmSend";
 }
 <section class="pt-panel" id="notices">
-    <h2 class="pt-panel-title">お知らせ</h2>
+    <h2 class="pt-panel-title">登録済みのお知らせ</h2>
     <partial name="_OperationMessage" model="Model.Message" />
     <form method="post" asp-area="Admin" asp-controller="Notices" asp-action="@confirmAction" asp-route-toolId="@Model.ToolId" data-ss-once>
         <div class="pt-scroll pt-admin-scroll">
-            <table class="table pt-admin-table">
+            <table class="table pt-admin-table pt-notice-table">
                 <thead>
                     <tr>
-                        <th scope="col" class="pt-col-check">送信</th>
+                        <th scope="col" class="pt-col-check"><span class="visually-hidden">送信対象</span></th>
                         <th scope="col" class="pt-col-status">公開状態</th>
                         <th scope="col" class="pt-col-datetime">更新日時</th>
                         <th scope="col" class="pt-col-datetime">最終送信日時</th>
@@ -35,8 +35,8 @@
                     @foreach (var notice in Model.Notices)
                     {
                         <tr>
-                            <td><input type="checkbox" class="form-check-input" name="noticeIds" value="@notice.NoticeId" /></td>
-                            <td>@(notice.IsPublished ? "公開" : "非公開")</td>
+                            <td><input type="checkbox" class="form-check-input" name="noticeIds" value="@notice.NoticeId" aria-label="@notice.Title を送信対象に選択" /></td>
+                            <td><span class="pt-notice-published @(notice.IsPublished ? "" : "pt-notice-unpublished")">@(notice.IsPublished ? "公開" : "非公開")</span></td>
                             <td>@notice.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</td>
                             <td>@(notice.MailSentAt is { } sentAt ? sentAt.ToString("yyyy/MM/dd HH:mm") : "-----")</td>
                             <td>@notice.Title</td>
@@ -58,7 +58,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="pt-actions">
+        <div class="pt-actions pt-notice-actions">
             <button type="submit" class="btn btn-primary">選択したお知らせを送信</button>
             @if (isTool)
             {
