@@ -36,18 +36,24 @@
 
 ## 複製して新しいツールを作る
 
-生成スクリプトは未実装です（[設計方針 第3節](../../../../設計書/12_サンプル・テンプレートツール設計方針.md)）。当面は手作業で複製し、次の名称を新しいツールの名称へ置き換えます。ToolIdから名称を導出する規則は同資料 第6節の未決定事項です。
+ToolIdを入力して生成スクリプトを実行します。手順と命名規則は[生成スクリプトのREADME](../../../scripts/README.md)を参照してください。
+
+```text
+SalesSupport\scripts\new-tool.bat T001
+```
+
+スクリプトは次の名称を置き換えます。手作業で複製する場合も同じ範囲を変更します。テンプレート自身のソースは変更しません。
 
 | 置換対象 | テンプレートでの値 |
 | --- | --- |
 | ソリューション | `SalesSupport/template.slnx` |
 | プロジェクトフォルダー | `SalesSupport/src/Template/SalesSupport.Template.Web` |
-| プロジェクトファイル | `SalesSupport.Template.Web.csproj` |
-| ルート名前空間 | `SalesSupport.Template.Web` |
+| プロジェクト名・ルート名前空間 | `SalesSupport.Template.Web` |
 | テストプロジェクト | `SalesSupport/tests/SalesSupport.Template.Tests` |
+| 起動プロファイルのToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
 | 起動プロファイルのポート | `7075` / `5275` |
 
-`ToolId`はソースへ書きません。配置ごとに環境変数で与えます。複製後は`.slnx`と`ProjectReference`の相対パス、残っている`Template`の文字列を確認し、`restore`・`build`・`test`を実行してください。
+`ToolId`は配置設定であり、ソースへ書きません。`Properties/launchSettings.json`の`__TOOL_ID__`・`__TOOL_NAME__`はローカル起動用のプレースホルダーで、生成時に実値へ置き換わります。テンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
 
 ## 実行に必要な設定
 

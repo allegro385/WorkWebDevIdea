@@ -7,7 +7,9 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7075;http://localhost:5275",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "SalesSupport__Application__ToolId": "__TOOL_ID__",
+        "SalesSupport__Application__Name": "__TOOL_NAME__"
       }
     }
   }
