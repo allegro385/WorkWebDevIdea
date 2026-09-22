@@ -24,9 +24,9 @@ DECLARE @Codes TABLE
 );
 
 INSERT @Codes (CodeType, CodeValue, CodeName, SortOrder, ColorCode) VALUES
-('TOOL_STATUS',      'PUBLIC',          N'一般公開',         10, '#2E7D32'),
-('TOOL_STATUS',      'PRIVATE',         N'限定公開',         20, '#6A1B9A'),
-('TOOL_STATUS',      'HIDDEN',          N'非公開',           30, '#616161'),
+('TOOL_STATUS',      'PUBLIC',          N'一般公開',         10, '#39B54A'),
+('TOOL_STATUS',      'PRIVATE',         N'限定公開',         20, '#EADFFF'),
+('TOOL_STATUS',      'HIDDEN',          N'非公開',           30, '#E1E3E6'),
 ('SITE_STATUS',      'PUBLIC',          N'Public公開',       10, '#2E7D32'),
 ('SITE_STATUS',      'PRIVATE',         N'Private公開',      20, '#6A1B9A'),
 ('TOOL_TYPE',        'DESKTOP',         N'デスクトップ',     10, NULL),

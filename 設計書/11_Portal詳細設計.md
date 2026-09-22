@@ -2,7 +2,7 @@
 
 [資料一覧へ戻る](README.md)
 
-2026-09-21作成。対象は `SalesSupport/src/Portal/SalesSupport.Portal.Web`。本書は実装設計であり、実装済みを示さない。画面・業務条件は[02](02_画面・機能設計.md)、物理列は[04](04_DB設計.md)、共通契約は[10](10_Common詳細設計.md)を正とする。現在のPortalはMVCテンプレートであり、静的モックの認証・保存・メール操作を実装として流用しない。
+2026-09-21作成。対象は `SalesSupport/src/Portal/SalesSupport.Portal.Web`。画面・業務条件は[02](02_画面・機能設計.md)、物理列は[04](04_DB設計.md)、共通契約は[10](10_Common詳細設計.md)を正とする。PortalはASP.NET Core MVCで実装する。静的モックの認証・保存・メール操作を実装として流用しない。
 
 ## 1. 構成・責任分界
 
@@ -57,7 +57,7 @@ SalesSupport.Portal.Web/
 | P009 設定・再設定 | Account / GET・POST `/account/password/setup`、`/account/password/reset`、POST `/account/password/request` | PasswordLinkService | 匿名可、リンク・要求制限 |
 | P010 変更 | Account / GET・POST `/account/password/change` | AccountService | 本人・Site |
 | ログアウト | Commonの同一アプリ内POSTハンドラー | Common | 公開状態にかかわらずCSRF検証 |
-| P011 非公開案内 | Home / GET `/private` | PortalShellService | 匿名可、情報最小限 |
+| P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
 | P002 トップ | Home / GET `/` | HomeService | Site |
 | P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites` | ToolQueryService | Site |
 | P004 詳細 | Tools / GET `/tools/{toolId}` | ToolQueryService | Site＋ToolDetail |
@@ -68,7 +68,7 @@ SalesSupport.Portal.Web/
 | P006 個人設定 | Preferences / GET・POST `/preferences` | PreferenceService | 本人・Site |
 | P007 問い合わせ | Inquiries / GET・POST `/inquiries/new` | InquiryService | Site |
 | A001 ツール管理 | Admin/Tools / GET `/admin/tools`、GET `/admin/tools/{toolId}` | ToolAdminService | ADMIN・ToolManage |
-| ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileService | ADMIN・ToolManage |
+| ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
 | A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除・再発行・取込 | UserAdminService / UserImportService | ADMIN |
 | A003 ログ管理 | Admin/Logs / GET `/admin/logs`、`/admin/logs/export` | LogExportService | ADMIN |
 | A005 問い合わせ管理 | Admin/Inquiries / GET一覧・詳細、POST保存 | InquiryAdminService | ADMIN |
@@ -83,7 +83,7 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 
 - Controllerは認可、モデル検証、Service呼出し、画面／応答の選択のみを担当する。送信者UserIdは検証済みCurrentUserから取得する。
 - 通常フォームは成功後リダイレクト。入力不正は入力値と項目別エラーを再表示し、パスワードとファイル選択は復元しない。秘密情報・問い合わせ本文をTempDataのCookieに保存しない。
-- ツール編集の4区画（お知らせ、履歴、基本情報、提供内容）は独立フォーム・独立保存。部分応答で対象区画のみ差し替え、他区画の未保存入力を維持する。フォームを入れ子にしない。
+- ツール編集の4区画（お知らせ、履歴、基本情報、提供内容）は独立フォーム・独立保存。保存後は画面全体を再描画する。入力不正時は対象区画の入力とエラーを保持し、他区画は保存済みの内容を再表示する。フォームを入れ子にしない。
 - 保存中のボタン無効化は操作補助であり、二重実行防止や認可の代わりにしない。既知の業務競合は409、入力不正は400、取得不能は503を基本とし、画面では安全な日本語に変換する。
 - 共通認証の401/403/404等の扱いを継承する。HTMLとAPIの応答を混同せず、APIへログインHTMLを返さない。
 - テキストはRazorでエスケープし、本文はCSSで改行表示する。HTMLとして保存・描画しない。認証・個人情報画面とダウンロードにはno-storeを設定する。

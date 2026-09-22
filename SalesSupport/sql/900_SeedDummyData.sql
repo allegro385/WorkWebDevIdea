@@ -8,11 +8,16 @@ SET CONCAT_NULL_YIELDS_NULL ON;
 SET ARITHABORT ON;
 SET NUMERIC_ROUNDABORT OFF;
 
-IF N'$(EnvironmentName)' <> N'DEVELOPMENT'
-    THROW 50900, N'ダミーデータはEnvironmentName=DEVELOPMENTを明示した場合だけ投入できます。', 1;
+-- SSMSで開発専用DBに接続し、次の名前を実際の開発DB名に書き換えてから実行してください。
+-- SQLCMDモードやDB拡張プロパティの事前登録は不要です。
+DECLARE @ExpectedDevelopmentDatabase sysname = N'__開発DB名を入力__';
 
-IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class = 0 AND name = N'SalesSupport.AllowDummyData' AND CONVERT(nvarchar(10), value) = N'YES')
-    THROW 50903, N'開発専用DBへのAllowDummyData指定が必要です。本番DBへ設定しないでください。', 1;
+IF @ExpectedDevelopmentDatabase = N'__開発DB名を入力__' OR DB_NAME() <> @ExpectedDevelopmentDatabase
+    THROW 50900, N'開発DB名をスクリプト先頭に入力し、接続先DB名と一致することを確認してください。', 1;
+
+-- 既存の環境区分が明示されているDBでは、開発環境以外への投入を拒否します。
+IF EXISTS (SELECT 1 FROM sys.extended_properties WHERE class = 0 AND name = N'EnvironmentName' AND CONVERT(nvarchar(128), value) <> N'DEVELOPMENT')
+    THROW 50903, N'接続先DBのEnvironmentNameがDEVELOPMENTではありません。', 1;
 
 IF OBJECT_ID(N'portal.Tools', N'U') IS NULL
     THROW 50901, N'先に001_CreateTables.sqlと002_SeedMasterData.sqlを実行してください。', 1;

@@ -142,8 +142,9 @@ public static class CommonServiceExtensions
     {
         var isDevelopment = configuration["Portal:EnvironmentCode"] == "DEVELOPMENT";
         services.AddOptions<MailTemplateOptions>();
-        services.AddOptions<MailOptions>().Configure(options => options.Enabled = kind == ApplicationKind.Portal)
-            .Bind(configuration.GetSection("SalesSupport:Mail"))
+        services.AddOptions<MailOptions>().Bind(configuration.GetSection("SalesSupport:Mail"))
+            // 共通設定ファイルや環境変数にEnabledが含まれていても、メール利用可否はアプリ種別で確定します。
+            .PostConfigure(options => options.Enabled = kind == ApplicationKind.Portal)
             .Validate(x => !x.Enabled || !string.IsNullOrWhiteSpace(x.Host), "Mail:Hostが必要です。")
             .Validate(x => !x.Enabled || x.Port is > 0 and <= 65535, "Mail:Portが不正です。")
             .Validate(x => !x.Enabled || x.TlsMode is MailTlsMode.StartTls or MailTlsMode.SslOnConnect, "Mail:TlsModeを明示してください。")
