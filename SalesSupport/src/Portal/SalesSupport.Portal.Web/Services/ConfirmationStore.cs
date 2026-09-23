@@ -8,7 +8,7 @@ public sealed record OneTimeTicket(string Purpose);
 
 /// <summary>確認待ちデータを一度だけ実行させるためのサーバー側保持です。</summary>
 /// <remarks>
-/// 保持期限と総保持量はPortal詳細設計第14節の残件であり、ここでは上限付きのメモリー保持を暫定値で実装します。
+/// 発行から30分、全用途合計で同時200件までメモリーに保持します。バイト数の独立上限は設けません。
 /// プロセス再起動で失効し、永続化・自動再開は行いません。ブラウザーのhidden値を登録データの正本にしません。
 /// </remarks>
 public interface IConfirmationStore
@@ -28,10 +28,10 @@ public interface IConfirmationStore
 /// <summary>期限切れを取り除きながら、上限件数までの確認データを保持します。</summary>
 public sealed class ConfirmationStore(IApplicationClock clock) : IConfirmationStore
 {
-    /// <summary>同時に保持する確認データの暫定上限です。</summary>
+    /// <summary>全用途で同時に保持する確認データの上限です。</summary>
     public const int Capacity = 200;
 
-    /// <summary>確認データの暫定的な保持期限です。</summary>
+    /// <summary>確認データの発行からの保持期限です。</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
 
     private readonly Dictionary<Guid, Entry> entries = new();
@@ -60,7 +60,7 @@ public sealed class ConfirmationStore(IApplicationClock clock) : IConfirmationSt
         {
             RemoveExpired(now);
             if (!entries.TryGetValue(confirmationId, out var entry)) return null;
-            // 本人以外の要求では取り出さず、対象データも残しません。
+            // 本人以外の要求では取り出さず、本人が期限内に使用できるよう対象データを維持します。
             if (entry.UserId != userId || entry.Payload is not T payload) return null;
             entries.Remove(confirmationId);
             return payload;
