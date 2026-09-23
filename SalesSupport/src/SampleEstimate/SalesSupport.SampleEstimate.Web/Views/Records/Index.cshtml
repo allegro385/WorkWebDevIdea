@@ -1,0 +1,29 @@
+@model RecordListViewModel
+@section Head { <link rel="stylesheet" href="~/css/site.css" /> }
+<div class="tt-form">
+    <partial name="_ValidationSummary" />
+    <section class="tt-panel">
+        <h2 class="tt-panel-title">案件を探す</h2>
+        <div class="tt-card-body">
+            <form method="get" asp-controller="Records" asp-action="Index">
+                <div class="tt-field"><label class="form-label" for="from">適用日（開始）</label><input class="form-control" id="from" name="from" type="date" value="@Model.From?.ToString("yyyy-MM-dd")" /></div>
+                <div class="tt-field"><label class="form-label" for="to">適用日（終了）</label><input class="form-control" id="to" name="to" type="date" value="@Model.To?.ToString("yyyy-MM-dd")" /></div>
+                <div class="tt-field"><label class="form-label" for="categoryCode">区分</label><select class="form-select" id="categoryCode" name="categoryCode"><option value="">すべて</option>@foreach (var item in Model.Categories) { <option value="@item.Code" selected="@(item.Code == Model.CategoryCode)">@item.Name</option> }</select></div>
+                <button class="btn btn-primary" type="submit">検索・集計</button>
+            </form>
+        </div>
+    </section>
+    <section class="tt-panel">
+        <h2 class="tt-panel-title">一致した案件</h2>
+        <p>@Model.Result.Count.ToString("N0") 件、合計 @Model.Result.Total.ToString("N0") 円</p>
+        <div class="table-responsive"><table class="table table-striped"><thead><tr><th>案件名</th><th>適用日</th><th>区分</th><th class="text-end">合計</th><th>操作</th></tr></thead><tbody>
+            @foreach (var item in Model.Result.Items)
+            {
+                <tr><td>@item.ProjectName</td><td>@item.AppliedOn.ToString("yyyy/MM/dd")</td><td>@Model.Categories.FirstOrDefault(x => x.Code == item.CategoryCode)?.Name</td><td class="text-end">@item.Total.ToString("N0") 円</td><td><a asp-controller="Records" asp-action="Details" asp-route-id="@item.RecordId">詳細</a></td></tr>
+            }
+        </tbody></table></div>
+        @if (Model.Result.Count > Model.Result.Items.Count) { <p class="tt-note">一覧は更新の新しい100件まで表示します。件数と合計は検索条件に一致する全件です。</p> }
+        @if (Model.Result.Count == 0) { <p>該当する案件はありません。</p> }
+    </section>
+    <a class="btn btn-outline-primary" asp-controller="Tool" asp-action="Index">新しい見積を試算</a>
+</div>

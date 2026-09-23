@@ -1,0 +1,18 @@
+@model RecordEditViewModel
+@section Head { <link rel="stylesheet" href="~/css/site.css" /> }
+<div class="tt-form">
+    <partial name="_ValidationSummary" />
+    <section class="tt-panel"><h2 class="tt-panel-title">案件の編集</h2><div class="tt-card-body">
+        <form method="post" asp-controller="Records" asp-action="Edit" asp-route-id="@Model.RecordId" data-ss-once>
+            <input type="hidden" asp-for="RecordId" /><input type="hidden" asp-for="UpdateCount" />
+            <div class="tt-field"><label class="form-label" asp-for="Input.ProjectName">案件名</label><input class="form-control" asp-for="Input.ProjectName" maxlength="60" /><span class="tt-field-error" asp-validation-for="Input.ProjectName"></span></div>
+            <div class="tt-field"><label class="form-label" asp-for="Input.Quantity">数量</label><input class="form-control" asp-for="Input.Quantity" type="number" min="1" max="9999" /><span class="tt-field-error" asp-validation-for="Input.Quantity"></span></div>
+            <div class="tt-field"><label class="form-label" asp-for="Input.UnitPrice">単価（円）</label><input class="form-control" asp-for="Input.UnitPrice" type="number" min="0" max="9999999" /><span class="tt-field-error" asp-validation-for="Input.UnitPrice"></span></div>
+            <div class="tt-field"><label class="form-label" asp-for="Input.AppliedOn">適用日</label><input class="form-control" asp-for="Input.AppliedOn" type="date" /><span class="tt-field-error" asp-validation-for="Input.AppliedOn"></span></div>
+            <div class="tt-field"><label class="form-label" asp-for="Input.CategoryCode">区分</label><select class="form-select" asp-for="Input.CategoryCode">@foreach (var item in Model.Categories) { <option value="@item.Code">@item.Name</option> }</select><span class="tt-field-error" asp-validation-for="Input.CategoryCode"></span></div>
+            <button class="btn btn-primary" type="submit">再計算して保存</button>
+        </form>
+    </div></section>
+    <p class="tt-note">編集時に明細ファイルは再送できません。更新後の明細行数は未指定となります。同時更新があった場合は上書きせず、開き直しを案内します。</p>
+    <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Details" asp-route-id="@Model.RecordId">詳細へ戻る</a>
+</div>

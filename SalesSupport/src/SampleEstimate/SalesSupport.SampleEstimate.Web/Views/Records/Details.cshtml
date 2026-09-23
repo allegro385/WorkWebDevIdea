@@ -1,0 +1,18 @@
+@model SalesSupport.SampleEstimate.Web.Data.EstimateRecord
+@section Head { <link rel="stylesheet" href="~/css/site.css" /> }
+<div class="tt-form">
+    <section class="tt-panel"><h2 class="tt-panel-title">保存した案件の要約</h2><div class="tt-card-body"><dl class="tt-result">
+        <dt>案件名</dt><dd>@Model.ProjectName</dd>
+        <dt>適用日</dt><dd>@Model.AppliedOn.ToString("yyyy/MM/dd")</dd>
+        <dt>区分</dt><dd>@Model.CategoryCode</dd>
+        <dt>数量</dt><dd>@Model.Quantity.ToString("N0")</dd>
+        <dt>単価</dt><dd>@Model.UnitPrice.ToString("N0") 円</dd>
+        <dt>小計</dt><dd>@Model.Subtotal.ToString("N0") 円</dd>
+        <dt>割引額</dt><dd>@Model.DiscountAmount.ToString("N0") 円</dd>
+        <dt>合計</dt><dd>@Model.Total.ToString("N0") 円</dd>
+        <dt>明細行数</dt><dd>@(Model.DetailRowCount is { } rows ? rows.ToString("N0") + " 行" : "ファイルの指定なし")</dd>
+        <dt>更新日時（UTC）</dt><dd>@Model.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</dd>
+    </dl></div></section>
+    <div class="tt-actions"><a class="btn btn-primary" asp-controller="Records" asp-action="Edit" asp-route-id="@Model.RecordId">編集</a><a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">一覧へ戻る</a></div>
+    <p class="tt-note">保存したのは数値の要約だけです。明細ファイルとTSVは保存していません。</p>
+</div>
