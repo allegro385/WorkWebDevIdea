@@ -24,10 +24,9 @@ public sealed class ToolController(IEstimateService estimates, IUsageLogger usag
     /// <param name="ct">要求のキャンセルトークンです。</param>
     /// <returns>初期値を設定した入力画面です。</returns>
     [HttpGet("")]
+    [TypeFilter(typeof(WebOpenLoggingFilter))]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        // ログ記録の失敗で画面表示を失敗させません。記録結果はCommonが判定して返します。
-        await usage.WriteAsync(new UsageEvent(ToolId, "WEB_OPEN", "SUCCESS"), ct);
         var input = new EstimateInput
         {
             AppliedOn = await businessDate.GetTodayAsync(ct),
@@ -48,21 +47,38 @@ public sealed class ToolController(IEstimateService estimates, IUsageLogger usag
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
 
-        await using var content = detailFile?.OpenReadStream();
-        var outcome = await estimates.CalculateAsync(new EstimateRequest(input, content, detailFile?.FileName), ct);
-        if (outcome.Result is not { } result)
+        EstimateOutcome outcome;
+        IActionResult? preparedResult = null;
+        try
+        {
+            await using var content = detailFile?.OpenReadStream();
+            outcome = await estimates.CalculateAsync(new EstimateRequest(input, content, detailFile?.FileName), ct);
+            if (outcome.Result is { } result)
+            {
+                // 出力の生成が終わるまで成功ログを記録しません。結果ファイルは保存せず、POSTの応答で返します。
+                if (input.Output == EstimateOutput.Download)
+                    preparedResult = File(await estimates.WriteTsvAsync(result, ct), "text/tab-separated-values", estimates.BuildFileName(result));
+                else
+                {
+                    ViewData.SetPageShell(Shell("計算結果"));
+                    preparedResult = View("Result", result);
+                }
+            }
+        }
+        catch
+        {
+            await usage.WriteAsync(new UsageEvent(ToolId, "WEB_EXECUTE", "FAILURE"), CancellationToken.None);
+            throw;
+        }
+
+        if (outcome.Result is null)
         {
             ModelState.AddValidationResult(outcome.Errors);
             return await FailureViewAsync(input, ct);
         }
 
         await usage.WriteAsync(new UsageEvent(ToolId, "WEB_EXECUTE", "SUCCESS"), ct);
-        // ファイル出力は実行応答でそのまま返し、結果を保存しません。後から同じファイルを取得する経路は設けません。
-        if (input.Output == EstimateOutput.Download)
-            return File(await estimates.WriteTsvAsync(result, ct), "text/tab-separated-values", estimates.BuildFileName(result));
-
-        ViewData.SetPageShell(Shell("計算結果"));
-        return View("Result", result);
+        return preparedResult!;
     }
 
     /// <summary>設定から取得した対象ツールのIDです。ログとアップロード条件の判定に使用します。</summary>

@@ -23,7 +23,7 @@ public sealed class ConfirmationStoreTests
         Assert.Null(store.Consume<OneTimeTicket>(confirmationId.Value, Owner));
     }
 
-    /// <summary>実行者が異なる場合は取り出せず、確認内容も残らないことを確認します。</summary>
+    /// <summary>実行者が異なる場合は取り出せず、本人のために確認内容が残ることを確認します。</summary>
     [Fact]
     public void ConsumeRejectsOtherUser()
     {
