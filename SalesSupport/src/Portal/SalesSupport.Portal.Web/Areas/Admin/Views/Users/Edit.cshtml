@@ -1,6 +1,6 @@
 @model UserEditViewModel
 @*
-    A002 ユーザー管理の編集です。権限は参照表示のみとし、画面からは変更しません。
+    A002 ユーザー管理の編集です。一般ロール間の変更だけを許可します。
     パスワードの直接指定とハッシュの表示は行いません。
 *@
 @section Head {
@@ -27,8 +27,21 @@
             </select>
         </div>
         <div class="pt-field">
-            <span class="form-label pt-field-label">権限</span>
-            <div><code-badge code-type="USER_ROLE" code-value="@Model.RoleCode" /></div>
+            <label class="form-label pt-field-label" for="user-role">ロール</label>
+            @if (Model.RoleCode == "ADMIN")
+            {
+                <input type="hidden" name="RoleCode" value="ADMIN" />
+                <div>@Model.RoleName</div>
+            }
+            else
+            {
+                <select class="form-select" id="user-role" name="RoleCode">
+                    @foreach (var role in Model.GeneralRoles)
+                    {
+                        <option value="@role.CodeValue" selected="@(role.CodeValue == Model.Input.RoleCode)">@role.CodeName</option>
+                    }
+                </select>
+            }
         </div>
         <div class="pt-actions">
             <button type="submit" class="btn btn-primary">保存</button>

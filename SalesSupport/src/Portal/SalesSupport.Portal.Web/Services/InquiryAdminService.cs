@@ -178,7 +178,7 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
     {
         var tools = await (from tool in db.Tools.AsNoTracking()
                            join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
-                           orderby category.SortOrder, tool.SortOrder, tool.ToolName, tool.ToolId
+                           orderby tool.SortOrder, tool.ToolName, tool.ToolId
                            select new { tool.ToolId, tool.ToolName }).ToListAsync(ct);
         List<InquiryTargetOption> targets = [new("PORTAL", "ポータルサイト")];
         targets.AddRange(tools.Select(x => new InquiryTargetOption("TOOL:" + x.ToolId, x.ToolName)));

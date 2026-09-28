@@ -77,7 +77,7 @@
             <tr>
                 <td>@user.DisplayName</td>
                 <td>@user.Email</td>
-                <td><code-badge code-type="USER_ROLE" code-value="@user.RoleCode" /></td>
+                <td>@user.RoleName</td>
                 <td><span class="pt-user-state @(user.IsActive ? "pt-user-active" : "pt-user-inactive")">@(user.IsActive ? "有効" : "無効")</span></td>
                 <td>@(user.IsLocked ? "ロック中" : "ロックなし")</td>
                 <td>@(user.LastAccessAt is { } lastAccessAt ? lastAccessAt.ToString("yyyy/MM/dd HH:mm") : "-----")</td>

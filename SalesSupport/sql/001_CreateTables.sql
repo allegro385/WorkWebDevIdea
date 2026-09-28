@@ -16,6 +16,19 @@ BEGIN TRANSACTION;
 IF SCHEMA_ID(N'portal') IS NULL EXEC(N'CREATE SCHEMA [portal] AUTHORIZATION [dbo]');
 IF SCHEMA_ID(N'log') IS NULL EXEC(N'CREATE SCHEMA [log] AUTHORIZATION [dbo]');
 
+CREATE TABLE portal.Roles
+(
+    RoleCode varchar(20) NOT NULL CONSTRAINT PK_Roles PRIMARY KEY,
+    RoleName nvarchar(100) NOT NULL,
+    UpdateCount int NOT NULL CONSTRAINT DF_Roles_UpdateCount DEFAULT (0),
+    CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_Roles_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_Roles_CreatedBy DEFAULT USER_NAME(),
+    UpdatedAt datetime2(3) NOT NULL CONSTRAINT DF_Roles_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedBy nvarchar(128) NOT NULL CONSTRAINT DF_Roles_UpdatedBy DEFAULT USER_NAME(),
+    CONSTRAINT CK_Roles_Code CHECK (LEN(LTRIM(RTRIM(RoleCode))) > 0),
+    CONSTRAINT CK_Roles_Name CHECK (LEN(LTRIM(RTRIM(RoleName))) > 0)
+);
+
 CREATE TABLE portal.AspNetUsers
 (
     UserId uniqueidentifier NOT NULL CONSTRAINT DF_AspNetUsers_UserId DEFAULT NEWSEQUENTIALID(),
@@ -41,7 +54,7 @@ CREATE TABLE portal.AspNetUsers
     CONSTRAINT CK_AspNetUsers_UserName_NotBlank CHECK (LEN(LTRIM(RTRIM(UserName))) > 0),
     CONSTRAINT CK_AspNetUsers_Email_NotBlank CHECK (LEN(LTRIM(RTRIM(Email))) > 0),
     CONSTRAINT CK_AspNetUsers_DisplayName_NotBlank CHECK (LEN(LTRIM(RTRIM(DisplayName))) > 0),
-    CONSTRAINT CK_AspNetUsers_RoleCode CHECK (RoleCode IN ('USER', 'ADMIN')),
+    CONSTRAINT FK_AspNetUsers_Roles FOREIGN KEY (RoleCode) REFERENCES portal.Roles (RoleCode) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT CK_AspNetUsers_AccessFailedCount CHECK (AccessFailedCount >= 0)
 );
 CREATE UNIQUE INDEX UX_AspNetUsers_NormalizedUserName ON portal.AspNetUsers (NormalizedUserName);
@@ -80,14 +93,12 @@ CREATE TABLE portal.ToolCategories
 (
     CategoryId int IDENTITY(1,1) NOT NULL CONSTRAINT PK_ToolCategories PRIMARY KEY,
     CategoryName nvarchar(100) NOT NULL,
-    SortOrder int NOT NULL,
     UpdateCount int NOT NULL CONSTRAINT DF_ToolCategories_UpdateCount DEFAULT (0),
     CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolCategories_CreatedAt DEFAULT SYSUTCDATETIME(),
     CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolCategories_CreatedBy DEFAULT USER_NAME(),
     UpdatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolCategories_UpdatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolCategories_UpdatedBy DEFAULT USER_NAME(),
-    CONSTRAINT CK_ToolCategories_CategoryName_NotBlank CHECK (LEN(LTRIM(RTRIM(CategoryName))) > 0),
-    CONSTRAINT CK_ToolCategories_SortOrder CHECK (SortOrder >= 0)
+    CONSTRAINT CK_ToolCategories_CategoryName_NotBlank CHECK (LEN(LTRIM(RTRIM(CategoryName))) > 0)
 );
 
 CREATE TABLE portal.Tools
@@ -116,6 +127,21 @@ CREATE TABLE portal.Tools
     CONSTRAINT CK_Tools_Status CHECK (Status IN ('PUBLIC', 'PRIVATE', 'HIDDEN')),
     CONSTRAINT CK_Tools_WebAppUrl CHECK ((ToolType = 'WEB') OR WebAppUrl IS NULL),
     CONSTRAINT CK_Tools_SortOrder CHECK (SortOrder >= 0)
+);
+
+CREATE TABLE portal.ToolRoles
+(
+    ToolId varchar(20) NOT NULL,
+    RoleCode varchar(20) NOT NULL,
+    UpdateCount int NOT NULL CONSTRAINT DF_ToolRoles_UpdateCount DEFAULT (0),
+    CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolRoles_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolRoles_CreatedBy DEFAULT USER_NAME(),
+    UpdatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolRoles_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolRoles_UpdatedBy DEFAULT USER_NAME(),
+    CONSTRAINT PK_ToolRoles PRIMARY KEY (ToolId, RoleCode),
+    CONSTRAINT FK_ToolRoles_Tools FOREIGN KEY (ToolId) REFERENCES portal.Tools (ToolId) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT FK_ToolRoles_Roles FOREIGN KEY (RoleCode) REFERENCES portal.Roles (RoleCode) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT CK_ToolRoles_NoAdmin CHECK (RoleCode <> 'ADMIN')
 );
 
 CREATE TABLE portal.UserPreferences
@@ -507,7 +533,7 @@ GO
 /* 共通監査列対象テーブルへ、更新回数・更新日時・DBユーザーを自動設定するトリガーを生成する。 */
 DECLARE @AuditedTables TABLE (SchemaName sysname NOT NULL, TableName sysname NOT NULL);
 INSERT @AuditedTables (SchemaName, TableName) VALUES
-('portal','ToolCategories'), ('portal','Tools'), ('portal','UserPreferences'), ('portal','UserToolFavorites'),
+('portal','Roles'), ('portal','ToolCategories'), ('portal','Tools'), ('portal','ToolRoles'), ('portal','UserPreferences'), ('portal','UserToolFavorites'),
 ('portal','ToolVersionHistories'), ('portal','ToolFiles'), ('portal','Notices'), ('portal','FaqCategories'),
 ('portal','FaqItems'), ('portal','Inquiries'), ('portal','CodeMaster'), ('portal','SystemSettings'),
 ('portal','ErrorCodes'), ('portal','FileUploadPolicies'), ('portal','FileUploadPolicyExtensions'),

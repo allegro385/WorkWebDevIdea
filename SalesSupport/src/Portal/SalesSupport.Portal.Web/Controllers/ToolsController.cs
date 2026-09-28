@@ -55,7 +55,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
     private async Task<IActionResult> ListAsync(bool favoritesOnly, CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
-        var model = await tools.GetListAsync(user.UserId, user.RoleCode == "ADMIN", favoritesOnly, ct);
+        var model = await tools.GetListAsync(user.UserId, user.RoleCode, favoritesOnly, ct);
         var title = favoritesOnly ? "お気に入りツール" : "ツール一覧";
         ViewData.SetPageShell(new PageShellModel
         {

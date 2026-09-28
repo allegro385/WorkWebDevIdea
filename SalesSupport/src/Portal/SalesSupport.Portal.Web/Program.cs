@@ -18,6 +18,11 @@ if (LocalTestUserCommand.IsRequested(args))
     await using var scope = app.Services.CreateAsyncScope();
     return await scope.ServiceProvider.GetRequiredService<LocalTestUserCommand>().RunAsync();
 }
+if (UserRoleMigrationCommand.IsRequested(args))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<UserRoleMigrationCommand>().RunAsync();
+}
 
 app.UseSalesSupportForwardedHeaders();
 app.UseSalesSupportErrors();

@@ -13,10 +13,10 @@ public interface IToolQueryService
 {
     /// <summary>一覧掲載できるツールを安定した並び順で返します。</summary>
     /// <param name="userId">お気に入り判定に使用する本人のユーザーIDです。</param>
-    /// <param name="isAdmin">限定公開ツールの詳細リンクを表示してよいかどうかです。</param>
+    /// <param name="roleCode">一覧表示時の一般ロールまたはADMINです。</param>
     /// <param name="favoritesOnly">お気に入りツールだけを表示するかどうかです。</param>
     /// <param name="ct">要求のキャンセルトークンです。</param>
-    Task<ToolListViewModel> GetListAsync(Guid userId, bool isAdmin, bool favoritesOnly, CancellationToken ct = default);
+    Task<ToolListViewModel> GetListAsync(Guid userId, string roleCode, bool favoritesOnly, CancellationToken ct = default);
 
     /// <summary>詳細画面の表示情報を返します。認可は呼出元が事前に判定します。</summary>
     Task<ToolDetailViewModel?> GetDetailAsync(string toolId, Guid userId, CancellationToken ct = default);
@@ -32,12 +32,16 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
     public const string DefaultVersion = "1.0.0";
 
     /// <summary>非公開ツールは権限にかかわらず一覧へ表示しません。</summary>
-    public async Task<ToolListViewModel> GetListAsync(Guid userId, bool isAdmin, bool favoritesOnly, CancellationToken ct = default)
+    public async Task<ToolListViewModel> GetListAsync(Guid userId, string roleCode, bool favoritesOnly, CancellationToken ct = default)
     {
+        var isAdmin = roleCode == "ADMIN";
+        if (!await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == roleCode, ct))
+            return new ToolListViewModel(favoritesOnly, 0, 0, []);
         var rows = await (from tool in db.Tools.AsNoTracking()
                           join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
-                          where tool.Status == "PUBLIC" || tool.Status == "PRIVATE"
-                          orderby tool.SortOrder, category.SortOrder, tool.ToolName, tool.ToolId
+                          where (tool.Status == "PUBLIC" || tool.Status == "PRIVATE")
+                              && (isAdmin || db.ToolRoles.Any(x => x.ToolId == tool.ToolId && x.RoleCode == roleCode))
+                          orderby tool.SortOrder, tool.ToolName, tool.ToolId
                           select new
                           {
                               tool.ToolId,
@@ -45,14 +49,35 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
                               tool.ToolName,
                               tool.ToolSummary,
                               tool.Status,
+                              tool.ToolType,
+                              tool.WebAppUrl,
                               IsFavorite = db.UserToolFavorites.Any(x => x.UserId == userId && x.ToolId == tool.ToolId),
                               Version = db.ToolVersionHistories.Where(x => x.ToolId == tool.ToolId && x.IsCurrent).Select(x => x.Version).FirstOrDefault(),
                               ReleasedAt = db.ToolVersionHistories.Where(x => x.ToolId == tool.ToolId && x.IsCurrent).Select(x => (DateOnly?)x.ReleasedAt).FirstOrDefault()
                           }).ToListAsync(ct);
 
-        var items = rows.Select(row => new ToolListItem(row.ToolId, row.CategoryName, row.ToolName, row.ToolSummary,
-            row.Version ?? DefaultVersion, row.Version is null ? null : row.ReleasedAt, row.Status, row.IsFavorite,
-            CanOpenDetail: row.Status == "PUBLIC" || isAdmin, IsLimited: row.Status == "PRIVATE")).ToList();
+        var toolIds = rows.Select(x => x.ToolId).ToList();
+        var files = await db.ToolFiles.AsNoTracking().Where(x => toolIds.Contains(x.ToolId))
+            .OrderBy(x => x.SortOrder).ThenBy(x => x.FileId)
+            .Select(x => new { x.ToolId, x.FileId, x.FileCategory, x.DisplayName, x.OriginalFileName, x.FileSizeBytes })
+            .ToListAsync(ct);
+
+        var items = rows.Select(row =>
+        {
+            var canOpen = row.Status == "PUBLIC" || isAdmin;
+            var toolFiles = files.Where(x => x.ToolId == row.ToolId).ToList();
+            var app = row.ToolType == "DESKTOP" && canOpen
+                ? toolFiles.Where(x => x.FileCategory == "APP")
+                    .Select(x => new ToolFileLink(x.FileId, x.DisplayName, x.OriginalFileName, x.FileSizeBytes)).FirstOrDefault()
+                : null;
+            var references = canOpen
+                ? toolFiles.Where(x => x.FileCategory == "REFERENCE")
+                    .Select(x => new ToolFileLink(x.FileId, x.DisplayName, x.OriginalFileName, x.FileSizeBytes)).ToList()
+                : [];
+            return new ToolListItem(row.ToolId, row.CategoryName, row.ToolName, row.ToolSummary,
+                row.Version ?? DefaultVersion, row.Version is null ? null : row.ReleasedAt, row.Status, row.IsFavorite,
+                canOpen, row.Status == "PRIVATE", canOpen && row.ToolType == "WEB" && IsSameSite(row.WebAppUrl), app, references);
+        }).ToList();
 
         var favorites = items.Where(x => x.IsFavorite).ToList();
         return new ToolListViewModel(favoritesOnly, items.Count, favorites.Count, favoritesOnly ? favorites : items);

@@ -94,7 +94,7 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
     {
         if (string.IsNullOrEmpty(token)) return false;
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, ct);
-        return user is not null && IsUsable(user, kind) && await VerifyAsync(user, kind, token);
+        return user is not null && await IsUsableAsync(user, kind, ct) && await VerifyAsync(user, kind, token);
     }
 
     /// <summary>消費を確定し、成功・失敗のいずれも用途別のイベントで操作ログへ残します。</summary>
@@ -116,7 +116,7 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
         try
         {
             var user = await db.LockUserAsync(userId, ct);
-            if (user is null || !IsUsable(user, kind) || !await VerifyAsync(user, kind, token))
+            if (user is null || !await IsUsableAsync(user, kind, ct) || !await VerifyAsync(user, kind, token))
                 return (PasswordLinkResult.From(PasswordLinkOutcome.InvalidLink), null);
 
             // 入力検証を先に行い、条件を満たさない要求でリンクを失効させません。
@@ -149,7 +149,7 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
         try
         {
             var user = await db.LockUserAsync(userId, ct);
-            if (user is null || !user.IsActive || user.RoleCode is not ("USER" or "ADMIN")) return null;
+            if (user is null || !user.IsActive || !await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct)) return null;
 
             var now = clock.GetUtcNow();
             var last = await users.GetAuthenticationTokenAsync(user, PasswordLinkTokens.Provider, PasswordLinkTokens.LastRequestUtc);
@@ -214,8 +214,8 @@ public sealed class PasswordLinkService(PortalDbContext db, UserManager<Applicat
     }
 
     /// <summary>無効ユーザーと、用途に合わないパスワード設定状態を除外します。</summary>
-    private static bool IsUsable(ApplicationUser user, PasswordLinkKind kind) =>
-        user.IsActive && user.RoleCode is "USER" or "ADMIN"
+    private async Task<bool> IsUsableAsync(ApplicationUser user, PasswordLinkKind kind, CancellationToken ct) =>
+        user.IsActive && await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct)
         && (kind == PasswordLinkKind.Initial ? user.PasswordHash is null : user.PasswordHash is not null);
 
     /// <summary>用途に対応する操作ログのイベント種別を返します。</summary>

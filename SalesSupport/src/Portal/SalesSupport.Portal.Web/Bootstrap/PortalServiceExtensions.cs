@@ -37,6 +37,7 @@ public static class PortalServiceExtensions
         services.AddScoped<InitialAdminBootstrapCommand>();
         services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
         services.AddScoped<LocalTestUserCommand>();
+        services.AddScoped<UserRoleMigrationCommand>();
         services.AddSingleton<IInitialAdminConsole, InitialAdminConsole>();
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);
@@ -63,7 +64,6 @@ public static class PortalServiceExtensions
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IUserImportService, UserImportService>();
         services.AddScoped<IInquiryAdminService, InquiryAdminService>();
-        services.AddScoped<ILogExportService, LogExportService>();
         services.AddScoped<ToolEditPageBuilder>();
         // 確認IDはプロセス内のメモリーで保持し、再起動で失効させます。
         services.AddSingleton<IConfirmationStore, ConfirmationStore>();

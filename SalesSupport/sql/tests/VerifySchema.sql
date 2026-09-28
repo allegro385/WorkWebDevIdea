@@ -52,12 +52,12 @@ IF (SELECT COUNT(*) FROM portal.CodeMaster WHERE CodeType = 'TOOL_STATUS' AND
      CodeValue = 'PRIVATE' AND ColorCode = '#EADFFF' OR
      CodeValue = 'HIDDEN' AND ColorCode = '#E1E3E6')) <> 3
     THROW 51009, 'Tool status colors invalid', 1;
-INSERT portal.ToolCategories (CategoryName, SortOrder) VALUES (N'Audit test', 0), (N'Audit test', 0);
+INSERT portal.ToolCategories (CategoryName) VALUES (N'Audit test'), (N'Audit test');
 IF EXISTS (SELECT 1 FROM portal.ToolCategories WHERE CategoryName = N'Audit test' AND
     (UpdateCount <> 0 OR CreatedAt <> UpdatedAt OR CreatedBy <> USER_NAME() OR UpdatedBy <> USER_NAME()))
     THROW 51003, 'Insert audit invalid', 1;
 DECLARE @Created datetime2(3) = (SELECT MIN(CreatedAt) FROM portal.ToolCategories WHERE CategoryName = N'Audit test');
-UPDATE portal.ToolCategories SET CreatedAt = '20000101', CreatedBy = N'forged', UpdateCount = 100, SortOrder = 1 WHERE CategoryName = N'Audit test';
+UPDATE portal.ToolCategories SET CreatedAt = '20000101', CreatedBy = N'forged', UpdateCount = 100, CategoryName = N'Audit test' WHERE CategoryName = N'Audit test';
 IF EXISTS (SELECT 1 FROM portal.ToolCategories WHERE CategoryName = N'Audit test' AND
     (UpdateCount <> 1 OR CreatedAt <> @Created OR CreatedBy <> USER_NAME()))
     THROW 51004, 'Update audit invalid', 1;
@@ -67,9 +67,13 @@ BEGIN
  UPDATE portal.SystemSettings SET SettingName = SettingName WHERE SettingCategory = ''SITE'' AND SettingKey = ''PRIVATE_MESSAGE'';
 END');
 DECLARE @Before int = (SELECT UpdateCount FROM portal.SystemSettings WHERE SettingCategory = 'SITE' AND SettingKey = 'PRIVATE_MESSAGE');
-UPDATE portal.ToolCategories SET SortOrder = 2 WHERE CategoryName = N'Audit test';
+UPDATE portal.ToolCategories SET CategoryName = N'Audit test' WHERE CategoryName = N'Audit test';
 IF (SELECT UpdateCount FROM portal.SystemSettings WHERE SettingCategory = 'SITE' AND SettingKey = 'PRIVATE_MESSAGE') <= @Before
     THROW 51005, 'Nested audit skipped', 1;
-IF (SELECT COUNT(*) FROM portal.CodeMaster) <> 20 THROW 51006, 'Master count invalid', 1;
+IF (SELECT COUNT(*) FROM portal.CodeMaster) <> 18 THROW 51006, 'Master count invalid', 1;
+IF (SELECT COUNT(*) FROM portal.Roles WHERE RoleCode IN ('A', 'B', 'C', 'D', 'ADMIN')) <> 5
+    THROW 51010, 'Initial roles invalid', 1;
+IF COL_LENGTH(N'portal.ToolCategories', N'SortOrder') IS NOT NULL OR OBJECT_ID(N'portal.ToolRoles', N'U') IS NULL
+    THROW 51011, 'Role/tool schema invalid', 1;
 ROLLBACK TRANSACTION;
 PRINT 'PASS: constraints, body length, tool colors, audit, nested trigger, duplicate category, master count';

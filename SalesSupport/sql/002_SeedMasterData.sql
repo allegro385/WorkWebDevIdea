@@ -13,6 +13,14 @@ IF OBJECT_ID(N'portal.CodeMaster', N'U') IS NULL
 
 BEGIN TRANSACTION;
 
+INSERT portal.Roles (RoleCode, RoleName)
+SELECT source.RoleCode, source.RoleName
+FROM (VALUES
+    ('A', N'ロールA'), ('B', N'ロールB'), ('C', N'ロールC'), ('D', N'ロールD'),
+    ('ADMIN', N'システム管理者')
+) source(RoleCode, RoleName)
+WHERE NOT EXISTS (SELECT 1 FROM portal.Roles target WHERE target.RoleCode = source.RoleCode);
+
 DECLARE @Codes TABLE
 (
     CodeType varchar(50) NOT NULL,
@@ -41,9 +49,7 @@ INSERT @Codes (CodeType, CodeValue, CodeName, SortOrder, ColorCode) VALUES
 ('INQUIRY_STATUS',   'IN_PROGRESS',     N'対応中',           20, '#1565C0'),
 ('INQUIRY_STATUS',   'UNDER_REVIEW',    N'検討中',           30, '#B45309'),
 ('INQUIRY_STATUS',   'COMPLETED',       N'完了',             40, '#616161'),
-('INQUIRY_STATUS',   'NO_ACTION',       N'対応不要',         50, '#455A64'),
-('USER_ROLE',        'USER',            N'一般ユーザー',     10, NULL),
-('USER_ROLE',        'ADMIN',           N'システム管理者',   20, NULL);
+('INQUIRY_STATUS',   'NO_ACTION',       N'対応不要',         50, '#455A64');
 
 UPDATE target
    SET CodeName = source.CodeName,

@@ -90,13 +90,13 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
         var query = from tool in db.Tools.AsNoTracking()
                     join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                     join owner in db.Users.AsNoTracking() on tool.OwnerUserId equals owner.Id
-                    select new { Tool = tool, category.CategoryName, CategorySortOrder = category.SortOrder, OwnerName = owner.DisplayName };
+                    select new { Tool = tool, category.CategoryName, OwnerName = owner.DisplayName };
         if (filter.CategoryId is { } categoryId) query = query.Where(x => x.Tool.CategoryId == categoryId);
         if (filter.OwnerUserId is { } ownerUserId) query = query.Where(x => x.Tool.OwnerUserId == ownerUserId);
         if (!string.IsNullOrEmpty(filter.Status)) query = query.Where(x => x.Tool.Status == filter.Status);
 
         return await query
-            .OrderBy(x => x.Tool.SortOrder).ThenBy(x => x.CategorySortOrder).ThenBy(x => x.Tool.ToolName).ThenBy(x => x.Tool.ToolId)
+            .OrderBy(x => x.Tool.SortOrder).ThenBy(x => x.Tool.ToolName).ThenBy(x => x.Tool.ToolId)
             .Select(x => new ToolSelectionItem(x.Tool.ToolId, x.Tool.SortOrder, x.CategoryName, x.Tool.ToolName, x.OwnerName,
                 x.Tool.Status,
                 db.ToolVersionHistories.Where(h => h.ToolId == x.Tool.ToolId && h.IsCurrent).Select(h => h.Version).FirstOrDefault() ?? "",
@@ -106,7 +106,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
 
     /// <summary>カテゴリはソート順、同順位は名称で並べます。</summary>
     public async Task<IReadOnlyList<CategoryOption>> GetCategoriesAsync(CancellationToken ct = default) =>
-        await db.ToolCategories.AsNoTracking().OrderBy(x => x.SortOrder).ThenBy(x => x.CategoryName)
+        await db.ToolCategories.AsNoTracking().OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Select(x => new CategoryOption(x.CategoryId, x.CategoryName)).ToListAsync(ct);
 
     /// <summary>担当者に指定できるのは有効なシステム管理者だけです。</summary>

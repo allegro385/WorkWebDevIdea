@@ -3,7 +3,7 @@
 SQL Server用の初期構築スクリプトです。対象データベースを作成した後、次の順序で実行します。
 
 1. `001_CreateTables.sql` — スキーマ、全テーブル、制約、索引、監査トリガー、問い合わせ番号採番プロシージャ
-2. `002_SeedMasterData.sql` — 固定コード、システム設定、アップロード制限、共通エラーコード
+2. `002_SeedMasterData.sql` — 初期ロール、固定コード、システム設定、アップロード制限、共通エラーコード
 3. `900_SeedDummyData.sql` — 開発・画面確認用のダミー業務データ
 
 見積試算サンプルの専用SQLは`sample/`に分離しています。`001`・`002`へ混ぜず、[専用の適用・清掃手順](sample/README.md)を確認してください。
@@ -15,7 +15,7 @@ SQL Server用の初期構築スクリプトです。対象データベースを�
 - `002_SeedMasterData.sql`は同じキーの行を更新し、不足行を追加するため再実行できます。運用で追加した行は削除しません。
 - `900_SeedDummyData.sql`は本番投入禁止です。スクリプト先頭の`@ExpectedDevelopmentDatabase`を実際の開発DB名へ書き換え、接続中のDB名との一致を確認してから実行してください。DBに`EnvironmentName`拡張プロパティがある場合は`DEVELOPMENT`以外を拒否します。DB名確認は運用上の確認であり、本番の自動判別ではありません。
 - ダミー投入は既存データを削除しません。ダミーID・名称の衝突時は停止します。再投入には新しい開発専用DBを用意してください。
-- ダミースクリプトはIdentityユーザーを直接作成しません。あらかじめアプリケーションのUserManager経由で、有効な`ADMIN`ユーザーと`USER`ユーザーを一名以上登録してください。
+- ダミースクリプトはIdentityユーザーを直接作成しません。あらかじめアプリケーションのUserManager経由で、有効な`ADMIN`ユーザーとロール`A`ユーザーを一名以上登録してください。
 - `ToolFiles`のダミー行は作成しません。物理ファイルを伴わない不整合な参照を避けるためです。
 - ツール分類とFAQ分類は組織固有のマスタです。本番用の初期値は運用決定後に別途登録し、ダミースクリプトの値を流用しないでください。
 - SQLファイルはUTF-8です。`sqlcmd`では`-f 65001`を指定してください。
@@ -40,6 +40,17 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 同じDBへダミーSQLを再投入せず、必要なら新しい開発専用DBを用意します。スクリプトは`SalesSupport.AllowDummyData`拡張プロパティを要求・追加しません。既存DBにこのプロパティが残っていても投入条件には使用しません。
 
 問い合わせ番号は`portal.AllocateInquiryId`を専用の短いトランザクションとして呼び出します。番号確保後の問い合わせ保存が失敗しても、確保済み番号は再利用しません。
+
+## 既存DBのロール移行
+
+`001_CreateTables.sql`は既存DBへ再実行しません。保守時間にアプリへの新規要求を止め、接続先とバックアップを確認した上で次の順に進めます。ここに記したSQLとコマンドは、このリポジトリから実DBには適用していません。
+
+1. 旧スキーマの既存DBへ`003_MigrateRoleToolSchema.sql`を一度だけ適用する。Rolesに一時的な`USER`を残し、既存ツールすべてにAを割り当てる。ToolCategories.SortOrderを削除する。
+2. 新版Portalを配置し、同じDB設定で`dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- migrate-user-roles`を実行する。全既存USERをUserManager経由でAへ変更し、SecurityStampを更新する。失敗時は原因を修正して再実行する。
+3. `SELECT COUNT(*) FROM portal.AspNetUsers WHERE RoleCode = 'USER'`が0であることを確認し、`004_CompleteRoleMigration.sql`を適用する。旧ロールを削除する。
+4. アプリへの要求を再開し、Aユーザーの一覧・直接URL、ADMINの一覧、B～Dの未割当てツール拒否を確認する。
+
+新規DBでは`001`、`002`を適用し、`003`と`004`は実行しません。ロール名称とツール割当てはDB運用で管理します。`ADMIN`をToolRolesへ登録せず、一般ロールだけを関連付けます。
 
 ## 初期構築SQLの整合修正
 

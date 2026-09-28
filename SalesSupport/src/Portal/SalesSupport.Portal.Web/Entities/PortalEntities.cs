@@ -7,7 +7,20 @@ public sealed class ToolCategory : AuditedEntity
 {
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = "";
-    public int SortOrder { get; set; }
+}
+
+/// <summary>DBで管理する利用者ロールの名称を保持します。</summary>
+public sealed class Role : AuditedEntity
+{
+    public string RoleCode { get; set; } = "";
+    public string RoleName { get; set; } = "";
+}
+
+/// <summary>ツールを利用できる一般ロールの割当てです。</summary>
+public sealed class ToolRole : AuditedEntity
+{
+    public string ToolId { get; set; } = "";
+    public string RoleCode { get; set; } = "";
 }
 
 /// <summary>ポータルから案内・起動・配布するツールの登録情報です。</summary>

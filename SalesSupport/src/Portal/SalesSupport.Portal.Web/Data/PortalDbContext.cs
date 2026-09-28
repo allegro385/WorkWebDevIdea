@@ -10,6 +10,8 @@ namespace SalesSupport.Portal.Web.Data;
 public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) : IdentityUserContext<ApplicationUser, Guid>(options)
 {
     public DbSet<ToolCategory> ToolCategories => Set<ToolCategory>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<ToolRole> ToolRoles => Set<ToolRole>();
     public DbSet<Tool> Tools => Set<Tool>();
     public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
     public DbSet<UserToolFavorite> UserToolFavorites => Set<UserToolFavorite>();
@@ -39,6 +41,13 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         category.Property(x => x.CategoryName).HasMaxLength(100).IsRequired();
         category.ConfigureAuditColumns("ToolCategories");
 
+        var role = model.Entity<Role>();
+        role.HasKey(x => x.RoleCode);
+        role.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
+        role.Property(x => x.RoleName).HasMaxLength(100).IsRequired();
+        role.ConfigureAuditColumns("Roles");
+        model.Entity<ApplicationUser>().HasOne<Role>().WithMany().HasForeignKey(x => x.RoleCode).OnDelete(DeleteBehavior.NoAction);
+
         var tool = model.Entity<Tool>();
         tool.HasKey(x => x.ToolId);
         tool.Property(x => x.ToolId).HasMaxLength(20).IsUnicode(false);
@@ -51,6 +60,14 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         tool.HasOne<ToolCategory>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.NoAction);
         tool.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
         tool.ConfigureAuditColumns("Tools");
+
+        var toolRole = model.Entity<ToolRole>();
+        toolRole.HasKey(x => new { x.ToolId, x.RoleCode });
+        toolRole.Property(x => x.ToolId).HasMaxLength(20).IsUnicode(false);
+        toolRole.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
+        toolRole.HasOne<Tool>().WithMany().HasForeignKey(x => x.ToolId).OnDelete(DeleteBehavior.NoAction);
+        toolRole.HasOne<Role>().WithMany().HasForeignKey(x => x.RoleCode).OnDelete(DeleteBehavior.NoAction);
+        toolRole.ConfigureAuditColumns("ToolRoles");
 
         var history = model.Entity<ToolVersionHistory>();
         history.HasKey(x => x.ToolHistoryId);

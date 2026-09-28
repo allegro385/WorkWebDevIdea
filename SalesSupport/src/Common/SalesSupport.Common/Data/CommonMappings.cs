@@ -64,6 +64,15 @@ public static class CommonMappings
         toolAccessRecord.Property(x => x.ToolName).HasMaxLength(200);
         toolAccessRecord.Property(x => x.ToolType).HasMaxLength(20).IsUnicode(false);
         toolAccessRecord.Property(x => x.Status).HasMaxLength(20).IsUnicode(false);
+        var roleAccessRecord = model.Entity<RoleAccessRecord>();
+        roleAccessRecord.ToTable("Roles", "portal");
+        roleAccessRecord.HasKey(x => x.RoleCode);
+        roleAccessRecord.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
+        var toolRoleAccessRecord = model.Entity<ToolRoleAccessRecord>();
+        toolRoleAccessRecord.ToTable("ToolRoles", "portal");
+        toolRoleAccessRecord.HasKey(x => new { x.ToolId, x.RoleCode });
+        toolRoleAccessRecord.Property(x => x.ToolId).HasMaxLength(20).IsUnicode(false);
+        toolRoleAccessRecord.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
     }
 
     /// <summary>監査列をDB生成・同時更新判定用として設定します。</summary>

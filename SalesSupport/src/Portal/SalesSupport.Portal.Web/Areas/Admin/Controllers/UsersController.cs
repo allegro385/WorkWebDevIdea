@@ -11,13 +11,13 @@ using SalesSupport.Portal.Web.Services;
 namespace SalesSupport.Portal.Web.Areas.Admin.Controllers;
 
 /// <summary>A002 ユーザー管理です。検索・編集・ロック解除とTSV一括登録を扱います。</summary>
-/// <remarks>権限の変更機能は画面・管理APIともに設けません。ユーザーの物理削除も行いません。</remarks>
+/// <remarks>一般ロール間の変更だけを許可し、ユーザーの物理削除は行いません。</remarks>
 [Area("Admin")]
 [Route("admin/users")]
 [Authorize(Policy = PortalPolicies.Admin)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class UsersController(IUserAdminService users, IUserImportService imports, IPasswordLinkService links,
-    ICodeMasterReader codes, ICurrentUserAccessor current) : Controller
+    ICurrentUserAccessor current) : Controller
 {
     /// <summary>検索条件に一致するユーザーを一覧表示します。</summary>
     [HttpGet("")]
@@ -28,7 +28,7 @@ public sealed class UsersController(IUserAdminService users, IUserImportService 
         {
             Search = search,
             Users = await users.SearchAsync(search, ct),
-            Roles = await codes.GetOptionsAsync("USER_ROLE", ct),
+            Roles = await users.GetRolesAsync(true, ct),
             Message = PortalMessages.Take(TempData)
         });
     }
@@ -44,7 +44,7 @@ public sealed class UsersController(IUserAdminService users, IUserImportService 
         return View(model);
     }
 
-    /// <summary>表示名・メールアドレス・有効状態を更新します。権限は変更しません。</summary>
+    /// <summary>表示名・メールアドレス・有効状態と一般ロールを更新します。</summary>
     [HttpPost("{userId:guid}")]
     public async Task<IActionResult> Update(Guid userId, UserEditInput input, CancellationToken ct)
     {

@@ -69,7 +69,8 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
         var userId = await db.Users.AsNoTracking().Where(x => x.NormalizedEmail == normalized).Select(x => x.Id).SingleOrDefaultAsync(ct);
         if (userId == Guid.Empty) return await RejectAsync("INVALID_CREDENTIALS", ct);
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == userId, ct);
-        if (user is null || !user.IsActive || user.RoleCode is not ("USER" or "ADMIN")) return await RejectAsync("INACTIVE_USER", ct);
+        if (user is null || !user.IsActive || !await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct))
+            return await RejectAsync("INACTIVE_USER", ct);
 
         var lockedBefore = await users.IsLockedOutAsync(user);
         var result = await signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
@@ -138,7 +139,8 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
             // パスワード検証中の状態変更を反映するため、ロック取得後に最新値を読み直します。
             var entry = db.Entry(user);
             await entry.ReloadAsync(ct);
-            if (entry.State == EntityState.Detached || !user.IsActive || user.RoleCode is not ("USER" or "ADMIN")) return null;
+            if (entry.State == EntityState.Detached || !user.IsActive
+                || !await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct)) return null;
             user.LastAccessAt = now.UtcDateTime;
             var updated = await users.UpdateAsync(user);
             if (!updated.Succeeded) return null;

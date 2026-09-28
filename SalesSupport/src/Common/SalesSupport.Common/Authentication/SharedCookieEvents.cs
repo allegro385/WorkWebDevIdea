@@ -60,7 +60,8 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
         await using var db = await factory.CreateDbContextAsync(context.HttpContext.RequestAborted);
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId, context.HttpContext.RequestAborted);
         var stamp = context.Principal?.FindFirstValue(claims.SecurityStampClaimType);
-        if (user is null || !user.IsActive || user.RoleCode is not ("USER" or "ADMIN") || string.IsNullOrEmpty(stamp) || stamp != user.SecurityStamp)
+        if (user is null || !user.IsActive || !await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, context.HttpContext.RequestAborted)
+            || string.IsNullOrEmpty(stamp) || stamp != user.SecurityStamp)
         {
             await RejectAsync(context);
             return;

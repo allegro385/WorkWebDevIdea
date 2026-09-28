@@ -36,7 +36,7 @@ public sealed class AccountControllerTests
         var account = new StubAccountService { ChangeResult = PasswordChangeResult.From(PasswordChangeOutcome.Succeeded) };
         var controller = CreateController(account, current: new StubCurrentUserAccessor
         {
-            User = new CurrentUser(Guid.NewGuid(), "利用者", "USER")
+            User = new CurrentUser(Guid.NewGuid(), "利用者", "A")
         });
 
         var result = await controller.PasswordChange(new PasswordChangeInput

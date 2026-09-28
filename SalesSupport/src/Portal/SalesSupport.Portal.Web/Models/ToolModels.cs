@@ -11,8 +11,12 @@ namespace SalesSupport.Portal.Web.Models;
 /// <param name="IsFavorite">ログイン中の利用者がお気に入り登録しているかどうかです。</param>
 /// <param name="CanOpenDetail">詳細画面へのリンクを表示してよいかどうかです。認可の代替にはしません。</param>
 /// <param name="IsLimited">限定公開として薄いグレーで表示するかどうかです。</param>
+/// <param name="HasWebLaunch">Webツールを直接起動できるかどうかです。</param>
+/// <param name="AppFile">直接取得できる配布アプリです。</param>
+/// <param name="References">直接取得できる関連資料です。</param>
 public sealed record ToolListItem(string ToolId, string CategoryName, string ToolName, string? Summary,
-    string Version, DateOnly? UpdatedOn, string Status, bool IsFavorite, bool CanOpenDetail, bool IsLimited);
+    string Version, DateOnly? UpdatedOn, string Status, bool IsFavorite, bool CanOpenDetail, bool IsLimited,
+    bool HasWebLaunch, ToolFileLink? AppFile, IReadOnlyList<ToolFileLink> References);
 
 /// <summary>P003 ツール一覧・P008 お気に入りツールの表示情報です。</summary>
 /// <param name="FavoritesOnly">お気に入りツールタブを選択しているかどうかです。</param>
