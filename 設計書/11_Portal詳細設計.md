@@ -35,13 +35,14 @@ SalesSupport.Portal.Web/
 | Entity | テーブル | 更新元 |
 | --- | --- | --- |
 | Tool / ToolCategory | portal.Tools / ToolCategories | ツール編集／カテゴリは運用SQL |
+| Role / ToolRole | portal.Roles / ToolRoles | ロール定義・ツール割当ては運用SQL、認可時に参照 |
 | ToolVersionHistory / ToolFile | portal.ToolVersionHistories / ToolFiles | ツール編集 |
 | Notice | portal.Notices | サイト管理・ツール編集 |
 | Inquiry | portal.Inquiries | 問い合わせ受付・管理 |
 | UserPreference / UserToolFavorite | portal.UserPreferences / UserToolFavorites | 本人の設定・お気に入り |
 | FaqItem / FaqCategory | portal.FaqItems / FaqCategories | 参照のみ、運用SQL |
 
-- 設定・コード・アップロード条件はCommon、ログの読取りはCommonのLogDbContextを利用する。採番は既存の`portal.AllocateInquiryId`を呼ぶ専用サービスとし、採番用Entityの通常更新は行わない。
+- 設定・コード・アップロード条件はCommonを利用する。ログ記録はCommonのLoggerを使用し、ログ読取り画面は設けない。採番は既存の`portal.AllocateInquiryId`を呼ぶ専用サービスとし、採番用Entityの通常更新は行わない。
 - 列型・桁数・NULL・外部キーは04とDDLに合わせ、起動時にEnsureCreated/Migrateを実行しない。DB変更は管理されたSQLで適用する。
 - 参照はAsNoTracking＋表示DTOへの射影を基本とする。約20ツールの一覧は全件表示し、存在しないページ分割やキーワード検索を追加しない。
 - 監査対象はUpdateCount、IdentityはConcurrencyStampで競合を検出する。監査トリガー、OUTPUT抑止、生成値の再取得はCommon詳細設計に従う。
@@ -70,7 +71,6 @@ SalesSupport.Portal.Web/
 | A001 ツール管理 | Admin/Tools / GET `/admin/tools`、GET `/admin/tools/{toolId}` | ToolAdminService | ADMIN・ToolManage |
 | ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
 | A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除・再発行・取込 | UserAdminService / UserImportService | ADMIN |
-| A003 ログ管理 | Admin/Logs / GET `/admin/logs`、`/admin/logs/export` | LogExportService | ADMIN |
 | A005 問い合わせ管理 | Admin/Inquiries / GET一覧・詳細、POST保存 | InquiryAdminService | ADMIN |
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
 | ツールお知らせ | Admin/Notices / ツールID付きGET・POST | NoticeService | ADMIN・ToolManage |
@@ -125,9 +125,9 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ## 6. ユーザー管理・初期登録
 
-- 一般ユーザーの新規登録はTSVだけとし、単独登録画面・APIを設けない。各行のEmail=UserName、DisplayNameを検証し、RoleCode=USER、IsActive=trueで、UserManager.CreateAsyncと通知2項目が有効のUserPreference作成を同一トランザクションで行う。パスワードは管理者が設定しない。確定後に初回リンクを発行・送信する。
+- 一般ユーザーの新規登録はTSVだけとし、単独登録画面・APIを設けない。各行のEmail=UserName、DisplayName、RoleCodeを検証し、DBに登録された一般ロール、IsActive=trueで、UserManager.CreateAsyncと通知2項目が有効のUserPreference作成を同一トランザクションで行う。ADMINと未定義ロールは拒否する。パスワードは管理者が設定しない。確定後に初回リンクを発行・送信する。
 - ローカルの複数ユーザー試験だけに使用する`add-test-user`コマンドは、ASP.NET Core環境名`Development`かつPortal環境コード`DEVELOPMENT`を必須とする。対話入力のパスワードを通常の禁止リストとIdentityで検証し、UserManagerとUserPreferenceを同一トランザクションで保存する。一般ユーザーを有効・メール確認済みで作成し、メール送信は行わない。Web画面・APIの単独登録機能にはしない。
-- 編集はConcurrencyStampを受け取り比較し、表示名・メール・有効状態だけを更新する。登録済みRoleCodeは画面から変更しない。ユーザーを物理削除しない。
+- 編集はConcurrencyStampを受け取り比較し、表示名・メール・有効状態と一般ロール間のRoleCode変更を扱う。選択肢はDB上の一般ロールから取得し、現在値と変更先が一般ロールであることを検証する。ADMINへの変更・ADMINからの変更を拒否する。変更時はUserManagerでSecurityStampを更新する。ユーザーを物理削除しない。
 - 無効化前に自分自身・最後の有効管理者・担当中のTools/問い合わせを検査する。担当の引継ぎは既存編集画面で先に行う。複数ユーザーにまたがる管理者数の検査はSerializableトランザクションで行い、デッドロックを自動再試行せず再読込を促す。
 - 担当者を設定する各サービスも対象ユーザー行をロックして有効ADMINを確認する。無効化側と同じ規約で直列化し、確認直後の担当追加を防ぐ。複数ユーザーのロック順はUserId順に統一する。
 - メール変更はSetEmailAsync／SetUserNameAsyncで正規化列も更新し、初回未設定は未確認のまま、設定済みは社内確認済みとしてEmailConfirmedを保持する。SecurityStamp更新と発行番号削除を同時確定する。本人への確認メール画面は追加しない。
@@ -136,10 +136,10 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ### TSV一括登録
 
-1. ADMIN・CSRF確認後、UTF-8のEmail／DisplayNameの2列を読み取る。ヘッダー、列数、必須・桁数、ファイル内と既存ユーザーの正規化メール重複を全行検査する。
-2. エラーが1件でもあれば登録せず行番号と項目エラーを表示する。パスワード・RoleCode列の持込みは拒否する。
+1. ADMIN・CSRF確認後、UTF-8のEmail／DisplayName／RoleCodeの3列を読み取る。ヘッダー、列数、必須・桁数、DB上の一般ロールとの一致、ファイル内と既存ユーザーの正規化メール重複を全行検査する。
+2. エラーが1件でもあれば登録せず行番号と項目エラーを表示する。パスワード・ADMIN・未定義ロールの持込みは拒否する。
 3. 確認データはランダムな確認IDでサーバー側に一時保持し、実行者UserIdに結び付ける。ブラウザーのhidden値だけを登録データの正本にしない。
-4. 実行時にADMIN、期限、未実行を再検証して確認IDを原子的に使用中へ変える。全行を再検証後、各行をUSER・有効で登録する。ユーザー＋設定は1行ごとのトランザクション。
+4. 実行時にADMIN、期限、未実行を再検証して確認IDを原子的に使用中へ変える。ロール定義を含む全行を再検証後、各行を指定された一般ロール・有効で登録する。ユーザー＋設定は1行ごとのトランザクション。
 5. DB失敗で以後を停止する。確定済み行は戻さない。確定後のリンク発行・メール失敗を理由に登録をやり直さない。
 6. 結果は行番号、メール、登録済み／登録失敗／未処理を表示する。メール成否の件数は表示しない。再実行は未登録分を手動で新しいTSVにする。
 
@@ -147,7 +147,8 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ## 7. 一覧・個人設定・FAQ
 
-- 一覧はPUBLICとPRIVATEだけを取得し、カテゴリ順→ツール順→名前→ToolIdで安定ソートする。PRIVATEは一般ユーザーにリンクを出さない。ADMINも通常一覧ではHIDDENを表示しない。
+- 一覧はPUBLICとPRIVATEだけを取得し、一般ユーザーはToolRolesに本人のRoleCodeがあるツールに絞る。ADMINはロール割当てに関係なく表示する。SortOrder→ツール名→ToolIdで安定ソートし、カテゴリは並び順に使わない。PRIVATEは一般ユーザーにリンクを出さない。ADMINも通常一覧ではHIDDENを表示しない。
+- 詳細・Web起動・ファイル取得と各Webツールの直接要求では、状態と現在のロール割当てを再検証する。一般ロールに割当てがなければ拒否し、ADMINは割当てを要しない。割当て取得失敗は拒否する。
 - 現在版なしは表示だけVer.1.0.0、更新日なし。履歴は数値3組比較で現在版以下を表示する。文字列順で比較しない。
 - お気に入りは本人IDとToolIdの複合キーを使用し、追加済みへの追加・未登録への解除は成功扱いとする。HIDDENの既存登録は消さず一覧から除外する。追加・解除は対象の表示可能状態を再確認する。
 - 個人設定は本人の2項目とUpdateCountだけを受け取り、1行の競合更新とする。存在しない設定を無条件に通知有効として扱わず、整合性エラーとして検出する。
@@ -211,22 +212,18 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 - 送信者・本文は変更不可。対象変更で担当者を自動変更せず、管理者が明示した値を検証する。既存の非公開ツールとの関連は保持できるよう現在値を表示し、通常利用の認可を拡張しない。
 - 分類変更は確定後にINQUIRY_CLASSIFICATION_UPDATEとして変更前後のコード・IDのみを記録する。本文・備考・宛先は記録しない。管理更新による再メールは行わない。
 
-## 11. ログ・TSV出力
+## 11. ログ記録
 
 - 業務成功ログはDB確定後にCommonへ依頼する。拒否・失敗は実際の結果で記録し、ログ失敗で本処理を戻さない。Commonが記録済みのメールエラーをPortalで重複記録しない。
 - UIでいう操作ログの物理名は`log.UserActivityLogs`。旧呼称UserAccessLogsで別テーブルを作らない。
-- 明細は選択した3ログのいずれかの全列・全件をDB定義順で出力し、行順は各ログの主キー昇順とする。固定の列リストを定義し、リフレクション順やSELECT *に依存しない。
-- 利用者数はDESKTOP_DOWNLOAD全件、WEB_EXECUTEのSUCCESSを対象にToolId別UserId重複排除で集計する。Toolsを起点に左結合し、未利用・HIDDENを含め0件も出す。WEB_OPENを加算しない。
-- AsNoTrackingの逐次読取りからCommon.DataExportへストリーミングし、全件をメモリーへ読み込まない。UTF-8 BOM、CRLF、タブ・改行整形、文字列の数式対策を適用する。
-- 読取り開始前に認可・入力を確認し、クライアント切断は読取りを止めて破棄する。出力途中の障害で完全なファイルを保証しない。結果ファイルはサーバーに恒久保存しない。
-- ログ記録は並行して継続するため、出力は厳密な時点スナップショットではない。必要なら開始時の最大主キーを上限に固定し、その範囲を昇順で読み取る。
+- ログ管理画面、ログ出力URL、LogExportServiceおよびログ専用TSV出力処理は設けない。必要な抽出・集計はDB権限を持つ運用担当者がSQLで行う。
 
 ## 12. 起動・設定・実装順序
 
 1. 設定読込み、Common登録、PortalDbContext、Identity Store・TokenProvider、Portalサービス、MVC・CSRF・要求制限を登録する。
 2. 例外処理、信頼する転送ヘッダー、HTTPS、ルーティング、認証、要求制限、認可を適切な順で構成する。DBやSMTPの起動時書込みは行わない。
 3. 保護画面は既定Siteポリシー、管理はADMIN、匿名経路は明示する。静的ファイルには機密・提供ファイルを置かない。
-4. Commonの契約とDDL差分を整合→Identityと状態制御→参照画面→設定・管理更新→ファイル・メール→TSV・導入処理の順に実装する。
+4. Commonの契約とDDL差分を整合→Identityと状態・ロール制御→参照画面→設定・管理更新→ファイル・メール→ユーザー取込・導入処理の順に実装する。
 
 接続文字列、SMTP、Portalの実URL、保存領域、鍵共有は共通設定ファイルの配置設定とし、Portalは接続文字列を自身の設定から読まずCommonの`IConnectionStringProvider`から受け取る。実運用連絡先などPortal固有の設定はPortalの設定から取得する。設定欠落をデモ値や許可状態で代替しない。サイト公開状態はDB運用で変更し、サイト管理画面へ設定編集を追加しない。
 
@@ -234,7 +231,7 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 | 分類 | 必須検証 |
 | --- | --- |
-| 認可 | PUBLIC/PRIVATEサイト×USER/ADMIN×ツール3状態。直URL、API、ファイルID差替え、無効化・権限変更・stamp変更 |
+| 認可 | PUBLIC/PRIVATEサイト×A～D/ADMIN×ツール3状態と割当て有無。直URL、API、ファイルID差替え、無効化・ロール変更・stamp変更 |
 | Identity | 5回失敗、30分満了、管理解除、同時失敗要求、変更後全Cookie失効、60分スライドと8時間境界 |
 | リンク | 初回14日・再設定1時間、改変、再発行、同時2消費、同時2請求、ロールバック時未消費、メール変更失効 |
 | 競合 | 基本編集、現在版切替、履歴削除、ファイル順序、問い合わせ一括の一部競合で全取消 |

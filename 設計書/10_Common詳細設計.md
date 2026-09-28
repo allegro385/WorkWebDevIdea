@@ -34,7 +34,7 @@ SalesSupport.Common/
 - EF Core SQL Server・Identity EF Coreは10系でホストと統一する。SMTP実装はMailKitを使用する。具体的なパッチ版は実装時に互換性確認して固定し、浮動バージョンを使用しない。
 - インターフェースはテスト差替えやホストから呼ぶサービス境界に設ける。各クラスへ機械的にインターフェースを作らない。
 - Repository層、全用途のSQL実行基盤、独自DIコンテナーは作らない。
-- Portalの問い合わせ保存、通知先選定、ユーザー登録、採番呼出し、ログ集計はPortalのServiceに置く。
+- Portalの問い合わせ保存、通知先選定、ユーザー登録、採番呼出しはPortalのServiceに置く。ログの抽出・集計はアプリケーションに設けない。
 - ツールの計算・固有Entity・DbContextは各ツールに置く。共通EntityをHTTP DTOとしてそのまま公開しない。
 
 ## 2. Entity・DbContext
@@ -47,10 +47,10 @@ SalesSupport.Common/
 | Common.Entities.Configuration | CodeMasterEntry、SystemSetting、UploadPolicy、UploadPolicyExtension、ErrorCodeEntry | Commonは読取り。登録・変更は所定SQL |
 | Common.Entities.Authentication | UserAccessRecord、ToolAccessRecord | 認証・公開状態検証用の必要列だけを読取り |
 | Common.Entities.Logging | ToolUsageLog、UserActivityLog、SystemErrorLog | 専用Contextから追記 |
-| Portal.Entities | Tool、ToolCategory、Notice、Inquiry、FaqItem、FaqCategory、UserPreference、UserToolFavorite、ToolVersionHistory、ToolFile | Portalの業務処理 |
+| Portal.Entities | Tool、ToolCategory、Role、ToolRole、Notice、Inquiry、FaqItem、FaqCategory、UserPreference、UserToolFavorite、ToolVersionHistory、ToolFile | Portalの業務処理 |
 | 各ツール.Entities | 商品・見積等の業務Entity | 各ツールの責務に応じて参照・更新 |
 
-ApplicationUserのマッピングはCommonから提供し、Portalは再定義せず利用する。UserAccessRecordはAspNetUsersのUserId、DisplayName、RoleCode、IsActive、SecurityStampだけを持つ。ToolAccessRecordはToolsのToolId、ToolName、ToolType、Statusだけを持つ。部分Entityを使ってユーザー・ツール管理の更新は行わない。
+ApplicationUserのマッピングはCommonから提供し、Portalは再定義せず利用する。UserAccessRecordはAspNetUsersのUserId、DisplayName、RoleCode、IsActive、SecurityStampだけを持つ。ToolAccessRecordはToolsのToolId、ToolName、ToolType、Statusだけを持つ。CommonDbContextはRolesとToolRolesを参照用にマッピングし、ツール認可時に現在のロールと割当てを確認する。部分Entityを使ってユーザー・ツール管理の更新は行わない。
 
 | Context | 所在 | 構成・用途 |
 | --- | --- | --- |
@@ -61,7 +61,7 @@ ApplicationUserのマッピングはCommonから提供し、Portalは再定義�
 
 - CommonDbContextはSaveChanges／SaveChangesAsyncを拒否し、部分Entityの誤更新を防ぐ。ログ更新はLogDbContextだけで行う。
 - 同じ物理テーブルを複数Contextへマッピングしても、DDLの所有・変更は一か所とする。起動時のEnsureCreated・Migrateは呼ばない。
-- Portalのログ参照・集計は読取り用にLogDbContextを利用してよい。Commonに集計業務は置かない。
+- LogDbContextはアプリケーションのログ記録と保守処理に使用する。ログ参照・集計用の画面やサービスは設けない。
 - 共通DBと各ツールの接続先は初期構成では同じDB。Contextを分けることはDBの分割を意味しない。
 - 同一Contextで並列クエリを実行しない。共有要求キャッシュの初回取得も直列化する。
 
@@ -197,7 +197,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | ToolEntry属性 | WEB_OPEN対象の入口アクションに付与 |
 | NoSlidingRenewal属性 | 自動ポーリング等、認証は必要だがCookie更新対象外の要求 |
 
-Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする。ToolManageはADMINに限定し、HIDDENも編集できる。ToolUseではADMINでもHIDDENを拒否する。一覧の掲載条件と利用認可を共用の単一boolへまとめない。
+Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする。一般ロールはToolRolesの一致を必要とし、ADMINは割当てに関係なく全ツールを対象とする。ロール定義・割当ての取得失敗は拒否する。ToolManageはADMINに限定し、HIDDENも編集できる。ToolUseではADMINでもHIDDENを拒否する。一覧の掲載条件と利用認可を共用の単一boolへまとめない。
 
 - 各ツールのFallbackPolicyへSalesSupportToolを適用し、新規アクションへの付け忘れを防ぐ。Portalはサイト入場をFallbackPolicyとし、管理機能にADMINを追加する。
 - ログイン・初回設定・再設定・案内表示等だけを明示的な例外にする。ログアウトは認証必須POSTだがサイト入場条件は不要。公開静的資産には機密データを置かない。
