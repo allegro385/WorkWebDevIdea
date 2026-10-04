@@ -21,7 +21,7 @@
 - Portalのサービス・保存単位・認証フロー：`設計書/11_Portal詳細設計.md`
 - サンプル・テンプレートツールの範囲と作成方針：`設計書/12_サンプル・テンプレートツール設計方針.md`
 - 現在の実装・実行方法：対象モジュールの `README.md`、`IMPLEMENTATION.md`、`sql/README.md`
-- 現行画面モック：`設計書/screens/README.md`、`設計書/screens/index.html`。`設計書/images`は過去の比較資料。
+- 現行画面モック：`設計書/screens/README.md`、`設計書/screens/index.html`。
 - SQL適用・検証：`SalesSupport/sql/README.md`
 - プロジェクト操作の記録：`作業記録/プロジェクト操作履歴.md`
 
@@ -38,7 +38,7 @@
 - ツール固有の Entity と DbContext は各ツールに置き、Common に全ツールのテーブル定義を集約しない。
 - Commonは単一の `SalesSupport/src/Common/SalesSupport.Common` プロジェクトとし、機能別名前空間を使用する。Portalは `SalesSupport/src/Portal/SalesSupport.Portal.Web`。Portal・各ツールからCommonをProjectReferenceし、Commonから利用側を参照しない。独自実装の前にCommon詳細設計と既存コードを確認する。
 - 将来の想像だけで共通化・多層化しない。標準機能・既存Commonで対応できるか確認し、必要な場合だけ依存を追加する。追加・更新時は用途、採用理由、固定したバージョンを操作履歴に残す。
-- 初期対象外の機能を便宜的に追加しない。例：ツール単位の利用者権限、キーワード検索、管理画面からのアプリ配備、成果物の恒久保存、バックアップ、CI/CD、ダッシュボードグラフ。
+- 初期対象外の機能を便宜的に追加しない。例：ユーザー個別のツール権限、キーワード検索、管理画面からのアプリ配備、成果物の恒久保存、バックアップ、CI/CD、ダッシュボードグラフ。一般ロールとツールの割当ては現行仕様に含まれる。
 
 ## サンプル・テンプレートツール
 
@@ -50,7 +50,7 @@
 ## セキュリティ上の不変条件
 
 - ASP.NET Core Identity と Cookie 認証を使い、独自のパスワードハッシュやトークン暗号を実装しない。
-- `ApplicationUser` は `IdentityUser<Guid>` を継承する。メールアドレスをログイン ID と UserName に使い、表示名は `DisplayName`、権限は `RoleCode` の `USER` / `ADMIN` で管理する。
+- `ApplicationUser` は `IdentityUser<Guid>` を継承する。メールアドレスをログイン ID と UserName に使い、表示名は `DisplayName`、権限は `RoleCode` とロールマスタで管理する。初期一般ロールは `A`～`D`、管理者は `ADMIN`。一般ロールが利用できるツールは `ToolRoles` の割当てで確認する。
 - `RoleCode` または `IsActive` の変更時は SecurityStamp を更新する。
 - 保護対象リクエストでは IsActive、RoleCode、SecurityStamp、サイト公開状態、ツール状態を再確認する。Cookie の存在、Referer、過去の画面操作だけで認可しない。
 - 設定欠落、未定義コード、状態やポリシーの取得失敗時は許可側へ倒さない。

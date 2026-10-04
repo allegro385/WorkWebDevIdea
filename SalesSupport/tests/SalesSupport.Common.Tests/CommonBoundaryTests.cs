@@ -17,14 +17,14 @@ using Xunit;
 
 namespace SalesSupport.Common.Tests;
 
-/// <summary>PRレビューで検出した安全性と仕様境界の回帰を確認します。</summary>
-public sealed class ReviewRegressionTests
+/// <summary>共通機能の安全性と仕様境界を確認します。</summary>
+public sealed class CommonBoundaryTests
 {
     /// <summary>保存ルート自身がジャンクション・リンクの場合も領域外へ書き込みません。</summary>
     [Fact]
     public async Task StorageRejectsLinkedRoot()
     {
-        var root = Directory.CreateTempSubdirectory("ss-review-link-").FullName;
+        var root = Directory.CreateTempSubdirectory("ss-boundary-link-").FullName;
         var target = Path.Combine(root, "target");
         var link = Path.Combine(root, "link");
         Directory.CreateDirectory(target);

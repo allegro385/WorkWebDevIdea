@@ -41,16 +41,18 @@ description: 営業支援ポータルの機能追加、修正、レビュー、�
 リポジトリのルートから実行する。
 
 ```powershell
-# ポータルのビルドとチェック
-./scripts/Test-Portal.ps1
+# ポータルのビルドと単体テスト
+dotnet build SalesSupport/SalesSupport.Portal.slnx
+dotnet test SalesSupport/SalesSupport.Portal.slnx --no-build
 
-# Common の復元、Release ビルド、チェック、ローカルパッケージ作成
-./scripts/Build-Common.ps1
+# Common のビルドと単体テスト
+dotnet build SalesSupport/SalesSupport.Common.slnx
+dotnet test SalesSupport/SalesSupport.Common.slnx --no-build
 
 # ポータルのローカル起動
-./scripts/Start-Portal.ps1
+dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
 小さな変更では関連する検証だけを実行する。認証フローや画面挙動を変えた場合は、必要に応じて HTTPS 起動後に対象画面も確認する。実 DB、実 SMTP、本番設定など外部状態を変更する検証は、依頼と権限が明確な場合だけ実行する。
 
-Common を変更した場合、配布済みの同一バージョンを上書きしない。パッケージのバージョンと利用側 PackageReference をそろえて更新する。
+Common はソースプロジェクトへの `ProjectReference` で共有する。変更時はPortalと影響する各ツールを検証し、配備時には対象アプリ全体を再発行する。テンプレートは `SalesSupport/template.slnx`、サンプルは `SalesSupport/SampleEstimate.slnx` でビルド・テストする。設定と起動手順は各アプリのREADME、SQLの適用・検証は `SalesSupport/sql/README.md` を参照する。

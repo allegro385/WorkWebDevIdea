@@ -73,12 +73,6 @@ D:\SalesSupport\
 
 共通設定ファイルをWeb公開領域・アプリ配置フォルダーの外へ置くこととアクセス権は、導入時に運用手順で確認します。Commonはファイルの存在と相対パスを検証しますが、配置フォルダーとの包含関係は起動時に検査しません。
 
-## 既存設定からの移行
-
-既存のPortalの`appsettings.Development.json`／`appsettings.Production.json`や環境変数で指定していた`ConnectionStrings:SalesSupport`、`Portal:EnvironmentCode`、`SalesSupport:Application:Name`、`SalesSupport:Portal:BaseUrl`、鍵・保存先、SMTP等の共通値を、配置する共通設定ファイルへ移してください。Portal固有の禁止パスワード一覧、連絡先、要求制限、マニュアル設定はPortal側に残します。
-
-鍵・保存先の指定は共通設定ファイルを基準にした相対パスに、禁止パスワード一覧はPortalの実行フォルダーを基準にした相対パスに変更してください。従来の絶対パスは起動時に拒否されます。開発環境では共通設定ファイルの`Portal:EnvironmentCode`を`DEVELOPMENT`に設定し、SMTPに使用する値も同ファイルまたは環境変数で与えます。環境別のPortal設定ファイルに残した共通値はCommonからは読み取られません。
-
 ## 秘密情報の取扱い
 
 - 接続文字列、SMTPの資格情報を含むため、実値を記入したファイルをリポジトリへ追加しないでください。`salessupport.common*.json`は2つの雛形を除き`.gitignore`で除外しています。名前を変えた実ファイルも追加前に内容を確認してください。
