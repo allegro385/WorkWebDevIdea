@@ -16,7 +16,7 @@
                 <label class="form-label pt-field-label" for="import-file">TSVファイル</label>
                 <div>
                     <input class="form-control" type="file" id="import-file" name="file" accept=".tsv" />
-                    <p class="pt-field-note">UTF-8のタブ区切りで、1行目にEmailとDisplayNameの見出しを入れてください。パスワードと権限の列は指定できません。</p>
+                    <p class="pt-field-note">UTF-8のタブ区切りで、1行目にEmail、DisplayName、RoleCodeの見出しを入れてください。ADMINは指定できません。</p>
                 </div>
             </div>
             <div class="pt-actions">
@@ -55,6 +55,7 @@
                     <th scope="col" class="pt-col-order">行番号</th>
                     <th scope="col">メールアドレス</th>
                     <th scope="col" class="pt-col-name">表示名</th>
+                    <th scope="col">ロール</th>
                 </tr>
             </thead>
             <tbody>
@@ -64,6 +65,7 @@
                         <td>@row.LineNumber</td>
                         <td>@row.Email</td>
                         <td>@row.DisplayName</td>
+                        <td>@row.RoleCode</td>
                     </tr>
                 }
             </tbody>

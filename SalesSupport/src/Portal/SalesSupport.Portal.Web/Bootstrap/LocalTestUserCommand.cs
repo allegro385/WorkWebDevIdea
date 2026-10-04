@@ -39,7 +39,7 @@ public sealed class LocalTestUserProvisioner(PortalDbContext db, UserManager<App
                 Email = input.Email,
                 EmailConfirmed = true,
                 DisplayName = input.DisplayName,
-                RoleCode = "USER",
+                RoleCode = "A",
                 IsActive = true,
                 LockoutEnabled = true
             };

@@ -30,7 +30,7 @@ public sealed class FavoriteService(PortalDbContext db, IActivityLogger activity
     /// <summary>同時実行による重複挿入も成功として扱います。</summary>
     public async Task<FavoriteOutcome> AddAsync(Guid userId, string toolId, CancellationToken ct = default)
     {
-        if (!await IsListedAsync(toolId, ct)) return await RecordAsync("FAVORITE_ADD", toolId, FavoriteOutcome.Unavailable, ct);
+        if (!await IsListedAsync(userId, toolId, ct)) return await RecordAsync("FAVORITE_ADD", toolId, FavoriteOutcome.Unavailable, ct);
         if (await db.UserToolFavorites.AsNoTracking().AnyAsync(x => x.UserId == userId && x.ToolId == toolId, ct))
             return await RecordAsync("FAVORITE_ADD", toolId, FavoriteOutcome.Succeeded, ct);
 
@@ -48,7 +48,7 @@ public sealed class FavoriteService(PortalDbContext db, IActivityLogger activity
     /// <summary>未登録の解除も成功として扱い、非公開ツールの登録は残します。</summary>
     public async Task<FavoriteOutcome> RemoveAsync(Guid userId, string toolId, CancellationToken ct = default)
     {
-        if (!await IsListedAsync(toolId, ct)) return await RecordAsync("FAVORITE_REMOVE", toolId, FavoriteOutcome.Unavailable, ct);
+        if (!await IsListedAsync(userId, toolId, ct)) return await RecordAsync("FAVORITE_REMOVE", toolId, FavoriteOutcome.Unavailable, ct);
         var favorite = await db.UserToolFavorites.SingleOrDefaultAsync(x => x.UserId == userId && x.ToolId == toolId, ct);
         if (favorite is not null)
         {
@@ -59,8 +59,13 @@ public sealed class FavoriteService(PortalDbContext db, IActivityLogger activity
     }
 
     /// <summary>一覧へ掲載できる状態のツールかどうかを判定します。</summary>
-    private Task<bool> IsListedAsync(string toolId, CancellationToken ct) =>
-        db.Tools.AsNoTracking().AnyAsync(x => x.ToolId == toolId && (x.Status == "PUBLIC" || x.Status == "PRIVATE"), ct);
+    private async Task<bool> IsListedAsync(Guid userId, string toolId, CancellationToken ct)
+    {
+        var roleCode = await db.Users.AsNoTracking().Where(x => x.Id == userId && x.IsActive).Select(x => x.RoleCode).SingleOrDefaultAsync(ct);
+        if (roleCode is null || !await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == roleCode, ct)) return false;
+        return await db.Tools.AsNoTracking().AnyAsync(x => x.ToolId == toolId && (x.Status == "PUBLIC" || x.Status == "PRIVATE")
+            && (roleCode == "ADMIN" || db.ToolRoles.Any(r => r.ToolId == x.ToolId && r.RoleCode == roleCode)), ct);
+    }
 
     /// <summary>操作結果を記録し、ログ失敗で本処理の結果を変更しません。</summary>
     private async Task<FavoriteOutcome> RecordAsync(string eventType, string toolId, FavoriteOutcome outcome, CancellationToken ct)

@@ -1,6 +1,6 @@
 # 見積試算サンプルの開発専用SQL
 
-`910_CreateSampleEstimate.sql`は、Portalの開発専用DBへ`dbo.SampleEstimateRecords`の1表、`SAMPLE-ESTIMATE`のツール行、`.tsv`・1 MiBのアップロード条件、ADMIN所有の見本案件2件を追加します。本番には適用しません。アプリ起動時にも自動適用しません。
+`910_CreateSampleEstimate.sql`は、Portalの開発専用DBへ`dbo.SampleEstimateRecords`の1表、`SAMPLE-ESTIMATE`のツール行とロールAの割当て、`.tsv`・1 MiBのアップロード条件、ADMIN所有の見本案件2件を追加します。本番には適用しません。アプリ起動時にも自動適用しません。
 
 ## 適用前
 

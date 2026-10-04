@@ -254,16 +254,18 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
             .Where(x => x.NoticeType == noticeType && x.ToolId == toolId && noticeIds.Contains(x.NoticeId))
             .Select(x => new NoticeStamp(x.NoticeId, x.UpdateCount)).ToListAsync(ct);
 
-    /// <summary>通知設定と、ツールの場合はお気に入り登録を条件に宛先を選定します。</summary>
+    /// <summary>通知設定と、ツールの場合はお気に入り登録・現行ロール割当てを条件に宛先を選定します。</summary>
     /// <remarks>サイト・ツールの公開範囲では宛先を絞り込みません。宛先は重複を除いてBCCへ設定します。</remarks>
     private async Task<IReadOnlyList<string>> ResolveRecipientsAsync(string noticeType, string? toolId, CancellationToken ct)
     {
         var query = from user in db.Users.AsNoTracking()
                     join preference in db.UserPreferences.AsNoTracking() on user.Id equals preference.UserId
                     where user.IsActive && user.Email != null
-                    select new { user.Id, user.Email, preference.SystemNoticeMailEnabled, preference.FavoriteToolNoticeMailEnabled };
+                    select new { user.Id, user.Email, user.RoleCode, preference.SystemNoticeMailEnabled, preference.FavoriteToolNoticeMailEnabled };
         query = noticeType == "TOOL"
-            ? query.Where(x => x.FavoriteToolNoticeMailEnabled && db.UserToolFavorites.Any(f => f.UserId == x.Id && f.ToolId == toolId))
+            ? query.Where(x => x.FavoriteToolNoticeMailEnabled && db.UserToolFavorites.Any(f => f.UserId == x.Id && f.ToolId == toolId)
+                && db.Roles.Any(r => r.RoleCode == x.RoleCode)
+                && (x.RoleCode == "ADMIN" || db.ToolRoles.Any(r => r.ToolId == toolId && r.RoleCode == x.RoleCode)))
             : query.Where(x => x.SystemNoticeMailEnabled);
 
         var addresses = await query.Select(x => x.Email!).ToListAsync(ct);

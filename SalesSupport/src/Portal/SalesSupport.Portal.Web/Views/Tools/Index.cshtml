@@ -44,6 +44,7 @@ else
                 <th scope="col" class="pt-col-version">バージョン</th>
                 <th scope="col" class="pt-col-date">更新日</th>
                 <th scope="col" class="pt-col-status">状態</th>
+                <th scope="col">コンテンツ</th>
             </tr>
         </thead>
         <tbody>
@@ -76,6 +77,20 @@ else
                     <td>Ver.@tool.Version</td>
                     <td>@(tool.UpdatedOn is { } updatedOn ? updatedOn.ToString("yyyy/MM/dd") : "未設定")</td>
                     <td><code-badge code-type="TOOL_STATUS" code-value="@tool.Status" /></td>
+                    <td>
+                        @if (tool.HasWebLaunch)
+                        {
+                            <a asp-controller="Tools" asp-action="Launch" asp-route-toolId="@tool.ToolId">Webツールを開く</a>
+                        }
+                        @if (tool.AppFile is { } app)
+                        {
+                            <a asp-controller="ToolFiles" asp-action="Download" asp-route-toolId="@tool.ToolId" asp-route-fileId="@app.FileId">@app.DisplayName をダウンロード</a>
+                        }
+                        @foreach (var reference in tool.References)
+                        {
+                            <a asp-controller="ToolFiles" asp-action="Download" asp-route-toolId="@tool.ToolId" asp-route-fileId="@reference.FileId">@reference.DisplayName をダウンロード</a>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>

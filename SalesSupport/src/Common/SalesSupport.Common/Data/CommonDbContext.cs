@@ -14,6 +14,8 @@ public sealed class CommonDbContext(DbContextOptions<CommonDbContext> options) :
     public DbSet<ErrorCodeEntry> ErrorCodes => Set<ErrorCodeEntry>();
     public DbSet<UserAccessRecord> Users => Set<UserAccessRecord>();
     public DbSet<ToolAccessRecord> Tools => Set<ToolAccessRecord>();
+    public DbSet<RoleAccessRecord> Roles => Set<RoleAccessRecord>();
+    public DbSet<ToolRoleAccessRecord> ToolRoles => Set<ToolRoleAccessRecord>();
 
     /// <summary>既存DDLへマッピングし、読取りに必要な列を定義します。</summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

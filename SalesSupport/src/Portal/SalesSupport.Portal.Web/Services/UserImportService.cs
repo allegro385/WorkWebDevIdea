@@ -14,7 +14,8 @@ namespace SalesSupport.Portal.Web.Services;
 /// <param name="LineNumber">ヘッダーを含む元TSVの行番号です。</param>
 /// <param name="Email">メールアドレスです。ログインIDとUserNameに使用します。</param>
 /// <param name="DisplayName">表示名です。</param>
-public sealed record UserImportRow(int LineNumber, string Email, string DisplayName);
+/// <param name="RoleCode">登録する一般ロールです。</param>
+public sealed record UserImportRow(int LineNumber, string Email, string DisplayName, string RoleCode);
 
 /// <summary>行番号付きの検証エラーです。</summary>
 /// <param name="LineNumber">対象の行番号です。ファイル全体のエラーでは0です。</param>
@@ -50,8 +51,8 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
     /// <summary>ヘッダーを除く取込可能なデータ行数の上限です。</summary>
     public const int MaxRows = 100;
 
-    /// <summary>取込に使用する列見出しです。パスワード・権限の列は受け付けません。</summary>
-    private static readonly string[] Header = ["Email", "DisplayName"];
+    /// <summary>取込に使用する列見出しです。パスワード列は受け付けません。</summary>
+    private static readonly string[] Header = ["Email", "DisplayName", "RoleCode"];
 
     /// <summary>容量・拡張子はCommon、ヘッダー・UTF-8・行数はPortalで検証します。</summary>
     public async Task<UserImportPreview> ValidateAsync(Guid operatorUserId, Stream content, string fileName, CancellationToken ct = default)
@@ -63,7 +64,7 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
             catch (UploadRejectedException exception) { return new([], [new UserImportError(0, exception.Error.Message)], null); }
 
             var (rows, errors) = await ReadAsync(handle, ct);
-            if (errors.Count == 0) errors = await FindDuplicatesAsync(rows, ct);
+            if (errors.Count == 0) errors = await ValidateRowsAsync(rows, ct);
             if (errors.Count != 0) return new([], errors, null);
 
             var confirmationId = confirmations.Issue(operatorUserId, new UserImportTicket(rows));
@@ -88,7 +89,7 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
         try
         {
             var header = await reader.ReadLineAsync(ct);
-            if (header is null || !IsHeader(header)) return (rows, [new UserImportError(1, "1行目はEmailとDisplayNameの2列の見出しにしてください。")]);
+            if (header is null || !IsHeader(header)) return (rows, [new UserImportError(1, "1行目はEmail、DisplayName、RoleCodeの3列の見出しにしてください。")]);
 
             var lineNumber = 1;
             while (await reader.ReadLineAsync(ct) is { } line)
@@ -101,19 +102,22 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
                     break;
                 }
                 var columns = line.Split('\t');
-                if (columns.Length != 2)
+                if (columns.Length != 3)
                 {
-                    errors.Add(new UserImportError(lineNumber, "EmailとDisplayNameの2列で入力してください。"));
+                    errors.Add(new UserImportError(lineNumber, "Email、DisplayName、RoleCodeの3列で入力してください。"));
                     continue;
                 }
                 var email = columns[0].Trim();
                 var displayName = columns[1].Trim();
+                var roleCode = columns[2].Trim();
                 if (!CommonValidation.IsEmail(email) || email.Length > 256)
                     errors.Add(new UserImportError(lineNumber, "メールアドレスの形式が正しくありません。"));
                 else if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 100)
                     errors.Add(new UserImportError(lineNumber, "表示名は1文字以上100文字以内で入力してください。"));
+                else if (string.IsNullOrWhiteSpace(roleCode) || roleCode.Length > 20 || roleCode == "ADMIN")
+                    errors.Add(new UserImportError(lineNumber, "DBに登録された一般ロールを指定してください。"));
                 else
-                    rows.Add(new UserImportRow(lineNumber, email, displayName));
+                    rows.Add(new UserImportRow(lineNumber, email, displayName, roleCode));
             }
         }
         catch (DecoderFallbackException)
@@ -122,6 +126,16 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
         }
         if (rows.Count == 0 && errors.Count == 0) errors.Add(new UserImportError(0, "登録するデータ行がありません。"));
         return (rows, errors);
+    }
+
+    /// <summary>一般ロールの現行定義とメールの重複を検査します。</summary>
+    private async Task<List<UserImportError>> ValidateRowsAsync(IReadOnlyList<UserImportRow> rows, CancellationToken ct)
+    {
+        var errors = await FindDuplicatesAsync(rows, ct);
+        var roles = await db.Roles.AsNoTracking().Where(x => x.RoleCode != "ADMIN").Select(x => x.RoleCode).ToListAsync(ct);
+        foreach (var row in rows.Where(x => !roles.Contains(x.RoleCode)))
+            errors.Add(new UserImportError(row.LineNumber, "DBに登録された一般ロールを指定してください。"));
+        return errors.OrderBy(x => x.LineNumber).ToList();
     }
 
     /// <summary>ファイル内とDBの正規化メールアドレスの重複を検出します。</summary>
@@ -149,8 +163,8 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
     {
         if (confirmations.Consume<UserImportTicket>(confirmationId, operatorUserId) is not { } ticket) return [];
 
-        var duplicates = await FindDuplicatesAsync(ticket.Rows, ct);
-        if (duplicates.Count != 0)
+        var errors = await ValidateRowsAsync(ticket.Rows, ct);
+        if (errors.Count != 0)
             return ticket.Rows.Select(row => new UserImportResultRow(row.LineNumber, row.Email, "未処理")).ToList();
 
         List<UserImportResultRow> results = [];
@@ -195,7 +209,7 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
                 Email = row.Email,
                 EmailConfirmed = false,
                 DisplayName = row.DisplayName,
-                RoleCode = "USER",
+                RoleCode = row.RoleCode,
                 IsActive = true,
                 LockoutEnabled = true
             };
@@ -219,7 +233,7 @@ public sealed class UserImportService(PortalDbContext db, UserManager<Applicatio
         }
     }
 
-    /// <summary>見出し行がEmailとDisplayNameの2列かどうかを判定します。</summary>
+    /// <summary>見出し行がEmail、DisplayName、RoleCodeの3列かどうかを判定します。</summary>
     private static bool IsHeader(string line)
     {
         var columns = line.Split('\t');

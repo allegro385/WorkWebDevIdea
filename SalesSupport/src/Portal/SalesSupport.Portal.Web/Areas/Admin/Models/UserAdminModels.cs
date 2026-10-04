@@ -32,11 +32,12 @@ public sealed class UserSearchInput
 /// <param name="UserId">編集画面への遷移に使用する識別子です。</param>
 /// <param name="DisplayName">表示名です。</param>
 /// <param name="Email">メールアドレスです。</param>
-/// <param name="RoleCode">USER_ROLEのコード値です。</param>
+/// <param name="RoleCode">ロールマスタのコード値です。</param>
+/// <param name="RoleName">ロールマスタの表示名です。</param>
 /// <param name="IsActive">有効かどうかです。</param>
 /// <param name="IsLocked">ロック中かどうかです。</param>
 /// <param name="LastAccessAt">最終利用日時のJST表示値です。</param>
-public sealed record UserListItem(Guid UserId, string DisplayName, string Email, string RoleCode, bool IsActive,
+public sealed record UserListItem(Guid UserId, string DisplayName, string Email, string RoleCode, string RoleName, bool IsActive,
     bool IsLocked, DateTimeOffset? LastAccessAt);
 
 /// <summary>A002 ユーザー管理の一覧画面の表示情報です。</summary>
@@ -55,7 +56,7 @@ public sealed class UserListViewModel
     public OperationMessage? Message { get; set; }
 }
 
-/// <summary>ユーザー編集の入力です。権限は画面から変更しません。</summary>
+/// <summary>一般ロール間の変更を含むユーザー編集の入力です。</summary>
 public sealed class UserEditInput
 {
     /// <summary>編集対象のユーザーです。</summary>
@@ -74,6 +75,9 @@ public sealed class UserEditInput
     [Display(Name = "状態")]
     public bool IsActive { get; set; }
 
+    [Display(Name = "ロール")]
+    public string? RoleCode { get; set; }
+
     /// <summary>取得時のConcurrencyStampです。同時更新の検出に使用します。</summary>
     public string? ConcurrencyStamp { get; set; }
 }
@@ -84,8 +88,14 @@ public sealed class UserEditViewModel
     /// <summary>再表示時も維持する入力です。</summary>
     public UserEditInput Input { get; set; } = new();
 
-    /// <summary>参照表示する権限です。画面からは変更しません。</summary>
+    /// <summary>現在のロールです。ADMINは参照表示にします。</summary>
     public string RoleCode { get; init; } = "";
+
+    /// <summary>現在のロールの表示名です。</summary>
+    public string RoleName { get; init; } = "";
+
+    /// <summary>一般ロールの選択肢です。</summary>
+    public IReadOnlyList<CodeOption> GeneralRoles { get; init; } = [];
 
     /// <summary>ロック中かどうかです。</summary>
     public bool IsLocked { get; init; }

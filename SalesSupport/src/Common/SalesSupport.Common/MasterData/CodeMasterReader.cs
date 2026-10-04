@@ -25,7 +25,6 @@ public sealed class CodeMasterReader(IDbContextFactory<CommonDbContext> factory)
         ["TOOL_STATUS"] = ["PUBLIC", "PRIVATE", "HIDDEN"],
         ["SITE_STATUS"] = ["PUBLIC", "PRIVATE"],
         ["TOOL_TYPE"] = ["DESKTOP", "WEB", "DOCUMENT"],
-        ["USER_ROLE"] = ["USER", "ADMIN"],
         ["INQUIRY_CATEGORY"] = ["QUESTION", "REQUEST", "OPINION", "PROBLEM", "OTHER"],
         ["INQUIRY_STATUS"] = ["ACTION_REQUIRED", "IN_PROGRESS", "UNDER_REVIEW", "COMPLETED", "NO_ACTION"]
     };

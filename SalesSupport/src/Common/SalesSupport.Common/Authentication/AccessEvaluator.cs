@@ -43,17 +43,19 @@ public sealed class AccessEvaluator(ICurrentUserAccessor current, ISystemSetting
     {
         var user = current.User;
         if (user is null) return new(false, 401, "UNAUTHENTICATED");
-        if (user.RoleCode is not ("USER" or "ADMIN")) return new(false, 403, "ROLE_DENIED");
+        await using var db = await factory.CreateDbContextAsync(ct);
+        if (!await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct)) return new(false, 403, "ROLE_DENIED");
         var publication = await settings.GetPublicationStatusAsync(ct);
         if (publication == "PRIVATE" && user.RoleCode != "ADMIN") return new(false, 403, "SITE_PRIVATE");
         if (request.Purpose == AccessPurpose.Site) return new(true);
         if (!Enum.IsDefined(request.Purpose) || string.IsNullOrWhiteSpace(request.ToolId)) return new(false, 400, "INVALID_INPUT");
-        await using var db = await factory.CreateDbContextAsync(ct);
         var tool = await db.Tools.AsNoTracking().SingleOrDefaultAsync(x => x.ToolId == request.ToolId, ct);
         if (tool is null) return new(false, 404, "TOOL_UNAVAILABLE");
         if (tool.Status is not ("PUBLIC" or "PRIVATE" or "HIDDEN") || tool.ToolType is not ("WEB" or "DESKTOP" or "DOCUMENT"))
             throw new ConfigurationException("Tools/StatusOrType");
         if (request.Purpose == AccessPurpose.ToolManage) return user.RoleCode == "ADMIN" ? new(true) : new(false, 403, "ROLE_DENIED");
+        if (user.RoleCode != "ADMIN" && !await db.ToolRoles.AsNoTracking().AnyAsync(x => x.ToolId == request.ToolId && x.RoleCode == user.RoleCode, ct))
+            return new(false, 403, "ROLE_DENIED");
         if (tool.Status == "HIDDEN") return new(false, 404, "TOOL_UNAVAILABLE");
         if (tool.Status == "PRIVATE" && user.RoleCode != "ADMIN") return new(false, 403, "ROLE_DENIED");
         if (request.Purpose == AccessPurpose.ToolUse && tool.ToolType != "WEB") return new(false, 404, "TOOL_UNAVAILABLE");

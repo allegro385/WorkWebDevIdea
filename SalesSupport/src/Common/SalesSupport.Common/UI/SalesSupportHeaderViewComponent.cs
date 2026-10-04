@@ -35,8 +35,7 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
             menus.Add(new("管理者用画面",
             [
                 new("ユーザー管理", links.Portal("admin/users")), new("問い合わせ管理", links.Portal("admin/inquiries")),
-                new("ツール管理", links.Portal("admin/tools")), new("サイト管理", links.Portal("admin/notices")),
-                new("ログ管理", links.Portal("admin/logs"))
+                new("ツール管理", links.Portal("admin/tools")), new("サイト管理", links.Portal("admin/notices"))
             ]));
         List<HeaderLink> accountLinks = [new("パスワード変更", links.Portal("account/password/change"))];
         return View(new SalesSupportHeaderModel(user?.DisplayName, isAdmin, options.Value.IsDevelopment,

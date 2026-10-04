@@ -17,6 +17,7 @@ public sealed class PortalDbContextTests
         var expected = new[]
         {
             (typeof(ApplicationUser), "AspNetUsers"), (typeof(Tool), "Tools"), (typeof(ToolCategory), "ToolCategories"),
+            (typeof(Role), "Roles"), (typeof(ToolRole), "ToolRoles"),
             (typeof(UserPreference), "UserPreferences"), (typeof(UserToolFavorite), "UserToolFavorites"),
             (typeof(ToolVersionHistory), "ToolVersionHistories"), (typeof(ToolFile), "ToolFiles"),
             (typeof(Notice), "Notices"), (typeof(FaqCategory), "FaqCategories"), (typeof(FaqItem), "FaqItems"),
@@ -46,10 +47,24 @@ public sealed class PortalDbContextTests
     public void ModelUsesNoActionForPortalForeignKeys()
     {
         using var context = CreateContext();
-        var portalTypes = new[] { typeof(Tool), typeof(UserPreference), typeof(UserToolFavorite), typeof(ToolVersionHistory), typeof(ToolFile), typeof(Notice), typeof(FaqItem), typeof(Inquiry) };
+        var portalTypes = new[] { typeof(ApplicationUser), typeof(Tool), typeof(ToolRole), typeof(UserPreference), typeof(UserToolFavorite), typeof(ToolVersionHistory), typeof(ToolFile), typeof(Notice), typeof(FaqItem), typeof(Inquiry) };
         var foreignKeys = portalTypes.SelectMany(type => context.Model.FindEntityType(type)!.GetForeignKeys()).ToArray();
         Assert.NotEmpty(foreignKeys);
         Assert.All(foreignKeys, foreignKey => Assert.Equal(DeleteBehavior.NoAction, foreignKey.DeleteBehavior));
+    }
+
+    /// <summary>ロール参照・ツール割当て・カテゴリ並び順廃止をモデルで確認します。</summary>
+    [Fact]
+    public void ModelUsesRoleForeignKeysAndToolOnlyOrdering()
+    {
+        using var context = CreateContext();
+        var user = context.Model.FindEntityType(typeof(ApplicationUser))!;
+        var toolRole = context.Model.FindEntityType(typeof(ToolRole))!;
+        Assert.Contains(user.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Role));
+        Assert.Contains(toolRole.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Role));
+        Assert.Contains(toolRole.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Tool));
+        Assert.Null(context.Model.FindEntityType(typeof(ToolCategory))!.FindProperty("SortOrder"));
+        Assert.Equal(2, toolRole.FindPrimaryKey()!.Properties.Count);
     }
 
     /// <summary>DB接続なしでSQL Server向けモデルを生成します。</summary>

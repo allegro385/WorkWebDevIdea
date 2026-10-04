@@ -108,7 +108,7 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     /// <summary>業務で許可したフィールドと保存コードの組合せだけを記録します。</summary>
     private static bool AllowedChange(string field, string? code) => field switch
     {
-        "RoleCode" => code is null or "USER" or "ADMIN",
+        "RoleCode" => code is null || (code.Length is > 0 and <= 20 && !code.Any(char.IsControl)),
         "Status" => code is null or "PUBLIC" or "PRIVATE" or "HIDDEN" or "ACTION_REQUIRED" or "IN_PROGRESS" or "UNDER_REVIEW" or "COMPLETED" or "NO_ACTION",
         "IsActive" or "SystemNoticeMailEnabled" or "FavoriteToolNoticeMailEnabled" => code is null or "0" or "1",
         // 問い合わせの分類変更では、変更前後のコードと対象ツールのIDだけを記録します。
