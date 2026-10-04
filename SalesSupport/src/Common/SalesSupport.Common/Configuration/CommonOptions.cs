@@ -12,6 +12,12 @@ public sealed class CommonOptions
     public string PortalBaseUrl { get; set; } = "";
     public string KeyDirectory { get; set; } = "";
 
+    /// <summary>ツールの公開状態と共有認証をDBで確認します。falseは単独開発専用です。</summary>
+    public bool CheckToolPublicationStatus { get; set; } = true;
+
+    /// <summary>起動時に検証されたツール専用の単独開発モードかを返します。</summary>
+    public bool IsStandaloneTool => Kind == ApplicationKind.Tool && IsDevelopment && !CheckToolPublicationStatus;
+
     /// <summary>開発環境向けの動作を適用するかを判定します。未設定・不正値は開発扱いにしません。</summary>
     public bool IsDevelopment => EnvironmentCode == "DEVELOPMENT";
 }

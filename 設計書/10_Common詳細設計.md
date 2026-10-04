@@ -139,10 +139,11 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
-| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
+| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 通常は未設定拒否。単独開発だけ未設定で起動でき、DB利用時は拒否。値をエラー本文へ出さない |
 | Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
+| SalesSupport:Tool:CheckPublicationStatus | 既定true、Tool専用 | falseは単独開発。CommonのDEVELOPMENTとホストDevelopmentの両方が必要。Portalには適用しない |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
@@ -177,6 +178,14 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 汎用的な設定書換えAPIは提供しない。秘密情報と物理パスを画面・ProblemDetails・ログへ出さない。
 
 ## 5. Authentication
+
+### ツールの単独開発
+
+`AddSalesSupportCommon(ApplicationKind.Tool, environment)`はCommon設定の`SalesSupport:Tool:CheckPublicationStatus`を先に確認する。`true`または未設定は通常の共有Cookie・DB認可を適用する。`false`はCommonの`DEVELOPMENT`とホストの`Development`の両方を起動時に検証し、不一致・不正値は構成エラーとして拒否する。Portalはこのツール専用設定を適用しない。
+
+単独開発の既定認可は設定されたToolIdの`ToolUse`だけを認証なしで許可する。Cookieを認証に使わず、CurrentUserはnullのままとし、認証チケットは発行しない。管理者やサイト入場、他ToolIdへ許可を拡張しない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーの認証要件は維持する。サンプルの案件画面は`SalesSupportTool`を明示して単独開発からの直接アクセスも拒否する。
+
+このモードではDB接続文字列なしで起動できる。DBの公開状態・業務日付・ログは参照・保存せず、業務日付には現在のJST日付を使う。サンプルの状態表示はDB未確認と明示する。サンプルとテンプレートはアップロードと案件保存を画面・サーバー両方で拒否し、許可ポリシーや認証ユーザーを固定値で代用しない。DBを使う開発確認と本番では設定を`true`へ戻し、通常の確認フローを使う。
 
 ### 認証・要求処理
 

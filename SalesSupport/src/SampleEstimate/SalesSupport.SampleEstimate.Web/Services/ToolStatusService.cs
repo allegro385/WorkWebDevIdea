@@ -17,9 +17,10 @@ public interface IToolStatusService
 public sealed class ToolStatusService(IDbContextFactory<CommonDbContext> factory, ICodeMasterReader codes,
     IOptions<CommonOptions> options) : IToolStatusService
 {
-    /// <summary>DBの現在値を表示名へ変換し、不整合なら構成エラーにします。</summary>
+    /// <summary>単独開発はDB未確認と表示し、通常はDBの現在値を表示名へ変換して不整合を拒否します。</summary>
     public async Task<string> GetStatusNameAsync(CancellationToken ct = default)
     {
+        if (options.Value.IsStandaloneTool) return "単独開発（DB確認なし）";
         await using var db = await factory.CreateDbContextAsync(ct);
         var status = await db.Tools.AsNoTracking().Where(x => x.ToolId == options.Value.ToolId)
             .Select(x => x.Status).SingleOrDefaultAsync(ct);

@@ -11,11 +11,12 @@ public static class ToolServiceExtensions
 {
     /// <summary>共通基盤とツール固有のサービスを登録します。認証・認可・ログ・設定検証はCommonの登録に従います。</summary>
     /// <param name="services">ホストのサービスコレクションです。</param>
+    /// <param name="environment">単独開発の指定をCommonが検証するための実行環境です。</param>
     /// <returns>登録済みのサービスコレクションです。</returns>
-    public static IServiceCollection AddSalesSupportTool(this IServiceCollection services)
+    public static IServiceCollection AddSalesSupportTool(this IServiceCollection services, IHostEnvironment environment)
     {
         // 共通設定ファイルの読込み、ToolId・Portal URL・DB接続・鍵領域の検証、認証・認可・ログの登録はCommonが行います。
-        services.AddSalesSupportCommon(ApplicationKind.Tool);
+        services.AddSalesSupportCommon(ApplicationKind.Tool, environment);
         // 一時保存領域を使うツールのため、未設定を起動時の構成エラーとして検出します。使用しないツールではこの検証を外します。
         services.AddOptions<StorageOptions>()
             .Validate(x => !string.IsNullOrWhiteSpace(x.TemporaryRoot), "Storage:TemporaryRootが必要です。").ValidateOnStart();

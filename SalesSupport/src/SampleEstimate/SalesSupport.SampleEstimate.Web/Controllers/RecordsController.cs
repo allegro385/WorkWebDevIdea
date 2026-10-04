@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Logging;
@@ -10,6 +11,7 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 
 /// <summary>本人の保存済み案件を検索・表示・更新します。業務判断はServiceに委譲します。</summary>
 [Route("records")]
+[Authorize(Policy = "SalesSupportTool")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IUsageLogger usage,
     IOptions<CommonOptions> options) : Controller

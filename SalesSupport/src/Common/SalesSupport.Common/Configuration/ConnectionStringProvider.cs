@@ -12,18 +12,21 @@ public interface IConnectionStringProvider
 /// <summary>共通設定ファイルの接続文字列を保持します。値を例外本文や画面へ出しません。</summary>
 public sealed class ConnectionStringProvider : IConnectionStringProvider
 {
+    private readonly string? connectionString;
     /// <summary>共通設定ファイル上の接続文字列名です。</summary>
     public const string ConnectionName = "SalesSupport";
 
-    /// <summary>起動時に接続文字列を取得します。未設定・空白は構成エラーとして起動を止めます。</summary>
+    /// <summary>通常は未設定で起動を止めます。単独開発の場合だけ未設定のまま保持し、DB利用時に拒否します。</summary>
     /// <param name="configuration">共通設定ファイルから構成した設定。</param>
-    public ConnectionStringProvider(IConfiguration configuration)
+    /// <param name="requireConnectionString">通常はtrue。検証済み単独開発の登録時だけfalseを指定します。</param>
+    public ConnectionStringProvider(IConfiguration configuration, bool requireConnectionString = true)
     {
         var value = configuration.GetConnectionString(ConnectionName);
-        if (string.IsNullOrWhiteSpace(value)) throw new ConfigurationException($"ConnectionStrings:{ConnectionName}");
-        SalesSupportDatabase = value;
+        if (requireConnectionString && string.IsNullOrWhiteSpace(value)) throw new ConfigurationException($"ConnectionStrings:{ConnectionName}");
+        connectionString = value;
     }
 
     /// <summary>共通設定ファイルから取得した業務DBの接続文字列です。</summary>
-    public string SalesSupportDatabase { get; }
+    public string SalesSupportDatabase => !string.IsNullOrWhiteSpace(connectionString) ? connectionString
+        : throw new ConfigurationException($"ConnectionStrings:{ConnectionName}");
 }

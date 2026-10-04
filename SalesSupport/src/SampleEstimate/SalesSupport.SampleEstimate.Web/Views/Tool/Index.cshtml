@@ -1,4 +1,5 @@
 @model EstimateViewModel
+@inject Microsoft.Extensions.Options.IOptions<SalesSupport.Common.Configuration.CommonOptions> CommonSettings
 @*
     見積の入力画面です。画面表示・TSV出力は副作用を持たず、要約保存だけが案件を登録します。
     CSRF、サーバー側検証、共通の一時ファイル処理は三つの出力方法に同じように適用します。
@@ -67,7 +68,7 @@
                             <label class="form-check-label" for="output-download">TSVファイルをダウンロードする</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" />
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@CommonSettings.Value.IsStandaloneTool" />
                             <label class="form-check-label" for="output-save">要約を案件として保存する</label>
                         </div>
                     </div>
@@ -75,7 +76,7 @@
                 <div class="tt-field tt-field-top">
                     <label class="form-label tt-field-label" for="detailFile">明細ファイル</label>
                     <div>
-                        <input class="form-control" type="file" id="detailFile" name="detailFile" />
+                        <input class="form-control" type="file" id="detailFile" name="detailFile" disabled="@CommonSettings.Value.IsStandaloneTool" />
                         <p class="tt-field-note">@Model.DetailFileHint</p>
                         @* ファイルの項目エラーはServiceが同じ項目名で返すため、入力欄の横へ表示します。 *@
                         @Html.ValidationMessage(EstimateService.DetailFileField, new { @class = "tt-field-error" })
@@ -87,7 +88,10 @@
             </div>
         </section>
     </form>
-    <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">保存した案件の一覧・集計</a>
+    @if (!CommonSettings.Value.IsStandaloneTool)
+    {
+        <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">保存した案件の一覧・集計</a>
+    }
     <p class="tt-note">
         画面表示・TSV出力は保存されません。「要約を保存する」の場合だけ本人の案件を登録します。
         同じフォームの再送信は送信IDで重複登録を防ぎます。アップロードしたファイル本体と出力ファイルは保存しません。

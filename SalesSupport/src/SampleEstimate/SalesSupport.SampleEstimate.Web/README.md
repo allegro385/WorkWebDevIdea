@@ -18,6 +18,10 @@ ToolIdは`SAMPLE-ESTIMATE`、PortalからのURLは`/tools/SAMPLE-ESTIMATE/app`�
 
 ## 準備と検証
 
+画面・計算・TSV出力の単独開発では、Common設定の`SalesSupport:Tool:CheckPublicationStatus=false`を使います。Commonの`DEVELOPMENT`とホストの`Development`の両方が必要です。ログイン・DBデータ・接続文字列は不要ですが、共通設定ファイルへの相対パス、鍵・一時保存フォルダー等は準備します。公開状態欄には「単独開発（DB確認なし）」と表示し、JSTの現在日付を使い、DBログは保存しません。このモードでは明細ファイルと案件の保存・検索・更新は利用できません。[単独開発の設定手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
+
+DB機能・共有Cookieの開発確認と本番では`true`（未設定時も`true`）へ戻します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`false`を指定すると起動を拒否します。
+
 共通設定と秘密値の置き方は[設定手順](../../../config/README.md)に従います。接続文字列はCommonの`IConnectionStringProvider`から取得します。ローカルのToolId・表示名は`Properties/launchSettings.json`に設定済みです。SQLは[サンプル専用手順](../../../sql/sample/README.md)に従い、開発専用DBへ手動適用してください。IISでは独立アプリケーション・プール、環境変数、同一サイト配下のURLを[導入・運用](../../../../設計書/05_導入・運用.md)に従って用意します。
 
 ```text

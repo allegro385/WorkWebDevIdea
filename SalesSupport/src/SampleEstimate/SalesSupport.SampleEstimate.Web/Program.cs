@@ -4,7 +4,7 @@ using SalesSupport.Common.ErrorHandling;
 using SalesSupport.SampleEstimate.Web.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSalesSupportTool();
+builder.Services.AddSalesSupportTool(builder.Environment);
 
 var app = builder.Build();
 

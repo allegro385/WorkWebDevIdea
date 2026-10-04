@@ -1,4 +1,5 @@
 @model EstimateViewModel
+@inject Microsoft.Extensions.Options.IOptions<SalesSupport.Common.Configuration.CommonOptions> CommonSettings
 @*
     テンプレートの入力画面です。文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択の
     代表的な入力例を静的なRazorフォームで並べています。入力項目を動的生成する汎用フォーム基盤は設けません。
@@ -70,7 +71,7 @@
                 <div class="tt-field tt-field-top">
                     <label class="form-label tt-field-label" for="detailFile">明細ファイル</label>
                     <div>
-                        <input class="form-control" type="file" id="detailFile" name="detailFile" />
+                        <input class="form-control" type="file" id="detailFile" name="detailFile" disabled="@CommonSettings.Value.IsStandaloneTool" />
                         <p class="tt-field-note">@Model.DetailFileHint</p>
                         @* ファイルの項目エラーはServiceが同じ項目名で返すため、入力欄の横へ表示します。 *@
                         @Html.ValidationMessage(EstimateService.DetailFileField, new { @class = "tt-field-error" })
