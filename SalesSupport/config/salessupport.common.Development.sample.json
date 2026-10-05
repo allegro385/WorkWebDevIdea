@@ -6,6 +6,9 @@
     "EnvironmentCode": "DEVELOPMENT"
   },
   "SalesSupport": {
+    "Tool": {
+      "CheckPublicationStatus": false
+    },
     "Application": {
       "Name": "営業支援ポータル"
     },

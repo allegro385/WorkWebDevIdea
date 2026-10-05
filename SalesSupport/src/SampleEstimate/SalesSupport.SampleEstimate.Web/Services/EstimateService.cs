@@ -71,9 +71,10 @@ public sealed class EstimateService(IFileStorage storage, IUploadPolicyProvider 
     /// <summary>固定の選択肢を返します。コードマスタで管理する場合は`ICodeMasterReader`へ差し替えます。</summary>
     public IReadOnlyList<EstimateCategory> GetCategories() => Categories;
 
-    /// <summary>DBに登録された条件だけを案内し、条件を取得できない場合は例外を呼出元へ返します。</summary>
+    /// <summary>単独開発ではアップロード不可を案内し、通常はDBの許可条件だけを表示します。</summary>
     public async Task<string> GetDetailFileHintAsync(CancellationToken ct = default)
     {
+        if (options.Value.IsStandaloneTool) return "単独開発ではファイルを使用できません。アップロードの確認には開発用DBとPortalを使用してください。";
         var policy = await policies.GetAsync(UploadPurpose.ToolInput, options.Value.ToolId, ct);
         var megabytes = policy.MaxFileSizeBytes / 1024m / 1024m;
         return $"{string.Join("、", policy.Extensions)}のファイルを{megabytes:0.#}MBまで選択できます。処理後に一時ファイルは削除されます。";
@@ -84,6 +85,8 @@ public sealed class EstimateService(IFileStorage storage, IUploadPolicyProvider 
     {
         var input = request.Input;
         List<FieldError> errors = [];
+        if (options.Value.IsStandaloneTool && request.DetailContent is not null)
+            return new(EstimateOutcomeKind.InvalidInput, null, new([new(DetailFileField, "INVALID_INPUT", "単独開発ではファイルを使用できません。")]));
         if (CommonValidation.ValidateText(nameof(EstimateInput.ProjectName), input.ProjectName, 60, required: true) is { } nameError)
             errors.Add(nameError);
         if (input.Quantity is not (>= 1 and <= 9999))

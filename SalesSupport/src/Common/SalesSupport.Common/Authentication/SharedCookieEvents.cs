@@ -16,9 +16,6 @@ namespace SalesSupport.Common.Authentication;
 /// <summary>Cookie更新の対象外であることを明示します。</summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
 public sealed class NoSlidingRenewalAttribute : Attribute { }
-/// <summary>利用開始ログの対象となる入口画面を示します。</summary>
-[AttributeUsage(AttributeTargets.Method)]
-public sealed class ToolEntryAttribute : Attribute { }
 /// <summary>Portalとツールが共有するCookie契約です。</summary>
 public static class SharedCookieContract
 {
@@ -49,6 +46,7 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
         current.User = null;
+        if (options.Value.IsStandaloneTool) { context.RejectPrincipal(); return; }
         var claims = identityOptions.Value.ClaimsIdentity;
         var now = clock.GetUtcNow();
         var valid = Guid.TryParse(context.Principal?.FindFirstValue(claims.UserIdClaimType), out var userId)

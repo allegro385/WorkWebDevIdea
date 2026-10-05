@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
 using SalesSupport.Common.Data;
@@ -36,11 +37,16 @@ public interface IAccessEvaluator
     Task<AccessDecision> EvaluateAsync(AccessRequest request, CancellationToken ct = default);
 }
 /// <summary>表示可能性と実行権限を混同せずに判定します。</summary>
-public sealed class AccessEvaluator(ICurrentUserAccessor current, ISystemSettingsReader settings, IDbContextFactory<CommonDbContext> factory) : IAccessEvaluator
+public sealed class AccessEvaluator(ICurrentUserAccessor current, ISystemSettingsReader settings, IDbContextFactory<CommonDbContext> factory,
+    IOptions<CommonOptions> options) : IAccessEvaluator
 {
     /// <summary>未定義状態や取得障害は例外とし、許可へ変換しません。</summary>
     public async Task<AccessDecision> EvaluateAsync(AccessRequest request, CancellationToken ct = default)
     {
+        // 単独開発でも対象ツールの入口・実行だけを許可し、サイト管理や他ツールへの許可には使いません。
+        if (options.Value.IsStandaloneTool && request.Purpose == AccessPurpose.ToolUse)
+            return !string.IsNullOrWhiteSpace(request.ToolId) && request.ToolId == options.Value.ToolId
+                ? new(true) : new(false, 400, "INVALID_INPUT");
         var user = current.User;
         if (user is null) return new(false, 401, "UNAUTHENTICATED");
         await using var db = await factory.CreateDbContextAsync(ct);

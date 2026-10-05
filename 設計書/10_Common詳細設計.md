@@ -2,7 +2,7 @@
 
 [資料一覧へ戻る](README.md)
 
-2026-09-20作成。対象は `SalesSupport/src/Common/SalesSupport.Common`。本書は合意済みの基本設計を実装可能な契約へ具体化する。業務の可否は02、物理列は04、運用は05を正とする。コード例・クラス名は実装契約であり、実装済みを意味しない。接続情報等の実値は配置時に設定する。
+対象は `SalesSupport/src/Common/SalesSupport.Common`。本書は合意済みの基本設計を実装可能な契約へ具体化する。業務の可否は02、物理列は04、運用は05を正とする。コード例・クラス名は実装契約であり、実装済みを意味しない。接続情報等の実値は配置時に設定する。
 
 ## 1. 構成と責任分界
 
@@ -132,17 +132,18 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
 - アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と障害ログに使う`Application:Name`は各アプリの環境変数で与える。
-- ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は従来どおり各アプリの設定から取得する。
+- ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は各アプリの設定から取得する。
 - 接続文字列の取得口はCommonの`IConnectionStringProvider.SalesSupportDatabase`だけとする。利用側は`IConfiguration`から接続文字列を読み取らない。
 
 ### 外部設定
 
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
-| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
+| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 通常は未設定拒否。単独開発だけ未設定で起動でき、DB利用時は拒否。値をエラー本文へ出さない |
 | Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
+| SalesSupport:Tool:CheckPublicationStatus | 既定true、Tool専用 | falseは単独開発。CommonのDEVELOPMENTとホストDevelopmentの両方が必要。Portalには適用しない |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
@@ -178,6 +179,14 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 ## 5. Authentication
 
+### ツールの単独開発
+
+`AddSalesSupportCommon(ApplicationKind.Tool, environment)`はCommon設定の`SalesSupport:Tool:CheckPublicationStatus`を先に確認する。`true`または未設定は通常の共有Cookie・DB認可を適用する。`false`はCommonの`DEVELOPMENT`とホストの`Development`の両方を起動時に検証し、不一致・不正値は構成エラーとして拒否する。Portalはこのツール専用設定を適用しない。
+
+単独開発の既定認可は設定されたToolIdの`ToolUse`だけを認証なしで許可する。Cookieを認証に使わず、CurrentUserはnullのままとし、認証チケットは発行しない。管理者やサイト入場、他ToolIdへ許可を拡張しない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーの認証要件は維持する。サンプルの案件画面は`SalesSupportTool`を明示して単独開発からの直接アクセスも拒否する。
+
+このモードではDB接続文字列なしで起動できる。DBの公開状態・業務日付・ログは参照・保存せず、業務日付には現在のJST日付を使う。サンプルの状態表示はDB未確認と明示する。サンプルとテンプレートはアップロードと案件保存を画面・サーバー両方で拒否し、許可ポリシーや認証ユーザーを固定値で代用しない。DBを使う開発確認と本番では設定を`true`へ戻し、通常の確認フローを使う。
+
 ### 認証・要求処理
 
 1. Cookie標準ハンドラーで復号・期限を検証する。
@@ -194,7 +203,6 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | AccessRequest | Purpose=Site／ToolDetail／ToolUse／ToolDownload／ToolManage、ToolId? |
 | SalesSupportAdminポリシー | サイト入場＋ADMIN |
 | SalesSupportToolポリシー | サイト入場＋ConfigのToolIdの利用可否 |
-| ToolEntry属性 | WEB_OPEN対象の入口アクションに付与 |
 | NoSlidingRenewal属性 | 自動ポーリング等、認証は必要だがCookie更新対象外の要求 |
 
 Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする。一般ロールはToolRolesの一致を必要とし、ADMINは割当てに関係なく全ツールを対象とする。ロール定義・割当ての取得失敗は拒否する。ToolManageはADMINに限定し、HIDDENも編集できる。ToolUseではADMINでもHIDDENを拒否する。一覧の掲載条件と利用認可を共用の単一boolへまとめない。
@@ -248,7 +256,7 @@ Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする
 UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが補う。未知ユーザーの認証失敗はUserId=nullとし、入力メールを保存しない。UsageEventには検証済みユーザーが必須。ツールのToolIdはConfig、Portalのダウンロード対象はDBから解決する。
 
 - CorrelationIdは要求開始時にGUID生成し、同じ要求内で共有する。外部から任意文字列を採用しない。アプリ間HTTP連携が必要な場合だけ信頼済み内部要求として引継ぎを設計する。
-- WEB_OPENはToolEntry付きアクションの正常な画面応答1回につき1件。失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
+- WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。各ツールの入口にTypeFilterでWebOpenLoggingFilterを適用し、結果フィルターからCommonのIUsageLoggerへ記録する。失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
 - WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。
 - DESKTOP_DOWNLOADは認可後の取得要求を1件記録し、取得準備の結果をSUCCESS／FAILUREとする。端末での受信完了を保証しない。
 - LogDbContextを都度作成し、業務の変更追跡やトランザクションを共有しない。3秒の独立上限でawaitし、fire-and-forgetや永続キューは作らない。
@@ -433,16 +441,9 @@ EndpointメタデータをCookie更新判定で参照できるよう、ルーテ
 | 出力 | NULL・日本語・引用符・数式先頭・改行・タブ・大量行・途中失敗 |
 | UI | Portalルート／ツールPathBaseで共通資産・リンク・CSRF・権限表示・エラー表示 |
 
-### 実装前に整合させる既存SQL
+### SQLとの整合
 
-2026-09-21に新規構築SQLを整合修正した。以下は検出時の差分記録であり、公開状態NULL、DBユーザー・監査保持、再入判定、不要な一意制約、確定済み形式、ダミーの削除と環境ガードは修正済み。検証方法・適用範囲は[SQL README](../SalesSupport/sql/README.md)を参照。EF統合、実運用DBへの移行、既存データの移行判断等は引き続き対象外。
-
-- SystemSettingsの公開状態CHECKはNULLを明示拒否する必要がある。現在のIN条件だけではSQLのUNKNOWN評価でNULLが通る。
-- トリガーのDBユーザー取得はORIGINAL_LOGINであり、DB設計の「DBユーザー」と一致していない。DBユーザーを記録するUSER_NAMEへ合わせる。作成日時と更新日時の初期一致・作成監査列の保持も共通トリガーのテスト対象にする。
-- 監査トリガーの再帰防止は対象トリガー自身の再入だけを判定し、別トリガーからの正当な更新を一律除外しない。
-- CodeMasterの表示順やカテゴリ名称へ、基本設計にない一意制約が加わっている。FAQのカテゴリ内表示順など合意済み制約を除き、不要な一意制約を削除する方向でDDLを整合させる。
-- バージョン、日付、拡張子のCHECKは部分的な形式確認に留まる。実装の検証器とDB側の拒否条件を揃える。部分Entityからの更新禁止はCommonDbContextでも確認する。
-- ダミーSQLの削除対象の識別・再実行時に追加されたテストデータの扱いを見直す。環境名の自己申告だけで本番を識別したとは扱わない。
+新規構築SQLの制約と監査列は[SQL README](../SalesSupport/sql/README.md)を参照する。既存DBへの移行では現在のデータと制約を確認し、移行手順を個別に決める。
 
 ### 外部情報・業務判断として残すもの
 
@@ -450,7 +451,7 @@ EndpointメタデータをCookie更新判定で参照できるよう、ルーテ
 - 配置先、鍵フォルダー・ACL、証明書、信頼するプロキシ、IIS上限。
 - 禁止パスワードリストの出所・内容・更新担当。設定リンク発行番号の原子的更新はPortal詳細設計に定義済み。
 - 各ツール固有入力・出力・外部HTTP接続。
-- 実SMTP、IIS配置でのCookie往復、SQL Serverの同時更新・行ロックの実証。本書の作成時点では未検証。
+- 実SMTP、IIS配置でのCookie往復、SQL Serverの同時更新・行ロックの実証。環境を用意して別途検証する。
 
 ## 15. 技術資料
 

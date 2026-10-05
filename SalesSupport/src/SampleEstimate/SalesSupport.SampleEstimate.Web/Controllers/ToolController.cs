@@ -47,6 +47,11 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     public async Task<IActionResult> Execute(EstimateInput input, IFormFile? detailFile, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
+        if (options.Value.IsStandaloneTool && input.Output == EstimateOutput.Save)
+        {
+            ModelState.AddModelError("Input.Output", "案件の保存には開発用DBとPortalを使用してください。");
+            return await FailureViewAsync(input, ct);
+        }
         if (input.Output == EstimateOutput.Save && input.SubmissionId == Guid.Empty)
         {
             ModelState.AddModelError("Input.SubmissionId", "保存の送信IDがありません。入力画面からやり直してください。");
