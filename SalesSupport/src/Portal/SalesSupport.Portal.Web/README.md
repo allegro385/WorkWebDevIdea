@@ -19,6 +19,7 @@
 | A002 ユーザー管理（ログインID検索・外部属性参照・一般ロール間変更・有効状態変更・ロック解除） | 実装済み |
 | A005 問い合わせ管理（検索・一括保存・詳細更新） | 実装済み |
 | A006 サイト管理（システムお知らせの保存・確認付き手動送信） | 実装済み |
+| 開発限定の対話／TSVによる試験ユーザー追加 | 実装済み |
 
 検証の実行方法は[検証](#検証)を参照してください。実行結果は[プロジェクト操作履歴](../../../../作業記録/プロジェクト操作履歴.md)へ記録します。
 
@@ -64,13 +65,50 @@ Data Protectionの鍵はWindows DPAPIで保護するため、起動できるの�
 
 ## 開発試験用のユーザーを追加する
 
-開発専用DBのログイン確認だけに使用します。本番ユーザーと初期管理者は移行プロジェクトで供給する方針で、Portalの新規登録・TSV取込・設定メール・パスワード変更／再設定は提供しません。
+開発専用DBのログイン確認だけに使用します。本番ユーザーと初期管理者は移行プロジェクトで供給する方針で、Portalの本番用新規登録・TSV取込・設定メール・パスワード変更／再設定は提供しません。
 
 ```powershell
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
 ```
 
 CommonのPortal:EnvironmentCode=DEVELOPMENTとホストDevelopmentの両方を必須とします。ログインID、メールアドレス、表示名、ロールA～D／ADMIN、パスワードと確認を対話入力します。秘密値を引数・ログに出さず、UserManagerでユーザーと通知初期OFFの設定を一括保存します。Identityの開発用パスワード条件は6文字以上で文字種混在を要求しません。連携済みハッシュの検証へ新規作成条件を適用しません。
+
+### TSVで複数の試験ユーザーを追加する
+
+同じ開発環境制限の`import-test-users`を使用します。[ヘッダーだけの雛形](../../../config/test-users.sample.tsv)を`.local/test-users.tsv`等へコピーし、UTF-8（BOMあり・なし可）のTSVを作成してください。1行に1ユーザー、列順は次のとおりです。
+
+| 列 | 項目 | 入力条件 |
+| --- | --- | --- |
+| 1 | ログインID | 必須、256文字以内。前後空白を含め元の値を保持 |
+| 2 | メールアドレス | 必須、256文字以内。前後空白を除いて形式検証 |
+| 3 | パスワード（平文） | 6文字以上。前後空白を含め元の値を保持 |
+| 4 | 表示名 | 必須、100文字以内。前後空白を除く |
+
+- 先頭の`ログインID / メールアドレス / パスワード / 表示名`または`LoginId / Email / Password / DisplayName`のタブ区切りヘッダーは省略できます。完全な空行は無視します。
+- タブ・改行を値に含めることや、引用符によるエスケープは扱いません。制御文字を含む項目は拒否します。
+- ロールはファイルに含めず、`--role A|B|C|D|ADMIN`で全行共通に指定します。省略時はAです。異なるロールのユーザーはファイルを分けて実行します。
+- 上限は1,000ユーザー、1,048,576文字（各行区切りを1文字として計算）です。ログインID・メールのファイル内重複はIdentity標準の正規化で検出します。
+
+リポジトリルートのPowerShellから実行します。Windows PowerShellでも日本語の表示名が保持されるよう、パイプの文字コードをUTF-8へ一時設定します。共通設定と開発用DB・初期ロールマスタは上記手順で用意してください。
+
+```powershell
+$previousOutputEncoding = $OutputEncoding
+try {
+    $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    Get-Content -LiteralPath '.local/test-users.tsv' -Encoding UTF8 |
+        dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- import-test-users --role A
+} finally {
+    $OutputEncoding = $previousOutputEncoding
+}
+```
+
+発行済みDLLからは同じパイプ先を`dotnet SalesSupport.Portal.Web.dll import-test-users --role ADMIN`に置き換えます。Commonの`DEVELOPMENT`とホストの`Development`を両方設定し、実DBではなく開発専用DBへ接続してください。
+
+全行の形式・重複を確認してから、UserManager.CreateAsyncで一人ずつ作成します。内部UserIdは新しいGuid、有効状態ON、通知2項目OFFです。パスワードはIdentityでハッシュ化し、メール送信・入力TSVのサーバー保存・既存ユーザーの更新は行いません。入力値や例外内容を結果へ表示せず、失敗時は行番号と登録済み件数を表示します。
+
+形式不備は登録開始前に拒否します。既存DBの重複や保存失敗では最初の失敗で停止し、それまでに確定したユーザーは残ります。DBの登録状況を確認して、未登録行だけで再実行してください。ファイル全体の一括ロールバックは行いません。終了コードは成功0、保存失敗1、環境拒否2、引数・入力不備3です。
+
+入力TSVは平文パスワードを含むためGit・共有ログへ含めず、必要な試験終了後に削除してください。Git除外済みの`.local/`に置くと、リポジトリへの混入を防げます。
 
 ## お知らせ通知と個人設定
 

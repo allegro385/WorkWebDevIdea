@@ -30,6 +30,8 @@ public static class PortalServiceExtensions
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
         services.AddScoped<LocalTestUserCommand>();
+        services.AddScoped<LocalTestUserTsvReader>();
+        services.AddScoped<LocalTestUserImportCommand>();
         services.AddSingleton<ILocalTestUserConsole, LocalTestUserConsole>();
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);

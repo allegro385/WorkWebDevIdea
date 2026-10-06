@@ -9,7 +9,7 @@ using SalesSupport.Portal.Web.Entities;
 
 namespace SalesSupport.Portal.Web.Bootstrap;
 
-/// <summary>ローカル試験用のユーザー入力です。パスワードは対話コンソールからだけ受け取ります。</summary>
+/// <summary>対話コンソールまたはTSVの標準入力から受け取る、保存前の試験ユーザー情報です。</summary>
 public sealed record LocalTestUserInput(string LoginId, string Email, string DisplayName, string Password, string RoleCode);
 
 /// <summary>ローカル試験用ユーザーの作成結果です。</summary>
@@ -128,7 +128,7 @@ public sealed class LocalTestUserCommand(IHostEnvironment environment, IOptions<
         console.WriteLine(outcome switch
         {
             LocalTestUserOutcome.Created => "試験用ユーザーを作成しました。",
-            LocalTestUserOutcome.Rejected => "ユーザーを登録できませんでした。メールアドレスの重複や入力条件を確認してください。",
+            LocalTestUserOutcome.Rejected => "ユーザーを登録できませんでした。ログインID・メールアドレスの重複や入力条件を確認してください。",
             _ => "ユーザーを作成できませんでした。開発用DBの接続とテーブル状態を確認してください。"
         });
         return outcome == LocalTestUserOutcome.Created ? 0 : 1;

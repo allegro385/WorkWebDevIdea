@@ -2,6 +2,8 @@
 
 Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなく配置環境ごとに1ファイルで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。本番向けは`salessupport.common.sample.json`、開発向けは`salessupport.common.Development.sample.json`です。いずれも実値は含みません。
 
+開発用ユーザーのTSV雛形は[test-users.sample.tsv](test-users.sample.tsv)です。4列ヘッダーだけを含み、Commonの設定ファイルとしては使用しません。[開発限定の取込コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)の手順で利用してください。
+
 ## 配置
 
 1. 環境に合う雛形をコピーし、`salessupport.common.json`等の名前で**Web公開領域とアプリの配置フォルダーの外**へ置きます。

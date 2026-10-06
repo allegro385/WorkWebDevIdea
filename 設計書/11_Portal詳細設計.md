@@ -104,7 +104,8 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - ConcurrencyStampとUserManagerを使い、変更時にSecurityStampを更新する。外部連携属性を上書きせず、ユーザーを物理削除しない。
 - ロック解除は行ロック・ConcurrencyStamp照合後、SetLockoutEndDateAsync(null)とResetAccessFailedCountAsyncを同時確定する。有効状態やパスワードを変更しない。
 - 本番ユーザー作成と資格情報・表示名・メールの更新はデータ移行用プロジェクトからIdentity APIで行う。初期管理者も連携で供給する。TSV登録・bootstrap-admin・設定メール発行は廃止。
-- 開発限定add-test-userはCommonのDEVELOPMENTとホストDevelopmentを確認し、ログインID・メール・表示名・ロールA～D／ADMIN・秘密入力パスワードを取得する。UserManager.CreateAsyncと通知初期OFFのUserPreferenceを同一トランザクションで作成する。メール送信は行わない。Identityの開発用作成条件を連携済みハッシュの照合へ適用しない。
+- 開発限定add-test-userはCommonのDEVELOPMENTとホストDevelopmentを確認し、ログインID・メール・表示名・ロールA～D／ADMIN・秘密入力パスワードを取得する。開発限定import-test-usersも同じ環境制限と保存処理を使う。UserManager.CreateAsyncと通知初期OFFのUserPreferenceを一人ごとの同一トランザクションで作成する。メール送信は行わない。Identityの開発用作成条件を連携済みハッシュの照合へ適用しない。
+- import-test-users [--role A|B|C|D|ADMIN]はロール省略時A。UTF-8の標準入力からログインID・メールアドレス・平文パスワード・表示名の4列を読み、全行の形式・上限1,000件／1,048,576文字・Identity正規化後のファイル内重複を保存前に検証する。ヘッダーは任意、入力値のタブ・改行・制御文字は不可。ホスト構成へ取込引数を渡さない。入力不備では0件、DB重複・保存失敗では最初の失敗で停止し、確定済み行は保持する。既存ユーザーを更新せず、行番号・登録済み件数だけを表示する。入力・例外内容・パスワードを結果へ表示せず、ファイル保存・Webアップロード・自動再試行を追加しない。終了コードは0成功／1保存失敗／2環境拒否／3入力不備。[具体的な形式と実行手順](../SalesSupport/src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)を参照。
 - 通知設定は連携作成時に2項目OFF、後続連携で保持する。内部UserIdを変えない。同期方式と初期ロール・有効状態・管理者供給手順は移行設計で確定する。
 - お知らせ送信確認と問い合わせ送信IDはConfirmationStoreで本人束縛・一回消費・30分・全用途200件上限。再起動で失効し、永続化・自動再開を行わない。
 

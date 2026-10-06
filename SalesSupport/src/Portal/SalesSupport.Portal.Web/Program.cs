@@ -4,10 +4,19 @@ using SalesSupport.Common.DependencyInjection;
 using SalesSupport.Common.ErrorHandling;
 using SalesSupport.Portal.Web.Bootstrap;
 
-var builder = WebApplication.CreateBuilder(args);
+var importTestUsers = LocalTestUserImportCommand.IsRequested(args);
+// 取込の引数をホスト設定へ渡さず、ロール指定が環境設定等を上書きしないようにします。
+var builder = WebApplication.CreateBuilder(importTestUsers ? [] : args);
 builder.Services.AddSalesSupportPortal(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
+if (importTestUsers)
+{
+    Console.InputEncoding = new System.Text.UTF8Encoding(false, true);
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<LocalTestUserImportCommand>()
+        .RunAsync(args, Console.In, Console.IsInputRedirected);
+}
 if (LocalTestUserCommand.IsRequested(args))
 {
     await using var scope = app.Services.CreateAsyncScope();
