@@ -103,11 +103,11 @@ public static class CommonMappings
         user.Property(x => x.LastAccessAt).HasColumnType("datetime2(3)");
         user.Property(x => x.SecurityStamp).IsRequired();
         user.Property(x => x.ConcurrencyStamp).IsRequired().IsConcurrencyToken();
-        user.Property(x => x.UserName).HasMaxLength(256).IsRequired();
-        user.Property(x => x.NormalizedUserName).HasMaxLength(256).IsRequired();
+        user.Property(x => x.UserName).HasColumnName("LoginId").HasMaxLength(256).IsRequired();
+        user.Property(x => x.NormalizedUserName).HasColumnName("NormalizedLoginId").HasMaxLength(256).IsRequired();
         user.Property(x => x.Email).HasMaxLength(256).IsRequired();
         user.Property(x => x.NormalizedEmail).HasMaxLength(256).IsRequired();
-        user.HasIndex(x => x.NormalizedUserName).IsUnique().HasDatabaseName("UX_AspNetUsers_NormalizedUserName");
+        user.HasIndex(x => x.NormalizedUserName).IsUnique().HasDatabaseName("UX_AspNetUsers_NormalizedLoginId");
         user.HasIndex(x => x.NormalizedEmail).IsUnique().HasDatabaseName("UX_AspNetUsers_NormalizedEmail");
         model.Entity<IdentityUserClaim<Guid>>().ToTable("AspNetUserClaims", "portal");
         model.Entity<IdentityUserLogin<Guid>>().ToTable("AspNetUserLogins", "portal");

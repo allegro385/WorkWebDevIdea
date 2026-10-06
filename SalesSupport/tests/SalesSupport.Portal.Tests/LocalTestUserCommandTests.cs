@@ -2,7 +2,6 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
-using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Bootstrap;
 using Xunit;
 
@@ -43,7 +42,7 @@ public sealed class LocalTestUserCommandTests
     {
         const string password = "ValidPassword!123";
         var provisioner = new StubProvisioner();
-        var console = new StubConsole([" user1@example.invalid ", " 一人目 ", "user2@example.invalid", "二人目"],
+        var console = new StubConsole(["user1", " user1@example.invalid ", " 一人目 ", "A", "user2", "user2@example.invalid", "二人目", "ADMIN"],
             [password, password, password, password]);
         var command = CreateCommand("Development", "DEVELOPMENT", provisioner, console);
 
@@ -51,20 +50,18 @@ public sealed class LocalTestUserCommandTests
         Assert.Equal(0, await command.RunAsync());
         Assert.Equal(["user1@example.invalid", "user2@example.invalid"], provisioner.Inputs.Select(x => x.Email));
         Assert.All(provisioner.Inputs, input => Assert.Equal(password, input.Password));
+        Assert.Equal(["user1", "user2"], provisioner.Inputs.Select(x => x.LoginId));
+        Assert.Equal(["A", "ADMIN"], provisioner.Inputs.Select(x => x.RoleCode));
         Assert.DoesNotContain(console.Messages, message => message.Contains(password, StringComparison.Ordinal));
     }
 
-    /// <summary>禁止パスワードは保存処理へ渡しません。</summary>
+    /// <summary>空のパスワードを保存処理へ渡しません。</summary>
     [Fact]
-    public async Task ForbiddenPasswordIsRejected()
+    public async Task EmptyPasswordIsRejected()
     {
-        const string password = "ForbiddenPass!123";
         var provisioner = new StubProvisioner();
-        var console = new StubConsole(["user@example.invalid", "利用者"], [password, password]);
-        var environment = new StubEnvironment { EnvironmentName = "Development" };
-        var options = Options.Create(new CommonOptions { EnvironmentCode = "DEVELOPMENT" });
-        var command = new LocalTestUserCommand(environment, options, provisioner, PasswordPolicy.FromEntries([password]), console);
-
+        var console = new StubConsole(["user1", "user@example.invalid", "利用者", "A"], ["", ""]);
+        var command = CreateCommand("Development", "DEVELOPMENT", provisioner, console);
         Assert.Equal(3, await command.RunAsync());
         Assert.Empty(provisioner.Inputs);
     }
@@ -75,7 +72,7 @@ public sealed class LocalTestUserCommandTests
     {
         var environment = new StubEnvironment { EnvironmentName = hostEnvironment };
         var options = Options.Create(new CommonOptions { EnvironmentCode = portalEnvironment });
-        return new LocalTestUserCommand(environment, options, provisioner, PasswordPolicy.FromEntries([]), console);
+        return new LocalTestUserCommand(environment, options, provisioner, console);
     }
 
     /// <summary>保存要求を記録するテスト用の作成処理です。</summary>
@@ -92,7 +89,7 @@ public sealed class LocalTestUserCommandTests
     }
 
     /// <summary>通常入力と秘密入力を分けて渡すテスト用コンソールです。</summary>
-    private sealed class StubConsole(IEnumerable<string> lines, IEnumerable<string> secrets) : IInitialAdminConsole
+    private sealed class StubConsole(IEnumerable<string> lines, IEnumerable<string> secrets) : ILocalTestUserConsole
     {
         private readonly Queue<string> lines = new(lines);
         private readonly Queue<string> secrets = new(secrets);

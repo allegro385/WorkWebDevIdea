@@ -13,12 +13,12 @@ IF OBJECT_ID(N'portal.CodeMaster', N'U') IS NULL
 
 BEGIN TRANSACTION;
 
-INSERT portal.Roles (RoleCode, RoleName)
-SELECT source.RoleCode, source.RoleName
+INSERT portal.Roles (RoleCode, RoleName, NoticeMailEnabled)
+SELECT source.RoleCode, source.RoleName, source.NoticeMailEnabled
 FROM (VALUES
-    ('A', N'ロールA'), ('B', N'ロールB'), ('C', N'ロールC'), ('D', N'ロールD'),
-    ('ADMIN', N'システム管理者')
-) source(RoleCode, RoleName)
+    ('A', N'ロールA', 1), ('B', N'ロールB', 1), ('C', N'ロールC', 1), ('D', N'ロールD', 0),
+    ('ADMIN', N'システム管理者', 1)
+) source(RoleCode, RoleName, NoticeMailEnabled)
 WHERE NOT EXISTS (SELECT 1 FROM portal.Roles target WHERE target.RoleCode = source.RoleCode);
 
 DECLARE @Codes TABLE
@@ -105,7 +105,6 @@ DECLARE @Policies TABLE
 );
 INSERT @Policies VALUES
 ('SITE', 'INQUIRY_ATTACHMENT', 10000000),
-('SITE', 'USER_IMPORT', 1000000),
 ('TOOL_COMMON', 'REFERENCE', 100000000),
 ('TOOL_COMMON', 'APP', 500000000);
 
@@ -130,7 +129,6 @@ DECLARE @Extensions TABLE
     PRIMARY KEY (ScopeType, PurposeCode, Extension)
 );
 INSERT @Extensions VALUES
-('SITE', 'USER_IMPORT', '.tsv'),
 ('SITE', 'INQUIRY_ATTACHMENT', '.pdf'),
 ('SITE', 'INQUIRY_ATTACHMENT', '.xlsx'),
 ('SITE', 'INQUIRY_ATTACHMENT', '.xlsm'),

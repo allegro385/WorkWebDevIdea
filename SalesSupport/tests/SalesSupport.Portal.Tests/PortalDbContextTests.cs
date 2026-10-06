@@ -75,4 +75,20 @@ public sealed class PortalDbContextTests
             .Options;
         return new PortalDbContext(options);
     }
+
+    /// <summary>内部Guidを維持し、外部ログインIDと通知既定OFFをDDLへ対応させます。</summary>
+    [Fact]
+    public void ExternalLoginAndNotificationColumnsMatchDdl()
+    {
+        using var context = CreateContext();
+        var user = context.Model.FindEntityType(typeof(ApplicationUser))!;
+        var table = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table("AspNetUsers", "portal");
+        Assert.Equal("UserId", user.FindProperty(nameof(ApplicationUser.Id))!.GetColumnName(table));
+        Assert.Equal("LoginId", user.FindProperty(nameof(ApplicationUser.UserName))!.GetColumnName(table));
+        Assert.Equal("NormalizedLoginId", user.FindProperty(nameof(ApplicationUser.NormalizedUserName))!.GetColumnName(table));
+        var preference = context.Model.FindEntityType(typeof(UserPreference))!;
+        Assert.Equal(false, preference.FindProperty(nameof(UserPreference.SystemNoticeMailEnabled))!.GetDefaultValue());
+        Assert.Equal(false, preference.FindProperty(nameof(UserPreference.FavoriteToolNoticeMailEnabled))!.GetDefaultValue());
+        Assert.Equal(false, context.Model.FindEntityType(typeof(Role))!.FindProperty(nameof(Role.NoticeMailEnabled))!.GetDefaultValue());
+    }
 }

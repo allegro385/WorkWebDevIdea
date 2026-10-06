@@ -8,7 +8,6 @@ using SalesSupport.Common.Logging;
 using SalesSupport.Common.MasterData;
 using SalesSupport.Common.Validation;
 using SalesSupport.Portal.Web.Areas.Admin.Models;
-using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Data;
 
 namespace SalesSupport.Portal.Web.Services;
@@ -50,7 +49,7 @@ public interface IUserAdminService
     /// <summary>編集画面の表示情報を返します。</summary>
     Task<UserEditViewModel?> GetAsync(Guid userId, CancellationToken ct = default);
 
-    /// <summary>表示名・メールアドレス・有効状態と一般ロールを更新します。</summary>
+    /// <summary>有効状態と一般ロールを更新します。</summary>
     Task<UserAdminResult> UpdateAsync(Guid operatorUserId, UserEditInput input, CancellationToken ct = default);
 
     /// <summary>ロック終了日時と失敗回数を同時に解除します。有効状態は変更しません。</summary>
@@ -66,6 +65,7 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
     {
         var now = clock.GetUtcNow();
         var query = db.Users.AsNoTracking().AsQueryable();
+        if (CommonValidation.Normalize(input.LoginId) is { } loginId) query = query.Where(x => x.UserName != null && x.UserName.Contains(loginId));
         if (CommonValidation.Normalize(input.DisplayName) is { } displayName) query = query.Where(x => x.DisplayName.Contains(displayName));
         if (CommonValidation.Normalize(input.Email) is { } email) query = query.Where(x => x.Email != null && x.Email.Contains(email));
         if (!string.IsNullOrWhiteSpace(input.RoleCode)) query = query.Where(x => x.RoleCode == input.RoleCode);
@@ -75,10 +75,10 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
         if (input.LockState == "UNLOCKED") query = query.Where(x => !x.LockoutEnabled || x.LockoutEnd == null || x.LockoutEnd <= now);
 
         var rows = await query.OrderBy(x => x.DisplayName).ThenBy(x => x.Email)
-            .Select(x => new { x.Id, x.DisplayName, x.Email, x.RoleCode, x.IsActive, x.LockoutEnabled, x.LockoutEnd, x.LastAccessAt })
+            .Select(x => new { x.Id, x.UserName, x.DisplayName, x.Email, x.RoleCode, x.IsActive, x.LockoutEnabled, x.LockoutEnd, x.LastAccessAt })
             .ToListAsync(ct);
         var roleNames = await db.Roles.AsNoTracking().ToDictionaryAsync(x => x.RoleCode, x => x.RoleName, ct);
-        return rows.Select(x => new UserListItem(x.Id, x.DisplayName, x.Email ?? "", x.RoleCode,
+        return rows.Select(x => new UserListItem(x.Id, x.UserName ?? "", x.DisplayName, x.Email ?? "", x.RoleCode,
             roleNames.GetValueOrDefault(x.RoleCode, x.RoleCode), x.IsActive,
             IsLocked(x.LockoutEnabled, x.LockoutEnd, now), ToJst(x.LastAccessAt))).ToList();
     }
@@ -88,7 +88,7 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
         await db.Roles.AsNoTracking().Where(x => includeAdmin || x.RoleCode != "ADMIN")
             .OrderBy(x => x.RoleCode).Select(x => new CodeOption(x.RoleCode, x.RoleName, 0, null)).ToListAsync(ct);
 
-    /// <summary>ロック状態、失敗回数および初回設定状態もあわせて表示します。</summary>
+    /// <summary>ロック状態、失敗回数および資格情報の連携状態もあわせて表示します。</summary>
     public async Task<UserEditViewModel?> GetAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct);
@@ -99,12 +99,13 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
             Input = new UserEditInput
             {
                 UserId = user.Id,
-                DisplayName = user.DisplayName,
-                Email = user.Email,
                 IsActive = user.IsActive,
                 RoleCode = user.RoleCode,
                 ConcurrencyStamp = user.ConcurrencyStamp
             },
+            LoginId = user.UserName ?? "",
+            DisplayName = user.DisplayName,
+            Email = user.Email ?? "",
             RoleCode = user.RoleCode,
             RoleName = await db.Roles.AsNoTracking().Where(x => x.RoleCode == user.RoleCode).Select(x => x.RoleName).SingleOrDefaultAsync(ct) ?? user.RoleCode,
             GeneralRoles = await GetRolesAsync(false, ct),
@@ -130,12 +131,6 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
     /// <summary>無効化時は管理者数の検査を直列化し、自動再試行せず再読込を促します。</summary>
     private async Task<UserAdminResult> ApplyUpdateAsync(Guid operatorUserId, UserEditInput input, CancellationToken ct)
     {
-        List<FieldError> errors = [];
-        if (CommonValidation.ValidateText(nameof(UserEditInput.DisplayName), input.DisplayName, 100, required: true) is { } nameError) errors.Add(nameError);
-        if (!CommonValidation.IsEmail(input.Email) || input.Email!.Length > 256)
-            errors.Add(new(nameof(UserEditInput.Email), "INVALID_INPUT", "メールアドレスの形式が正しくありません。"));
-        if (errors.Count != 0) return new(UserAdminOutcome.InvalidInput, new(errors));
-
         // 無効化では複数ユーザーにまたがる管理者数を検査するため、直列化したトランザクションを使用します。
         var isolation = input.IsActive ? IsolationLevel.ReadCommitted : IsolationLevel.Serializable;
         await using var transaction = await db.Database.BeginTransactionAsync(isolation, ct);
@@ -156,35 +151,15 @@ public sealed class UserAdminService(PortalDbContext db, UserManager<Application
 
             if (user.IsActive && !input.IsActive && await RejectDeactivationAsync(operatorUserId, user, ct) is { } rejected) return rejected;
 
-            var normalized = users.NormalizeEmail(input.Email);
-            if (await db.Users.AsNoTracking().AnyAsync(x => x.NormalizedEmail == normalized && x.Id != user.Id, ct))
-                return UserAdminResult.Invalid(new(nameof(UserEditInput.Email), "INVALID_INPUT", "同じメールアドレスのユーザーが登録されています。"));
-
-            var emailChanged = !string.Equals(user.NormalizedEmail, normalized, StringComparison.Ordinal);
-            if (emailChanged)
-            {
-                // 初回設定済みは運用確認を根拠に確認済みを維持し、未設定は未確認のままにします。
-                var confirmed = user.EmailConfirmed;
-                if (!(await users.SetEmailAsync(user, input.Email)).Succeeded) return UserAdminResult.From(UserAdminOutcome.Conflict);
-                if (!(await users.SetUserNameAsync(user, input.Email)).Succeeded) return UserAdminResult.From(UserAdminOutcome.Conflict);
-                user.EmailConfirmed = confirmed;
-            }
-
             var activeChanged = user.IsActive != input.IsActive;
             var roleChanged = user.RoleCode != input.RoleCode;
-            user.DisplayName = input.DisplayName!;
             user.IsActive = input.IsActive;
             user.RoleCode = input.RoleCode!;
             if (!(await users.UpdateAsync(user)).Succeeded) return UserAdminResult.From(UserAdminOutcome.Conflict);
 
-            // 有効状態・メールアドレス・ロールの変更では、既存Cookieと発行済みリンクを無効化します。
-            if (activeChanged || emailChanged || roleChanged)
-            {
+            // 外部連携が所有するログインID・表示名・メール・パスワードを上書きしません。
+            if (activeChanged || roleChanged)
                 if (!(await users.UpdateSecurityStampAsync(user)).Succeeded) return UserAdminResult.From(UserAdminOutcome.Conflict);
-                foreach (var name in new[] { PasswordLinkTokens.InitialIssue, PasswordLinkTokens.ResetIssue })
-                    if (!(await users.RemoveAuthenticationTokenAsync(user, PasswordLinkTokens.Provider, name)).Succeeded)
-                        return UserAdminResult.From(UserAdminOutcome.Conflict);
-            }
             await transaction.CommitAsync(ct);
             return UserAdminResult.From(UserAdminOutcome.Saved);
         }

@@ -14,6 +14,8 @@ public sealed class Role : AuditedEntity
 {
     public string RoleCode { get; set; } = "";
     public string RoleName { get; set; } = "";
+    /// <summary>お知らせメールの対象と個人設定の利用を許可するロールです。</summary>
+    public bool NoticeMailEnabled { get; set; }
 }
 
 /// <summary>ツールを利用できる一般ロールの割当てです。</summary>

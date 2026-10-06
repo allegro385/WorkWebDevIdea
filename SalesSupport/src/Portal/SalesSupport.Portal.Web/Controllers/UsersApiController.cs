@@ -25,6 +25,7 @@ public sealed class UsersApiController(ICurrentUserAccessor current, IPreference
     public async Task<ActionResult<UserPreferencesDto>> GetPreferences(CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
+        if (!await preferences.IsAllowedAsync(user.UserId, ct)) return Forbid();
         var preference = await preferences.GetAsync(user.UserId, ct);
         if (preference is null) return Unavailable();
         return preference;
@@ -35,8 +36,10 @@ public sealed class UsersApiController(ICurrentUserAccessor current, IPreference
     public async Task<ActionResult<UserPreferencesDto>> PutPreferences([FromBody] UserPreferencesDto input, CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
+        if (!await preferences.IsAllowedAsync(user.UserId, ct)) return Forbid();
         var result = await preferences.SaveAsync(user.UserId, input, ct);
         if (result.Outcome == PreferenceOutcome.Succeeded && result.Preferences is { } saved) return saved;
+        if (result.Outcome == PreferenceOutcome.Denied) return Forbid();
         if (result.Outcome == PreferenceOutcome.Conflict)
             return Problem(statusCode: StatusCodes.Status409Conflict, title: "更新が競合しました。",
                 detail: "他の操作で更新されています。最新の内容を取得してからやり直してください。");

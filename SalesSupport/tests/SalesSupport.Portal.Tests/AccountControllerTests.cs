@@ -1,10 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using SalesSupport.Common.Authentication;
-using SalesSupport.Common.Contracts;
-using SalesSupport.Common.Validation;
-using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Controllers;
 using SalesSupport.Portal.Web.Models;
 using SalesSupport.Portal.Web.Services;
@@ -12,158 +8,67 @@ using Xunit;
 
 namespace SalesSupport.Portal.Tests;
 
-/// <summary>認証フォームの成功時リダイレクトと設定リンク検証順序を確認します。</summary>
+/// <summary>ログインIDの受渡し、資格情報の非表示、戻り先の安全性を確認します。</summary>
 public sealed class AccountControllerTests
 {
-    /// <summary>再設定請求成功後に受付画面へリダイレクトすることを確認します。</summary>
+    /// <summary>メール形式ではないログインIDを認証へ渡し、安全な戻り先へ遷移します。</summary>
     [Fact]
-    public async Task PasswordRequestRedirectsAfterSuccess()
+    public async Task LoginAcceptsExternalIdAndLocalReturnUrl()
     {
-        var links = new StubPasswordLinkService();
-        var controller = CreateController(links: links);
-
-        var result = await controller.PasswordRequest(new PasswordRequestInput { Email = "user@example.com" }, default);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(nameof(AccountController.PasswordRequestAccepted), redirect.ActionName);
-        Assert.Equal(1, links.RequestCount);
+        var service = new StubAccountService { Result = new(LoginOutcome.Succeeded) };
+        var controller = Create(service);
+        var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret", ReturnUrl = "/tools" }, default);
+        Assert.Equal("staff001", service.LoginId);
+        Assert.Equal("/tools", Assert.IsType<LocalRedirectResult>(result).Url);
     }
 
-    /// <summary>パスワード変更成功後に完了画面へリダイレクトすることを確認します。</summary>
+    /// <summary>失敗時は共通文言で再表示し、パスワードを入力モデルへ残しません。</summary>
     [Fact]
-    public async Task PasswordChangeRedirectsAfterSuccess()
+    public async Task RejectedLoginClearsPassword()
     {
-        var account = new StubAccountService { ChangeResult = PasswordChangeResult.From(PasswordChangeOutcome.Succeeded) };
-        var controller = CreateController(account, current: new StubCurrentUserAccessor
-        {
-            User = new CurrentUser(Guid.NewGuid(), "利用者", "A")
-        });
-
-        var result = await controller.PasswordChange(new PasswordChangeInput
-        {
-            CurrentPassword = "CurrentPassword!123",
-            NewPassword = "NewPassword!1234",
-            NewPasswordConfirmation = "NewPassword!1234"
-        }, default);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(nameof(AccountController.PasswordChanged), redirect.ActionName);
+        var controller = Create(new StubAccountService());
+        var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret" }, default);
+        var model = Assert.IsType<LoginViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("staff001", model.Input.LoginId);
+        Assert.Null(model.Input.Password);
+        Assert.Contains(controller.ModelState.Values.SelectMany(x => x.Errors), x => x.ErrorMessage == "ログインIDまたはパスワードが正しくありません。");
     }
 
-    /// <summary>入力不一致より先にリンクを検証し、無効リンクを共通案内にすることを確認します。</summary>
+    /// <summary>外部URLを戻り先へ指定してもトップへ遷移します。</summary>
     [Fact]
-    public async Task PasswordResetRejectsInvalidLinkBeforeMismatchError()
+    public async Task ExternalReturnUrlIsRejected()
     {
-        var links = new StubPasswordLinkService { IsValid = false };
-        var controller = CreateController(links: links);
-
-        var result = await controller.PasswordReset(new PasswordLinkInput
-        {
-            User = Guid.NewGuid(),
-            Token = "invalid",
-            Password = "NewPassword!1234",
-            PasswordConfirmation = "DifferentPassword!1234"
-        }, default);
-
-        var view = Assert.IsType<ViewResult>(result);
-        Assert.Equal("PasswordLinkInvalid", view.ViewName);
-        Assert.Equal(1, links.ValidateCount);
-        Assert.Equal(0, links.ConsumeCount);
+        var controller = Create(new StubAccountService { Result = new(LoginOutcome.Succeeded) });
+        var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret", ReturnUrl = "https://example.invalid/" }, default);
+        Assert.Equal("Index", Assert.IsType<RedirectToActionResult>(result).ActionName);
     }
 
-    /// <summary>有効な再設定リンクの消費成功後に完了画面へリダイレクトすることを確認します。</summary>
+    /// <summary>Private時は一般ユーザーを入場制限案内へ遷移させます。</summary>
     [Fact]
-    public async Task PasswordResetRedirectsAfterSuccess()
+    public async Task PrivateLoginRedirectsToNotice()
     {
-        var links = new StubPasswordLinkService
-        {
-            IsValid = true,
-            ConsumeResult = PasswordLinkResult.From(PasswordLinkOutcome.Succeeded)
-        };
-        var controller = CreateController(links: links);
-
-        var result = await controller.PasswordReset(new PasswordLinkInput
-        {
-            User = Guid.NewGuid(),
-            Token = "valid",
-            Password = "NewPassword!1234",
-            PasswordConfirmation = "NewPassword!1234"
-        }, default);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(nameof(AccountController.PasswordResetCompleted), redirect.ActionName);
-        Assert.Equal(1, links.ValidateCount);
-        Assert.Equal(1, links.ConsumeCount);
+        var controller = Create(new StubAccountService { Result = new(LoginOutcome.Succeeded, true) });
+        var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret" }, default);
+        Assert.Equal("Private", Assert.IsType<RedirectToActionResult>(result).ActionName);
     }
 
-    /// <summary>テスト対象をHTTP応答ヘッダーへアクセスできる状態で生成します。</summary>
-    private static AccountController CreateController(IAccountService? account = null, IPasswordLinkService? links = null,
-        ICurrentUserAccessor? current = null)
+    /// <summary>HTTPコンテキスト付きの対象Controllerを生成します。</summary>
+    private static AccountController Create(IAccountService service) => new(service, new ConfigurationBuilder().Build())
     {
-        var controller = new AccountController(account ?? new StubAccountService(), links ?? new StubPasswordLinkService(),
-            current ?? new StubCurrentUserAccessor(), new ConfigurationBuilder().Build());
-        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
-        return controller;
-    }
+        ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+    };
 
-    /// <summary>Controllerテストで必要な認証結果だけを返します。</summary>
+    /// <summary>認証に渡されたログインIDと指定結果を保持します。</summary>
     private sealed class StubAccountService : IAccountService
     {
-        public PasswordChangeResult ChangeResult { get; init; } = PasswordChangeResult.From(PasswordChangeOutcome.Unavailable);
+        public LoginResult Result { get; init; } = new(LoginOutcome.Rejected);
+        public string? LoginId { get; private set; }
 
-        /// <summary>ログインを拒否する既定結果を返します。</summary>
-        public Task<LoginResult> SignInAsync(string? email, string? password, CancellationToken ct = default) =>
-            Task.FromResult(new LoginResult(LoginOutcome.Rejected));
-
-        /// <summary>テストで指定したパスワード変更結果を返します。</summary>
-        public Task<PasswordChangeResult> ChangePasswordAsync(Guid userId, string? currentPassword, string? newPassword,
-            CancellationToken ct = default) => Task.FromResult(ChangeResult);
-    }
-
-    /// <summary>リンク検証・消費の呼出し回数と指定結果を保持します。</summary>
-    private sealed class StubPasswordLinkService : IPasswordLinkService
-    {
-        public bool IsValid { get; init; }
-        public PasswordLinkResult ConsumeResult { get; init; } = PasswordLinkResult.From(PasswordLinkOutcome.InvalidLink);
-        public int RequestCount { get; private set; }
-        public int ValidateCount { get; private set; }
-        public int ConsumeCount { get; private set; }
-
-        public int IssueCount { get; private set; }
-
-        /// <summary>再設定請求の呼出し回数を記録します。</summary>
-        public Task RequestAsync(string? email, CancellationToken ct = default)
+        /// <summary>指定した認証結果を返します。</summary>
+        public Task<LoginResult> SignInAsync(string? loginId, string? password, CancellationToken ct = default)
         {
-            RequestCount++;
-            return Task.CompletedTask;
+            LoginId = loginId;
+            return Task.FromResult(Result);
         }
-
-        /// <summary>管理者による再発行の呼出し回数を記録します。</summary>
-        public Task<bool> IssueForUserAsync(Guid userId, CancellationToken ct = default)
-        {
-            IssueCount++;
-            return Task.FromResult(true);
-        }
-
-        /// <summary>リンク検証の呼出し回数を記録して指定結果を返します。</summary>
-        public Task<bool> ValidateAsync(Guid userId, string? token, PasswordLinkKind kind, CancellationToken ct = default)
-        {
-            ValidateCount++;
-            return Task.FromResult(IsValid);
-        }
-
-        /// <summary>リンク消費の呼出し回数を記録して指定結果を返します。</summary>
-        public Task<PasswordLinkResult> ConsumeAsync(Guid userId, string? token, PasswordLinkKind kind, string? password,
-            CancellationToken ct = default)
-        {
-            ConsumeCount++;
-            return Task.FromResult(ConsumeResult);
-        }
-    }
-
-    /// <summary>テストで指定した検証済み利用者を返します。</summary>
-    private sealed class StubCurrentUserAccessor : ICurrentUserAccessor
-    {
-        public CurrentUser? User { get; init; }
     }
 }

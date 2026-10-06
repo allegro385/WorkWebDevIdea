@@ -17,6 +17,7 @@ public sealed class PreferencesController(IPreferenceService preferences, ICurre
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
+        if (!await preferences.IsAllowedAsync(user.UserId, ct)) return Forbid();
         var preference = await preferences.GetAsync(user.UserId, ct);
         if (preference is null) return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
@@ -33,6 +34,7 @@ public sealed class PreferencesController(IPreferenceService preferences, ICurre
     public async Task<IActionResult> Index(PreferenceInput input, CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
+        if (!await preferences.IsAllowedAsync(user.UserId, ct)) return Forbid();
         if (!ModelState.IsValid) return PreferenceView(input, null);
 
         var result = await preferences.SaveAsync(user.UserId,
@@ -42,6 +44,8 @@ public sealed class PreferencesController(IPreferenceService preferences, ICurre
             case PreferenceOutcome.Succeeded:
                 PortalMessages.Set(TempData, OperationMessageKind.Success, "通知設定を保存しました。");
                 return RedirectToAction(nameof(Index));
+            case PreferenceOutcome.Denied:
+                return Forbid();
             case PreferenceOutcome.Conflict:
                 return PreferenceView(input, new OperationMessage(OperationMessageKind.Conflict,
                     "他の操作で更新されています。再読み込みして最新の内容を確認してください。"));

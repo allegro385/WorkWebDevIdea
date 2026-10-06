@@ -24,12 +24,11 @@ BEGIN
 END;
 CLOSE versions;
 DEALLOCATE versions;
-IF NOT EXISTS (SELECT 1 FROM portal.FileUploadPolicies p JOIN portal.FileUploadPolicyExtensions e ON p.PolicyId=e.PolicyId
- WHERE p.ScopeType='SITE' AND p.PurposeCode='USER_IMPORT' AND p.ToolId IS NULL AND p.MaxFileSizeBytes=1000000 AND e.Extension='.tsv')
- THROW 51101, 'Import policy missing', 1;
+IF EXISTS (SELECT 1 FROM portal.FileUploadPolicies WHERE PurposeCode='USER_IMPORT')
+ THROW 51101, 'Retired import policy remains', 1;
 IF (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID('portal.ToolFiles') AND name IN ('UploadedByUserId','UploadedAt') AND is_nullable=0) <> 2
  THROW 51102, 'Upload columns missing', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_ToolFiles_Uploader' AND referenced_object_id=OBJECT_ID('portal.AspNetUsers'))
  THROW 51103, 'Uploader foreign key missing', 1;
 ROLLBACK TRANSACTION;
-PRINT 'PASS: version boundaries, import policy, upload columns and foreign key';
+PRINT 'PASS: version boundaries, retired import policy absence, upload columns and foreign key';

@@ -4,6 +4,8 @@ namespace SalesSupport.Common.Entities.Authentication;
 public sealed class RoleAccessRecord
 {
     public string RoleCode { get; set; } = "";
+    /// <summary>個人設定へのメニューを表示できるロールです。</summary>
+    public bool NoticeMailEnabled { get; set; }
 }
 
 /// <summary>要求時にツールと一般ロールの割当てを確認する読取り行です。</summary>

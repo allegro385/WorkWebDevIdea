@@ -9,14 +9,15 @@ using SalesSupport.Portal.Web.Services;
 namespace SalesSupport.Portal.Web.Controllers;
 
 /// <summary>ポータルトップと入場制限案内を表示します。</summary>
-public sealed class HomeController(ISystemSettingsReader settings, IHomeService home, ICurrentUserAccessor current) : Controller
+public sealed class HomeController(ISystemSettingsReader settings, IHomeService home, ICurrentUserAccessor current, IPreferenceService preferences) : Controller
 {
     /// <summary>P002 ポータルトップです。公開中のシステムお知らせと主要機能の入口を表示します。</summary>
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         ViewData.SetPageShell(new PageShellModel { PageTitle = "トップ", UseTitleBand = true });
         var notices = await home.GetSystemNoticesAsync(ct);
-        return View(new HomeViewModel(notices, current.User?.RoleCode == "ADMIN"));
+        return View(new HomeViewModel(notices, current.User?.RoleCode == "ADMIN",
+            current.User is { } user && await preferences.IsAllowedAsync(user.UserId, ct)));
     }
 
     /// <summary>Private公開時の案内画面です。公開状態の表示名称や利用者情報は表示しません。</summary>

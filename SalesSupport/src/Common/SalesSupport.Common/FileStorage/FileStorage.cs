@@ -108,7 +108,7 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
     /// <summary>用途別・ツール別の一時領域へ保存します。</summary>
     public async Task<TemporaryFileHandle> SaveTemporaryAsync(TemporaryFileRequest request, Stream source, CancellationToken ct = default)
     {
-        if (request.Purpose is not (UploadPurpose.InquiryAttachment or UploadPurpose.UserImport or UploadPurpose.ToolInput))
+        if (request.Purpose is not (UploadPurpose.InquiryAttachment or UploadPurpose.ToolInput))
             throw new ArgumentException("一時保存の用途が不正です。", nameof(request));
         var policy = await policies.GetAsync(request.Purpose, request.ToolId, ct);
         var (name, extension) = Normalize(request.OriginalName, policy);
@@ -227,7 +227,6 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
     private static string PurposeCode(UploadPurpose purpose) => purpose switch
     {
         UploadPurpose.InquiryAttachment => "INQUIRY_ATTACHMENT",
-        UploadPurpose.UserImport => "USER_IMPORT",
         UploadPurpose.Reference => "REFERENCE",
         UploadPurpose.App => "APP",
         UploadPurpose.ToolInput => "TOOL_INPUT",

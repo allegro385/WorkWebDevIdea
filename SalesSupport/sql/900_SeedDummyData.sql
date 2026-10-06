@@ -84,7 +84,7 @@ DECLARE @LoginFaqCategoryId int = (SELECT CategoryId FROM portal.FaqCategories W
 DECLARE @ToolFaqCategoryId int = (SELECT CategoryId FROM portal.FaqCategories WHERE CategoryName = N'[DUMMY] ツールの利用');
 
 INSERT portal.FaqItems (CategoryId, Question, Answer, SortOrder, IsPublished) VALUES
-(@LoginFaqCategoryId, N'パスワードを忘れた場合はどうすればよいですか？', N'ログイン画面のパスワード再設定から手続きしてください。', 10, 1),
+(@LoginFaqCategoryId, N'パスワードを忘れた場合はどうすればよいですか？', N'連携元システムでパスワードの変更・再設定を行ってください。', 10, 1),
 (@LoginFaqCategoryId, N'アカウントがロックされた場合はどうすればよいですか？', N'時間をおいて再度試すか、システム管理者へ連絡してください。', 20, 1),
 (@ToolFaqCategoryId, N'処理結果はどこに保存されますか？', N'処理結果はサイトへ恒久保存されません。必要な結果をダウンロードしてください。', 10, 1),
 (@ToolFaqCategoryId, N'限定公開ツールを利用できますか？', N'限定公開ツールはシステム管理者だけが利用できます。', 20, 1);

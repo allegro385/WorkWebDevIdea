@@ -40,7 +40,10 @@
     <section class="pt-card">
         <h2 class="pt-card-title">サポート</h2>
         <ul class="pt-card-links">
-            <li><a asp-controller="Preferences" asp-action="Index"><span>個人設定</span><span aria-hidden="true">›</span></a></li>
+            @if (Model.CanUsePreferences)
+            {
+                <li><a asp-controller="Preferences" asp-action="Index"><span>個人設定</span><span aria-hidden="true">›</span></a></li>
+            }
             <li><a asp-controller="Help" asp-action="Index"><span>利用マニュアル・FAQ</span><span aria-hidden="true">›</span></a></li>
             <li><a asp-controller="Inquiries" asp-action="New"><span>問い合わせ・ご意見</span><span aria-hidden="true">›</span></a></li>
         </ul>

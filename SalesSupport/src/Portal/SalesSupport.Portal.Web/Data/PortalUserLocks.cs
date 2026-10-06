@@ -3,7 +3,7 @@ using SalesSupport.Common.Entities.Identity;
 
 namespace SalesSupport.Portal.Web.Data;
 
-/// <summary>ユーザー単位の発行・消費・状態変更を短いトランザクション内で直列化します。</summary>
+/// <summary>ユーザー単位のログイン・ロック解除・状態変更を短いトランザクション内で直列化します。</summary>
 public static class PortalUserLocks
 {
     /// <summary>対象のAspNetUsers行を更新ロック付きで読み取り、最新のEntityを追跡状態で返します。</summary>
