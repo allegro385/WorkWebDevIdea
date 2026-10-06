@@ -10,7 +10,6 @@ using SalesSupport.Common.DependencyInjection;
 using SalesSupport.Common.Entities.Identity;
 using SalesSupport.Common.Mail;
 using SalesSupport.Portal.Web.Areas.Admin;
-using SalesSupport.Portal.Web.Authentication;
 using SalesSupport.Portal.Web.Data;
 using SalesSupport.Portal.Web.Mail;
 using SalesSupport.Portal.Web.Services;
@@ -26,19 +25,12 @@ public static class PortalServiceExtensions
         services.AddSalesSupportCommon(ApplicationKind.Portal);
         // 接続文字列はCommonが共通設定ファイルから取得した値を使用し、Portalの設定ファイルからは読み取りません。
         services.AddDbContext<PortalDbContext>((provider, options) => options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
-        // 禁止リストは起動時に一度だけ読み込み、欠落・読込不能を構成エラーとして扱います。
-        services.AddSingleton<IPasswordPolicy>(PasswordPolicy.Load(configuration["SalesSupport:Password:ForbiddenListPath"], environment.WebRootPath));
         AddIdentity(services);
-        services.Configure<MailTemplateOptions>(PasswordLinkMailTemplates.AddDefaults);
         services.Configure<MailTemplateOptions>(NoticeMailTemplates.AddDefaults);
         services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<IPasswordLinkService, PasswordLinkService>();
-        services.AddScoped<IInitialAdminProvisioner, InitialAdminProvisioner>();
-        services.AddScoped<InitialAdminBootstrapCommand>();
         services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
         services.AddScoped<LocalTestUserCommand>();
-        services.AddScoped<UserRoleMigrationCommand>();
-        services.AddSingleton<IInitialAdminConsole, InitialAdminConsole>();
+        services.AddSingleton<ILocalTestUserConsole, LocalTestUserConsole>();
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);
         AddScreenServices(services);
@@ -62,7 +54,6 @@ public static class PortalServiceExtensions
         services.AddScoped<IToolAdminService, ToolAdminService>();
         services.AddScoped<IToolFileAdminService, ToolFileAdminService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
-        services.AddScoped<IUserImportService, UserImportService>();
         services.AddScoped<IInquiryAdminService, InquiryAdminService>();
         services.AddScoped<ToolEditPageBuilder>();
         // 確認IDはプロセス内のメモリーで保持し、再起動で失効させます。
@@ -83,43 +74,38 @@ public static class PortalServiceExtensions
         !string.IsNullOrWhiteSpace(value) && !value.Any(char.IsControl) && !value.Contains(':') && !Path.IsPathRooted(value)
         && value.Replace('\\', '/').Split('/').All(segment => segment is not ("" or "." or ".."));
 
-    /// <summary>ロック条件、パスワード条件および用途別TokenProviderを登録します。</summary>
+    /// <summary>ロック条件とIdentity標準のパスワード検証を登録します。</summary>
     private static void AddIdentity(IServiceCollection services) => services.AddIdentityCore<ApplicationUser>(options =>
         {
             options.User.RequireUniqueEmail = true;
             options.Lockout.AllowedForNewUsers = true;
             options.Lockout.MaxFailedAccessAttempts = 5;
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
-            options.SignIn.RequireConfirmedEmail = true;
-            // 文字種の組合せは必須にせず、桁数と使用文字はPortalのパスワードポリシーで検証します。
-            options.Password.RequiredLength = PasswordPolicy.MinimumLength;
+            options.SignIn.RequireConfirmedEmail = false;
+            // ログインIDの業務上の文字規則は外部連携の設計時に決定します。
+            options.User.AllowedUserNameCharacters = string.Empty;
+            // 以下は開発用ユーザー作成の条件です。連携済みハッシュの照合に新規設定条件を適用しません。
+            options.Password.RequiredLength = 6;
             options.Password.RequiredUniqueChars = 1;
             options.Password.RequireDigit = false;
             options.Password.RequireLowercase = false;
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
-            options.Tokens.PasswordResetTokenProvider = PasswordLinkTokens.ResetProviderName;
         })
         .AddSignInManager()
-        .AddEntityFrameworkStores<PortalDbContext>()
-        .AddPasswordValidator<PortalPasswordValidator>()
-        .AddTokenProvider<InitialPasswordTokenProvider>(PasswordLinkTokens.InitialProviderName)
-        .AddTokenProvider<ResetPasswordTokenProvider>(PasswordLinkTokens.ResetProviderName);
+        .AddEntityFrameworkStores<PortalDbContext>();
 
     /// <summary>接続元単位の固定時間窓による要求制限を登録します。待機キューは設けません。</summary>
     private static void AddRequestLimits(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<PortalRateLimitOptions>().Bind(configuration.GetSection("SalesSupport:RateLimits"))
             .Validate(x => x.LoginPermitLimit > 0, "RateLimits:LoginPermitLimitが不正です。")
-            .Validate(x => x.PasswordRequestPermitLimit > 0, "RateLimits:PasswordRequestPermitLimitが不正です。")
             .ValidateOnStart();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy(PortalRateLimits.Login, context =>
                 Fixed(context, TimeSpan.FromMinutes(1), limits => limits.LoginPermitLimit));
-            options.AddPolicy(PortalRateLimits.PasswordRequest, context =>
-                Fixed(context, TimeSpan.FromHours(1), limits => limits.PasswordRequestPermitLimit));
             options.OnRejected = async (context, ct) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;

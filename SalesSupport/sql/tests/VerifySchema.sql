@@ -77,3 +77,18 @@ IF COL_LENGTH(N'portal.ToolCategories', N'SortOrder') IS NOT NULL OR OBJECT_ID(N
     THROW 51011, 'Role/tool schema invalid', 1;
 ROLLBACK TRANSACTION;
 PRINT 'PASS: constraints, body length, tool colors, audit, nested trigger, duplicate category, master count';
+
+IF COL_LENGTH(N'portal.AspNetUsers', N'LoginId') IS NULL OR COL_LENGTH(N'portal.AspNetUsers', N'NormalizedLoginId') IS NULL
+    THROW 51020, 'LoginId columns missing', 1;
+IF COL_LENGTH(N'portal.Roles', N'NoticeMailEnabled') IS NULL
+    THROW 51021, 'Role notification column missing', 1;
+IF EXISTS (SELECT 1 FROM portal.Roles WHERE RoleCode IN ('ADMIN','A','B','C') AND NoticeMailEnabled <> 1)
+ OR EXISTS (SELECT 1 FROM portal.Roles WHERE RoleCode='D' AND NoticeMailEnabled <> 0)
+    THROW 51022, 'Initial role notification flags incorrect', 1;
+IF (SELECT COUNT(*) FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID(N'portal.UserPreferences')
+ AND name IN ('DF_UserPreferences_SystemNotice','DF_UserPreferences_FavoriteNotice')) <> 2
+ OR EXISTS (SELECT 1 FROM sys.default_constraints
+ WHERE parent_object_id=OBJECT_ID(N'portal.UserPreferences') AND name IN ('DF_UserPreferences_SystemNotice','DF_UserPreferences_FavoriteNotice')
+ AND REPLACE(REPLACE(definition,'(',''),')','') <> '0')
+    THROW 51023, 'Preference defaults must be OFF', 1;
+PRINT 'PASS: LoginId and notification defaults (initial seed only)';

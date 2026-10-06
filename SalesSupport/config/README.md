@@ -19,7 +19,6 @@ Commonが読み込む共通設定ファイルの雛形です。接続文字列�
 | --- | --- |
 | 環境変数`SalesSupport__CommonConfigPath` | 各アプリの実行フォルダー（発行成果物の置き場） |
 | このファイル内のフォルダー（`KeyDirectory`、`Storage:*Root`） | このファイルがあるフォルダー |
-| Portalの`SalesSupport:Password:ForbiddenListPath` | Portalの実行フォルダー |
 
 雛形の値は次の配置を前提にしています。配置が違う場合は相対パスを読み替えてください。
 

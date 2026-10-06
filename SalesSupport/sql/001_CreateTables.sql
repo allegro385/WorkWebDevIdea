@@ -20,6 +20,7 @@ CREATE TABLE portal.Roles
 (
     RoleCode varchar(20) NOT NULL CONSTRAINT PK_Roles PRIMARY KEY,
     RoleName nvarchar(100) NOT NULL,
+    NoticeMailEnabled bit NOT NULL CONSTRAINT DF_Roles_NoticeMailEnabled DEFAULT (0),
     UpdateCount int NOT NULL CONSTRAINT DF_Roles_UpdateCount DEFAULT (0),
     CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_Roles_CreatedAt DEFAULT SYSUTCDATETIME(),
     CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_Roles_CreatedBy DEFAULT USER_NAME(),
@@ -32,8 +33,8 @@ CREATE TABLE portal.Roles
 CREATE TABLE portal.AspNetUsers
 (
     UserId uniqueidentifier NOT NULL CONSTRAINT DF_AspNetUsers_UserId DEFAULT NEWSEQUENTIALID(),
-    UserName nvarchar(256) NOT NULL,
-    NormalizedUserName nvarchar(256) NOT NULL,
+    LoginId nvarchar(256) NOT NULL,
+    NormalizedLoginId nvarchar(256) NOT NULL,
     Email nvarchar(256) NOT NULL,
     NormalizedEmail nvarchar(256) NOT NULL,
     EmailConfirmed bit NOT NULL CONSTRAINT DF_AspNetUsers_EmailConfirmed DEFAULT (0),
@@ -51,13 +52,13 @@ CREATE TABLE portal.AspNetUsers
     IsActive bit NOT NULL CONSTRAINT DF_AspNetUsers_IsActive DEFAULT (1),
     LastAccessAt datetime2(3) NULL,
     CONSTRAINT PK_AspNetUsers PRIMARY KEY (UserId),
-    CONSTRAINT CK_AspNetUsers_UserName_NotBlank CHECK (LEN(LTRIM(RTRIM(UserName))) > 0),
+    CONSTRAINT CK_AspNetUsers_LoginId_NotBlank CHECK (LEN(LTRIM(RTRIM(LoginId))) > 0),
     CONSTRAINT CK_AspNetUsers_Email_NotBlank CHECK (LEN(LTRIM(RTRIM(Email))) > 0),
     CONSTRAINT CK_AspNetUsers_DisplayName_NotBlank CHECK (LEN(LTRIM(RTRIM(DisplayName))) > 0),
     CONSTRAINT FK_AspNetUsers_Roles FOREIGN KEY (RoleCode) REFERENCES portal.Roles (RoleCode) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT CK_AspNetUsers_AccessFailedCount CHECK (AccessFailedCount >= 0)
 );
-CREATE UNIQUE INDEX UX_AspNetUsers_NormalizedUserName ON portal.AspNetUsers (NormalizedUserName);
+CREATE UNIQUE INDEX UX_AspNetUsers_NormalizedLoginId ON portal.AspNetUsers (NormalizedLoginId);
 CREATE UNIQUE INDEX UX_AspNetUsers_NormalizedEmail ON portal.AspNetUsers (NormalizedEmail);
 
 CREATE TABLE portal.AspNetUserClaims
@@ -147,8 +148,8 @@ CREATE TABLE portal.ToolRoles
 CREATE TABLE portal.UserPreferences
 (
     UserId uniqueidentifier NOT NULL,
-    SystemNoticeMailEnabled bit NOT NULL CONSTRAINT DF_UserPreferences_SystemNotice DEFAULT (1),
-    FavoriteToolNoticeMailEnabled bit NOT NULL CONSTRAINT DF_UserPreferences_FavoriteNotice DEFAULT (1),
+    SystemNoticeMailEnabled bit NOT NULL CONSTRAINT DF_UserPreferences_SystemNotice DEFAULT (0),
+    FavoriteToolNoticeMailEnabled bit NOT NULL CONSTRAINT DF_UserPreferences_FavoriteNotice DEFAULT (0),
     UpdateCount int NOT NULL CONSTRAINT DF_UserPreferences_UpdateCount DEFAULT (0),
     CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_UserPreferences_CreatedAt DEFAULT SYSUTCDATETIME(),
     CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_UserPreferences_CreatedBy DEFAULT USER_NAME(),
@@ -366,7 +367,7 @@ CREATE TABLE portal.FileUploadPolicies
     CONSTRAINT CK_FileUploadPolicies_MaxSize CHECK (MaxFileSizeBytes > 0),
     CONSTRAINT CK_FileUploadPolicies_ScopePurpose CHECK
     (
-        (ScopeType = 'SITE' AND ToolId IS NULL AND PurposeCode IN ('INQUIRY_ATTACHMENT', 'USER_IMPORT')) OR
+        (ScopeType = 'SITE' AND ToolId IS NULL AND PurposeCode = 'INQUIRY_ATTACHMENT') OR
         (ScopeType = 'TOOL_COMMON' AND ToolId IS NULL AND PurposeCode IN ('REFERENCE', 'APP')) OR
         (ScopeType = 'TOOL' AND ToolId IS NOT NULL AND PurposeCode = 'TOOL_INPUT')
     )

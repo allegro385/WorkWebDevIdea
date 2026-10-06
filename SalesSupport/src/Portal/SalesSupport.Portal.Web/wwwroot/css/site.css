@@ -480,9 +480,10 @@
     gap: 1rem;
 }
 
-.pt-user-filter .pt-filter-item:nth-child(1) { flex: 1.4 1 16rem; }
-.pt-user-filter .pt-filter-item:nth-child(2) { flex: 2 1 22rem; }
-.pt-user-filter .pt-filter-item:nth-child(n+3) { flex: 1 1 10rem; }
+.pt-user-filter .pt-filter-item:nth-child(1) { flex: 1.2 1 10rem; }
+.pt-user-filter .pt-filter-item:nth-child(2) { flex: 1.2 1 10rem; }
+.pt-user-filter .pt-filter-item:nth-child(3) { flex: 2 1 16rem; }
+.pt-user-filter .pt-filter-item:nth-child(n+4) { flex: 1 1 7rem; }
 .pt-user-filter .pt-filter-actions,
 .pt-tool-filter .pt-filter-actions {
     align-items: flex-end;

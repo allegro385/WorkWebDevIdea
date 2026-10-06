@@ -11,4 +11,5 @@ public sealed record PortalNoticeView(int NoticeId, string Title, string Content
 /// <summary>P002 ポータルトップの表示情報です。</summary>
 /// <param name="Notices">公開中のシステムお知らせです。</param>
 /// <param name="IsAdmin">管理画面のメニューカードを表示するかどうかです。認可の代替にはしません。</param>
-public sealed record HomeViewModel(IReadOnlyList<PortalNoticeView> Notices, bool IsAdmin);
+/// <param name="CanUsePreferences">現在のロールが個人設定の利用を許可されているかどうかです。</param>
+public sealed record HomeViewModel(IReadOnlyList<PortalNoticeView> Notices, bool IsAdmin, bool CanUsePreferences);

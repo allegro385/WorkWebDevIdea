@@ -45,7 +45,7 @@ SalesSupport.Common/
 | --- | --- | --- |
 | Common.Entities.Identity | ApplicationUser : IdentityUser<Guid> | PortalのIdentity APIから更新。Commonの検証では読取り |
 | Common.Entities.Configuration | CodeMasterEntry、SystemSetting、UploadPolicy、UploadPolicyExtension、ErrorCodeEntry | Commonは読取り。登録・変更は所定SQL |
-| Common.Entities.Authentication | UserAccessRecord、ToolAccessRecord | 認証・公開状態検証用の必要列だけを読取り |
+| Common.Entities.Authentication | UserAccessRecord、ToolAccessRecord、RoleAccessRecord、ToolRoleAccessRecord | 認証・公開状態検証用の必要列だけを読取り |
 | Common.Entities.Logging | ToolUsageLog、UserActivityLog、SystemErrorLog | 専用Contextから追記 |
 | Portal.Entities | Tool、ToolCategory、Role、ToolRole、Notice、Inquiry、FaqItem、FaqCategory、UserPreference、UserToolFavorite、ToolVersionHistory、ToolFile | Portalの業務処理 |
 | 各ツール.Entities | 商品・見積等の業務Entity | 各ツールの責務に応じて参照・更新 |
@@ -113,7 +113,7 @@ services.AddDbContext<PortalDbContext>((provider, options) =>
 | ホストのScoped | PortalDbContext、各ツールのDbContext、UserManager、SignInManager |
 | HttpClientFactory | 名前付きHTTPクライアント |
 
-Common登録はPortalのIdentity Storeを自動登録しない。ホストはAddIdentityCore＋SignInManager＋TokenProviders＋PortalDbContextのStoreを登録し、その後Commonの同一認証スキーム設定を適用する。ツールにはパスワード更新用Storeを登録しない。
+Common登録はPortalのIdentity Storeを自動登録しない。ホストはAddIdentityCore＋SignInManager＋PortalDbContextのStoreを登録し、その後Commonの同一認証スキーム設定を適用する。ツールにはパスワード更新用Storeを登録しない。
 
 CommonのDBサービスはIDbContextFactoryから処理ごとにContextを取得・破棄する。要求内の結果共有はScopedサービスで行い、ContextをSingletonに保持しない。
 
@@ -208,7 +208,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする。一般ロールはToolRolesの一致を必要とし、ADMINは割当てに関係なく全ツールを対象とする。ロール定義・割当ての取得失敗は拒否する。ToolManageはADMINに限定し、HIDDENも編集できる。ToolUseではADMINでもHIDDENを拒否する。一覧の掲載条件と利用認可を共用の単一boolへまとめない。
 
 - 各ツールのFallbackPolicyへSalesSupportToolを適用し、新規アクションへの付け忘れを防ぐ。Portalはサイト入場をFallbackPolicyとし、管理機能にADMINを追加する。
-- ログイン・初回設定・再設定・案内表示等だけを明示的な例外にする。ログアウトは認証必須POSTだがサイト入場条件は不要。公開静的資産には機密データを置かない。
+- ログイン・案内表示等だけを明示的な例外にする。ログアウトは認証必須POSTだがサイト入場条件は不要。公開静的資産には機密データを置かない。
 - DB障害では保護要求を503、未認証・失効はAPIで401、権限不足は403、存在しない／HIDDENの利用対象は404とする。サイトPRIVATEの一般ユーザーはAPIで403、HTMLではPortalの案内画面へ案内する。
 - Cookie改ざん・無効ユーザー・Stamp不一致はCookieを失効させる。DB障害を「ユーザー不存在」とみなして恒久的にログアウトさせない。
 - HTML未認証時はPortalへ戻り先付きで案内する。戻り先は同一サイトのローカルパスのみ許可し、スキーム相対URL、外部ホスト、制御文字を拒否する。POST本文を保存・自動再送しない。
@@ -225,7 +225,7 @@ Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする
 
 ### Portalとの境界
 
-パスワードポリシー、禁止リスト、設定リンク発行・消費、UserManagerによるユーザー更新、初期管理者作成はPortalの詳細設計対象。CommonはApplicationUserとIdentityマッピング・共有Cookie契約を提供する。設定リンクの暗号・パスワードハッシュを独自実装しない。
+PortalはログインとUserManagerによるロール・有効状態・ロック更新を所有する。ユーザー作成と資格情報・表示名・メールの変更は今後の外部連携プロジェクトの責務。CommonはApplicationUser、LoginIdへのIdentityマッピングと共有Cookie契約を提供し、独自パスワードハッシュを実装しない。
 
 ## 6. MasterData・DateTime
 
@@ -300,7 +300,7 @@ ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ば�
 
 | 契約 | 内容 |
 | --- | --- |
-| UploadPurpose | InquiryAttachment／UserImport／Reference／App／ToolInput |
+| UploadPurpose | InquiryAttachment／Reference／App／ToolInput |
 | UploadPolicySnapshot | PolicyId、Purpose、ToolId?、MaxFileSizeBytes、Extensions |
 | IUploadPolicyProvider.GetAsync(purpose, toolId?) | DBのポリシーと拡張子を一緒に取得 |
 | IUploadValidator.ValidateAsync(stream, originalName, policy) | 検証結果。ストリームを読みながら実容量を制限 |
@@ -315,7 +315,7 @@ ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ば�
 
 ### 処理規則
 
-- ユーザー取込はSITE＋USER_IMPORT（.tsv、1,000,000バイト）、問い合わせはSITE＋INQUIRY_ATTACHMENT、参考資料・配布アプリはTOOL_COMMON、ツール入力はTOOL＋TOOL_INPUT。用途・ToolIdの組合せ不正、ポリシー欠落、拡張子0件、容量不正、DB障害は保存前に拒否する。
+- 問い合わせはSITE＋INQUIRY_ATTACHMENT、参考資料・配布アプリはTOOL_COMMON、ツール入力はTOOL＋TOOL_INPUT。用途・ToolIdの組合せ不正、ポリシー欠落、拡張子0件、容量不正、DB障害は保存前に拒否する。
 - パスを除いた元ファイル名の最終拡張子を小文字化して完全一致で検証する。空名・制御文字・拡張子なしは拒否する。圧縮ファイルを自動展開しない。
 - Content-Lengthだけで判定せず、上限を超えた時点で書込み停止・途中ファイル削除を行う。
 - 物理名はGUID等で発行し、CreateNewで作成する。一時ファイルは用途・ツール別領域、永続ファイルはシステム生成相対パスとする。
@@ -341,7 +341,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 - 開発環境は実宛先をすべて除去しDevelopmentRecipientだけへ送信する。未指定では送信しない。
 - 宛先0件はSMTPへ接続せずNO_RECIPIENTS、上限超過はINVALID_INPUTとして返す。お知らせを複数メールへ自動分割しない。
 - メールテンプレートは `IMailTemplateRenderer.Render(templateKey, model)` → Subject＋Body。Commonが整形を担当し、業務用モデル・対象選定はPortalが渡す。
-- 初期設定・再設定リンクを含む本文・URL・宛先をログへ出さない。失敗ログの詳細は送信段階・固定理由コードに限定する。
+- メール本文・URL・宛先をログへ出さない。失敗ログの詳細は送信段階・固定理由コードに限定する。
 - From／Reply-To、文面の最終校正、お知らせTO、SMTPの上限は配置・Portal運用の残件。共通送信器の実装は実値を後から設定できる。
 
 ## 10. HttpClients
@@ -413,6 +413,13 @@ Common.ContractsにDTOだけ置き、Controllerと保存処理はPortalに置く
 - 更新はCSRF必須。Portalページから同一オリジンで呼ぶ。トークンは `X-CSRF-TOKEN` ヘッダーで送る。
 - ツールページが通知設定を操作する必要がある場合はPortalの個人設定画面へ遷移する。初期はツールとPortal間のCSRFトークン共有APIを追加しない。
 
+### 外部連携ログインIDと通知表示の契約
+
+- ApplicationUser.IdはAspNetUsers.UserIdへ、Identity.UserNameはLoginId、NormalizedUserNameはNormalizedLoginIdへマッピングする。ログインIDとメールを別々に保持し、内部Guidは維持する。
+- RoleAccessRecordはRoles.NoticeMailEnabledを読み取る。共通ヘッダーは要求時にDBでフラグを確認し、ONの場合だけ個人設定リンクを表示する。OFF・未定義の場合は非表示。本人通知設定OFFでもメニュー表示は許可する。
+- ユーザーメニューはログアウトだけを表示する。パスワード設定・変更・再設定とユーザー作成はPortalの提供範囲から外れる。
+- 通知設定APIのGET・PUTは本人・サイト利用条件に加え現在のロール通知許可を確認し、OFFなら403を返す。DB取得失敗は許可せず、PreferenceServiceでも更新時に確認する。問い合わせメールには適用しない。
+
 ## 13. ホストへの組込み順序
 
 1. 設定読込み、AddSalesSupportCommon、ホストDbContext・Identity（Portalのみ）、MVC・認可を登録。
@@ -449,7 +456,7 @@ EndpointメタデータをCookie更新判定で参照できるよう、ルーテ
 
 - SMTP実値、From／Reply-To、お知らせTO・宛先上限、文面、開発送信先。
 - 配置先、鍵フォルダー・ACL、証明書、信頼するプロキシ、IIS上限。
-- 禁止パスワードリストの出所・内容・更新担当。設定リンク発行番号の原子的更新はPortal詳細設計に定義済み。
+- 外部ログインIDの規則・パスワードハッシュ互換性・自動連携契約は検討事項で確定する。
 - 各ツール固有入力・出力・外部HTTP接続。
 - 実SMTP、IIS配置でのCookie往復、SQL Serverの同時更新・行ロックの実証。環境を用意して別途検証する。
 

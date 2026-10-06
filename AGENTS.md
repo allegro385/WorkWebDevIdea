@@ -50,7 +50,7 @@
 ## セキュリティ上の不変条件
 
 - ASP.NET Core Identity と Cookie 認証を使い、独自のパスワードハッシュやトークン暗号を実装しない。
-- `ApplicationUser` は `IdentityUser<Guid>` を継承する。メールアドレスをログイン ID と UserName に使い、表示名は `DisplayName`、権限は `RoleCode` とロールマスタで管理する。初期一般ロールは `A`～`D`、管理者は `ADMIN`。一般ロールが利用できるツールは `ToolRoles` の割当てで確認する。
+- `ApplicationUser` は `IdentityUser<Guid>` を継承する。外部連携のログインIDをIdentityのUserName（DB列LoginId）に使い、表示名は `DisplayName`、権限は `RoleCode` とロールマスタで管理する。初期一般ロールは `A`～`D`、管理者は `ADMIN`。一般ロールが利用できるツールは `ToolRoles` の割当てで確認する。
 - `RoleCode` または `IsActive` の変更時は SecurityStamp を更新する。
 - 保護対象リクエストでは IsActive、RoleCode、SecurityStamp、サイト公開状態、ツール状態を再確認する。Cookie の存在、Referer、過去の画面操作だけで認可しない。
 - ツールの単独開発ではCommonの`SalesSupport:Tool:CheckPublicationStatus=false`による例外を認める。Commonの`DEVELOPMENT`とホストの`Development`の両方を確認し、認証ユーザー・Cookieを作らず画面・計算だけを試す。アップロードと案件保存等のDB機能は拒否する。本番での省略指定は起動拒否、未設定は通常のDB確認。Portalには適用しない。

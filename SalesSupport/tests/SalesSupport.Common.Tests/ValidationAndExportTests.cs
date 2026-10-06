@@ -66,7 +66,7 @@ public sealed class ValidationAndExportTests
     public async Task UploadChecksActualLength(int size, bool expected)
     {
         using var input = new MemoryStream(new byte[size]);
-        var policy = new UploadPolicySnapshot(1, UploadPurpose.UserImport, null, 10, [".tsv"]);
+        var policy = new UploadPolicySnapshot(1, UploadPurpose.InquiryAttachment, null, 10, [".tsv"]);
         var result = await new UploadValidator().ValidateAsync(input, "C:\\fakepath\\users.TSV", policy);
         Assert.Equal(expected, result.IsValid);
         Assert.True(input.CanRead);

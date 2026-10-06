@@ -45,6 +45,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         role.HasKey(x => x.RoleCode);
         role.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
         role.Property(x => x.RoleName).HasMaxLength(100).IsRequired();
+        role.Property(x => x.NoticeMailEnabled).HasDefaultValue(false);
         role.ConfigureAuditColumns("Roles");
         model.Entity<ApplicationUser>().HasOne<Role>().WithMany().HasForeignKey(x => x.RoleCode).OnDelete(DeleteBehavior.NoAction);
 
@@ -105,6 +106,8 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         var preference = model.Entity<UserPreference>();
         preference.HasKey(x => x.UserId);
         preference.HasOne<ApplicationUser>().WithOne().HasForeignKey<UserPreference>(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+        preference.Property(x => x.SystemNoticeMailEnabled).HasDefaultValue(false);
+        preference.Property(x => x.FavoriteToolNoticeMailEnabled).HasDefaultValue(false);
         preference.ConfigureAuditColumns("UserPreferences");
 
         var favorite = model.Entity<UserToolFavorite>();

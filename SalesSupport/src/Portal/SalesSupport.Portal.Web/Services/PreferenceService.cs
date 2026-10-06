@@ -12,6 +12,8 @@ public enum PreferenceOutcome
     Succeeded,
     /// <summary>ほかの操作で更新されていたため保存しませんでした。</summary>
     Conflict,
+    /// <summary>ロールが通知機能を許可していないため拒否しました。</summary>
+    Denied,
     /// <summary>対象の設定が存在せず、整合性エラーとして扱います。</summary>
     Unavailable
 }
@@ -24,6 +26,9 @@ public sealed record PreferenceSaveResult(PreferenceOutcome Outcome, UserPrefere
 /// <summary>本人の通知設定を取得・更新します。</summary>
 public interface IPreferenceService
 {
+    /// <summary>現在の有効ユーザーとロールの通知フラグをDBで確認します。</summary>
+    Task<bool> IsAllowedAsync(Guid userId, CancellationToken ct = default);
+
     /// <summary>本人の通知設定を返します。未登録の場合はnullを返します。</summary>
     Task<UserPreferencesDto?> GetAsync(Guid userId, CancellationToken ct = default);
 
@@ -34,9 +39,14 @@ public interface IPreferenceService
 /// <summary>存在しない設定を通知有効とみなさず、1行の競合更新として扱います。</summary>
 public sealed class PreferenceService(PortalDbContext db, IActivityLogger activity) : IPreferenceService
 {
-    /// <summary>本人の1行だけを追跡なしで取得します。</summary>
+    /// <summary>ロール未定義・無効ユーザー・通知許可OFFは拒否します。</summary>
+    public Task<bool> IsAllowedAsync(Guid userId, CancellationToken ct = default) =>
+        db.Users.AsNoTracking().AnyAsync(user => user.Id == userId && user.IsActive
+            && db.Roles.Any(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled), ct);
+
+    /// <summary>通知を許可された本人の1行だけを追跡なしで取得します。</summary>
     public async Task<UserPreferencesDto?> GetAsync(Guid userId, CancellationToken ct = default) =>
-        await db.UserPreferences.AsNoTracking().Where(x => x.UserId == userId)
+        !await IsAllowedAsync(userId, ct) ? null : await db.UserPreferences.AsNoTracking().Where(x => x.UserId == userId)
             .Select(x => new UserPreferencesDto(x.SystemNoticeMailEnabled, x.FavoriteToolNoticeMailEnabled, x.UpdateCount))
             .SingleOrDefaultAsync(ct);
 
@@ -45,8 +55,9 @@ public sealed class PreferenceService(PortalDbContext db, IActivityLogger activi
     {
         var result = await ApplyAsync(userId, input, ct);
         var succeeded = result.Outcome == PreferenceOutcome.Succeeded;
-        await activity.WriteAsync(new ActivityEvent("PREFERENCE_UPDATE", succeeded ? "SUCCESS" : "FAILURE",
-            succeeded ? null : result.Outcome == PreferenceOutcome.Conflict ? "CONFLICT" : "INVALID_INPUT",
+        await activity.WriteAsync(new ActivityEvent("PREFERENCE_UPDATE", succeeded ? "SUCCESS" : result.Outcome == PreferenceOutcome.Denied ? "DENIED" : "FAILURE",
+            succeeded ? null : result.Outcome == PreferenceOutcome.Denied ? "ROLE_DENIED"
+                : result.Outcome == PreferenceOutcome.Conflict ? "CONFLICT" : "INVALID_INPUT",
             "USER", userId.ToString("N"), succeeded ? Changes(input) : null), ct);
         return result;
     }
@@ -54,6 +65,7 @@ public sealed class PreferenceService(PortalDbContext db, IActivityLogger activi
     /// <summary>提出されたUpdateCountと現在値を照合してから更新します。</summary>
     private async Task<PreferenceSaveResult> ApplyAsync(Guid userId, UserPreferencesDto input, CancellationToken ct)
     {
+        if (!await IsAllowedAsync(userId, ct)) return new(PreferenceOutcome.Denied, null);
         var preference = await db.UserPreferences.SingleOrDefaultAsync(x => x.UserId == userId, ct);
         if (preference is null) return new(PreferenceOutcome.Unavailable, null);
         if (preference.UpdateCount != input.UpdateCount) return new(PreferenceOutcome.Conflict, null);

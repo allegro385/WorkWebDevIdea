@@ -5,7 +5,7 @@ using SalesSupport.Common.Data;
 namespace SalesSupport.Common.FileStorage;
 
 /// <summary>DBで管理するアップロード用途です。</summary>
-public enum UploadPurpose { InquiryAttachment, UserImport, Reference, App, ToolInput }
+public enum UploadPurpose { InquiryAttachment, Reference, App, ToolInput }
 /// <summary>要求内で確定したアップロード条件です。容量の単位はバイトです。</summary>
 public sealed record UploadPolicySnapshot(int PolicyId, UploadPurpose Purpose, string? ToolId, long MaxFileSizeBytes, IReadOnlyList<string> Extensions);
 /// <summary>認可済みの用途からDBの許可条件を取得します。</summary>
@@ -26,7 +26,6 @@ public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> fact
         var (scope, code) = purpose switch
         {
             UploadPurpose.InquiryAttachment when toolId is null => ("SITE", "INQUIRY_ATTACHMENT"),
-            UploadPurpose.UserImport when toolId is null => ("SITE", "USER_IMPORT"),
             UploadPurpose.Reference when !string.IsNullOrWhiteSpace(toolId) => ("TOOL_COMMON", "REFERENCE"),
             UploadPurpose.App when !string.IsNullOrWhiteSpace(toolId) => ("TOOL_COMMON", "APP"),
             UploadPurpose.ToolInput when !string.IsNullOrWhiteSpace(toolId) => ("TOOL", "TOOL_INPUT"),

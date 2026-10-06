@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace SalesSupport.Common.Entities.Identity;
 
-/// <summary>PortalがIdentity API経由で更新する共通ユーザーです。</summary>
+/// <summary>Portalと外部連携がIdentity API経由で更新する共通ユーザーです。</summary>
 public sealed class ApplicationUser : IdentityUser<Guid>
 {
     public string DisplayName { get; set; } = "";

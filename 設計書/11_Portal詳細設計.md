@@ -13,12 +13,11 @@ SalesSupport.Portal.Web/
 │  ├─ Controllers/        管理者画面
 │  └─ Views/              管理者画面のRazor
 ├─ Services/              画面・業務単位の処理
-├─ Authentication/        Identity設定、リンク発行・消費
 ├─ Entities/              Portal業務Entity
 ├─ Data/                  PortalDbContext、EntityConfigurations
 ├─ Models/                入力モデル、表示モデル、応答DTO
 ├─ Views/                 利用者画面のRazor
-├─ Bootstrap/             最初の管理者の導入用処理
+├─ Bootstrap/             開発限定の試験用ユーザー作成
 └─ wwwroot/               Portal固有のCSS・JavaScript
 ```
 
@@ -55,8 +54,6 @@ SalesSupport.Portal.Web/
 | 画面 | Controller・経路 | Service | 認可 |
 | --- | --- | --- | --- |
 | P001 ログイン | Account / GET・POST `/account/login` | AccountService | 匿名可、IP制限 |
-| P009 設定・再設定 | Account / GET・POST `/account/password/setup`、`/account/password/reset`、POST `/account/password/request` | PasswordLinkService | 匿名可、リンク・要求制限 |
-| P010 変更 | Account / GET・POST `/account/password/change` | AccountService | 本人・Site |
 | ログアウト | Commonの同一アプリ内POSTハンドラー | Common | 公開状態にかかわらずCSRF検証 |
 | P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
 | P002 トップ | Home / GET `/` | HomeService | Site |
@@ -66,11 +63,11 @@ SalesSupport.Portal.Web/
 | ファイル取得 | ToolFiles / GET `/tools/{toolId}/files/{fileId}` | ToolFileService | Site＋ToolDownload |
 | お気に入り | Favorites / POST `/tools/{toolId}/favorite`、`/unfavorite` | FavoriteService | 本人・Site、対象状態再検証 |
 | P005 マニュアル・FAQ | Help / GET `/help`、`/help/manual` | HelpService | Site |
-| P006 個人設定 | Preferences / GET・POST `/preferences` | PreferenceService | 本人・Site |
+| P006 個人設定 | Preferences / GET・POST `/preferences` | PreferenceService | 本人・Site＋ロール通知許可 |
 | P007 問い合わせ | Inquiries / GET・POST `/inquiries/new` | InquiryService | Site |
 | A001 ツール管理 | Admin/Tools / GET `/admin/tools`、GET `/admin/tools/{toolId}` | ToolAdminService | ADMIN・ToolManage |
 | ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
-| A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除・再発行・取込 | UserAdminService / UserImportService | ADMIN |
+| A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除 | UserAdminService | ADMIN |
 | A005 問い合わせ管理 | Admin/Inquiries / GET一覧・詳細、POST保存 | InquiryAdminService | ADMIN |
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
 | ツールお知らせ | Admin/Notices / ツールID付きGET・POST | NoticeService | ADMIN・ToolManage |
@@ -87,63 +84,29 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - 保存中のボタン無効化は操作補助であり、二重実行防止や認可の代わりにしない。既知の業務競合は409、入力不正は400、取得不能は503を基本とし、画面では安全な日本語に変換する。
 - 共通認証の401/403/404等の扱いを継承する。HTMLとAPIの応答を混同せず、APIへログインHTMLを返さない。
 - テキストはRazorでエスケープし、本文はCSSで改行表示する。HTMLとして保存・描画しない。認証・個人情報画面とダウンロードにはno-storeを設定する。
-- 認証フォームのトークン付きURLはReferer送信を抑止し、第三者リソースを読み込まない。IIS・アプリの要求ログにもトークン／パスワードを出さない。
 
-## 5. 認証・パスワード
+## 5. 外部連携資格情報による認証
 
-### 5.1 ログインと変更
+1. 信頼するプロキシ適用後、IP制限30回/分とCSRFを検証する。
+2. ログインIDをIdentity標準のNormalizeNameで正規化し、ポータルのNormalizedLoginIdからユーザーを取得する。Emailで検索しない。有効状態・ロール存在を確認する。
+3. CheckPasswordSignInAsyncで連携済みPasswordHashを検証し、失敗回数・30分ロックを管理する。EmailConfirmedは条件にしない。パスワードをトリムしない。
+4. 行ロック後に最新状態を再取得し、資格情報検証時とSecurityStampが一致する場合だけLastAccessAtをUserManagerで更新・確定し、非永続共有Cookieを発行する。
+5. 安全なローカル戻り先だけを許可し、Privateサイトの一般ユーザーは入場制限案内へ遷移する。失敗文言はログインIDまたはパスワードの共通文言に統一する。
 
-1. 信頼するプロキシ設定を適用後、IP制限（ログイン30回/分）とCSRFを検証する。
-2. メールを正規化してUserManagerで取得し、有効・初回設定済み・ロック状態を確認する。不在等の理由を外部へ細分化しない。
-3. `CheckPasswordSignInAsync`でパスワード検証と失敗回数更新を行う。5回失敗で30分ロック。成功時は失敗回数をリセットする。
-4. 成功したユーザーの最新状態を確認し、LastAccessAtをUserManager経由で更新・確定してから非永続Cookieを発行する。初回UTC時刻・60分スライド・最大8時間はCommon契約に従う。
-5. ログイン後の戻り先は安全なローカルURLだけとする。Private時の一般ユーザーは通常機能へ入れず非公開案内へ案内する。
+- UserIdはGuidのまま、UserNameをLoginId、NormalizedUserNameをNormalizedLoginIdへマッピングする。ログインIDの文字ルールは未決定で、現行256文字と標準正規化は暫定。
+- パスワードの変更・再設定は連携元で行う。ポータルのPasswordLinkService、設定トークンProvider、設定メール、パスワード変更・再設定経路を設けない。
+- 外部データ受信・移行プロジェクトとハッシュ受渡し契約は[未決定事項](06_検討事項.md#identity)として残す。ログインで連携元へ都度照会しない。
 
-現在パスワードからの変更は`ChangePasswordAsync`を使う。成功時SecurityStampを更新し、既存リンクを消費・共有Cookieを破棄してログインへ戻す。パスワードはトリムせず、14～64文字、ASCII U+0021～U+007E、禁止リストを検証する。
+## 6. ユーザー管理・外部連携
 
-### 5.2 リンクの記録形式
-
-AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する。トークン本文はDBに保存しない。
-
-| Name | Value |
-| --- | --- |
-| InitialIssue | 最新発行番号。GuidのN形式（32桁）。未発行・消費済みは行なし |
-| ResetIssue | 同上、再設定用 |
-| LastRequestUtc | UTC日時のラウンドトリップ形式（O）。再設定請求の最終受付 |
-
-初回用・再設定用に別のDataProtectorTokenProviderを登録し、有効期限を14日・1時間にする。標準のGenerateAsync／ValidateAsyncに渡すpurposeへDBの発行番号を追加する薄い派生クラスを用意する。暗号・ハッシュ・期限検証自体は標準実装に委譲する。発行番号がない／形式不正なら拒否する。初回はGenerateUserTokenAsync／VerifyUserTokenAsyncとAddPasswordAsync、再設定は設定済みプロバイダーを使うGeneratePasswordResetTokenAsync／ResetPasswordAsyncを利用する。
-
-### 5.3 発行・消費の原子性
-
-- ユーザーのセキュリティ更新は短いDBトランザクション内で対象AspNetUsers行を`UPDLOCK,HOLDLOCK`で読取り、最新Entityで判定する。これは同時発行・消費の直列化のための限定的なパラメーター化SQLであり、IdentityテーブルをSQLで更新しない。
-- 同じPortalDbContextをUserManager Storeにも渡す。トークン行はSetAuthenticationTokenAsync／RemoveAuthenticationTokenAsync、ユーザーはUserManager経由で更新する。途中のIdentityResult失敗でも全体をロールバックする。
-- 再設定請求はIP30回/時を先に検証。対象行をロックしLastRequestUtcと実時刻を比較して5分未満を抑止、受付時刻と発行番号を同じトランザクションで確定する。有効でパスワード未設定なら初回リンクを発行する。
-- 不在・無効・アカウント単位の抑止は同じ受付文言「対象のアカウントが利用可能な場合、設定用メールを送信します。」。IP制限は429。SMTPは確定後に一度だけ呼び、失敗・結果不明でも古い番号へ戻さない。
-- 消費POSTでは同じユーザー行ロック取得後に最新番号でトークンを検証する。パスワード更新、初回のEmailConfirmed=true、SecurityStamp更新、両用途の発行番号削除を一括確定する。並行した2要求のうち成功するのは1件のみ。
-- 入力不正は番号を消費しない。期限切れ・改変・消費済みは共通の無効リンク案内。GETでは消費しない。再設定だけではロックを解除しない。
-- メール送信中に次の発行が成立すると先行メールが無効になることは許容し、最新リンクのみを有効とする。
-
-## 6. ユーザー管理・初期登録
-
-- 一般ユーザーの新規登録はTSVだけとし、単独登録画面・APIを設けない。各行のEmail=UserName、DisplayName、RoleCodeを検証し、DBに登録された一般ロール、IsActive=trueで、UserManager.CreateAsyncと通知2項目が有効のUserPreference作成を同一トランザクションで行う。ADMINと未定義ロールは拒否する。パスワードは管理者が設定しない。確定後に初回リンクを発行・送信する。
-- ローカルの複数ユーザー試験だけに使用する`add-test-user`コマンドは、ASP.NET Core環境名`Development`かつPortal環境コード`DEVELOPMENT`を必須とする。対話入力のパスワードを通常の禁止リストとIdentityで検証し、UserManagerとUserPreferenceを同一トランザクションで保存する。一般ユーザーを有効・メール確認済みで作成し、メール送信は行わない。Web画面・APIの単独登録機能にはしない。
-- 編集はConcurrencyStampを受け取り比較し、表示名・メール・有効状態と一般ロール間のRoleCode変更を扱う。選択肢はDB上の一般ロールから取得し、現在値と変更先が一般ロールであることを検証する。ADMINへの変更・ADMINからの変更を拒否する。変更時はUserManagerでSecurityStampを更新する。ユーザーを物理削除しない。
-- 無効化前に自分自身・最後の有効管理者・担当中のTools/問い合わせを検査する。担当の引継ぎは既存編集画面で先に行う。複数ユーザーにまたがる管理者数の検査はSerializableトランザクションで行い、デッドロックを自動再試行せず再読込を促す。
-- 担当者を設定する各サービスも対象ユーザー行をロックして有効ADMINを確認する。無効化側と同じ規約で直列化し、確認直後の担当追加を防ぐ。複数ユーザーのロック順はUserId順に統一する。
-- メール変更はSetEmailAsync／SetUserNameAsyncで正規化列も更新し、初回未設定は未確認のまま、設定済みは社内確認済みとしてEmailConfirmedを保持する。SecurityStamp更新と発行番号削除を同時確定する。本人への確認メール画面は追加しない。
-- ロック解除は対象行のロックとConcurrencyStamp検査後、SetLockoutEndDateAsync(null)とResetAccessFailedCountAsyncを同時確定する。有効状態・パスワード設定状態は変更しない。ログイン側の失敗回数更新も同じ行直列化規約を適用する。
-- 最初の管理者はWeb公開ルートではなく導入用コマンドモードで作成する。有効管理者が既にいる場合は作成を拒否し、同じIdentity・Preference作成サービスを利用する。メール・秘密をコマンド履歴やログへ出さず、安全な入力経路を使う。DDLやダミーデータの直接パスワード投入で代替しない。
-
-### TSV一括登録
-
-1. ADMIN・CSRF確認後、UTF-8のEmail／DisplayName／RoleCodeの3列を読み取る。ヘッダー、列数、必須・桁数、DB上の一般ロールとの一致、ファイル内と既存ユーザーの正規化メール重複を全行検査する。
-2. エラーが1件でもあれば登録せず行番号と項目エラーを表示する。パスワード・ADMIN・未定義ロールの持込みは拒否する。
-3. 確認データはランダムな確認IDでサーバー側に一時保持し、実行者UserIdに結び付ける。ブラウザーのhidden値だけを登録データの正本にしない。
-4. 実行時にADMIN、期限、未実行を再検証して確認IDを原子的に使用中へ変える。ロール定義を含む全行を再検証後、各行を指定された一般ロール・有効で登録する。ユーザー＋設定は1行ごとのトランザクション。
-5. DB失敗で以後を停止する。確定済み行は戻さない。確定後のリンク発行・メール失敗を理由に登録をやり直さない。
-6. 結果は行番号、メール、登録済み／登録失敗／未処理を表示する。メール成否の件数は表示しない。再実行は未登録分を手動で新しいTSVにする。
-
-容量1,000,000バイト以下、データ行100件以下（ヘッダーを除く）、SITE＋USER_IMPORTで.tsvのみ許可する。101件目で全体を拒否し切り捨て登録しない。Commonで容量を検証し、Portalでヘッダー・UTF-8・行数を検証する。確認データは発行から30分、Portalプロセス内に同時200件まで保持する。期限切れを整理した後も上限に達していれば新しい確認IDを発行せず、各呼出し元で受付失敗として扱う。ブラウザーへ確認データを保存しない。再起動時は失効・再取込とし、永続ジョブや自動再開を追加しない。バイト数の独立した上限は設けず、TSVのファイル・行数上限と確認IDの件数上限で保持量を制限する。この保持条件はお知らせ送信確認と問い合わせの一回限りの送信IDにも共通して適用する。
+- ユーザー管理はログインID・表示名・メール・ロール・有効状態・ロック状態の一覧／検索を提供する。連携管理項目は参照表示とし、入力モデルに含めない。
+- 更新は一般ロール間のRoleCodeとIsActiveだけ。現在値・変更先の一般ロール存在を検証し、ADMINとの相互変更、自身と最後の有効管理者の無効化、担当中管理者の無効化を拒否する。
+- ConcurrencyStampとUserManagerを使い、変更時にSecurityStampを更新する。外部連携属性を上書きせず、ユーザーを物理削除しない。
+- ロック解除は行ロック・ConcurrencyStamp照合後、SetLockoutEndDateAsync(null)とResetAccessFailedCountAsyncを同時確定する。有効状態やパスワードを変更しない。
+- 本番ユーザー作成と資格情報・表示名・メールの更新はデータ移行用プロジェクトからIdentity APIで行う。初期管理者も連携で供給する。TSV登録・bootstrap-admin・設定メール発行は廃止。
+- 開発限定add-test-userはCommonのDEVELOPMENTとホストDevelopmentを確認し、ログインID・メール・表示名・ロールA～D／ADMIN・秘密入力パスワードを取得する。UserManager.CreateAsyncと通知初期OFFのUserPreferenceを同一トランザクションで作成する。メール送信は行わない。Identityの開発用作成条件を連携済みハッシュの照合へ適用しない。
+- 通知設定は連携作成時に2項目OFF、後続連携で保持する。内部UserIdを変えない。同期方式と初期ロール・有効状態・管理者供給手順は移行設計で確定する。
+- お知らせ送信確認と問い合わせ送信IDはConfirmationStoreで本人束縛・一回消費・30分・全用途200件上限。再起動で失効し、永続化・自動再開を行わない。
 
 ## 7. 一覧・個人設定・FAQ
 
@@ -153,7 +116,7 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 - 詳細・Web起動・ファイル取得と各Webツールの直接要求では、状態と現在のロール割当てを再検証する。一般ロールに割当てがなければ拒否し、ADMINは割当てを要しない。割当て取得失敗は拒否する。
 - 現在版なしは表示だけVer.1.0.0、更新日なし。履歴は数値3組比較で現在版以下を表示する。文字列順で比較しない。
 - お気に入りは本人IDとToolIdの複合キーを使用し、追加済みへの追加・未登録への解除は成功扱いとする。HIDDENの既存登録は消さず一覧から除外する。追加・解除は対象の表示可能状態を再確認する。
-- 個人設定は本人の2項目とUpdateCountだけを受け取り、1行の競合更新とする。存在しない設定を無条件に通知有効として扱わず、整合性エラーとして検出する。
+- 個人設定はロールのNoticeMailEnabledをDBで確認し、OFF・未定義は画面GET/POST・API GET/PUTを403で拒否する。本人の2項目とUpdateCountだけを受け取り、1行の競合更新とする。存在しない設定を無条件に通知有効として扱わず、整合性エラーとして検出する。
 - トップは公開SYSTEMお知らせ、詳細は公開TOOLお知らせを取得する。FAQは公開行をカテゴリ順・項目順・ID順で表示する。FAQ編集・カテゴリ編集画面は追加しない。
 - マニュアルPDFは管理された相対配置から認可済み経路で取得する。任意パスは受け付けない。
 
@@ -181,6 +144,9 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ## 9. お知らせ保存・手動送信
 
+- 宛先はユーザー・ロール・本人設定を結合し、有効かつRoles.NoticeMailEnabled=ONかつ本人設定ONに絞る。ツールのお知らせはお気に入りとロール割当て条件も適用する。ADMINもロール通知許可と本人設定を必須にする。問い合わせの宛先には適用しない。
+- 初期ADMIN・A～Cは通知許可ON、DはOFF。管理者がDB操作で変更する。本人通知は両項目初期OFF。ヘッダー・トップの個人設定リンクもロールフラグで表示する。
+
 - SYSTEM／TOOL別に保存し、Title・Content・IsPublishedだけを編集する。MailSentAtは編集保存で変更しない。削除機能は設けない。
 - 送信確認で対象ID・UpdateCount・宛先人数をサーバー側に保持し、実行時に再取得して相違があれば送信せず再確認を求める。SYSTEMまたは同一ToolIdのTOOLだけを1通にまとめる。
 - 宛先は有効ユーザーの設定から選定し、TOOLはさらにお気に入りを条件とする。サイト・ツールの公開範囲で通知先を狭めない。宛先は重複除去しBCC、0人は失敗扱い。宛先アドレスを画面やログへ展開しない。
@@ -188,7 +154,7 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 - SMTP成功時だけ各行のMailSentAtを既存日時と今回成功UTCの新しい方に更新する。NULLなら今回日時を採用する。古い日時へ戻さないことを優先し、グループ内で日時が異なることを許容する。送信開始後の本文編集は妨げず、MailSentAtは内容の最新版の送信保証ではなく過去の送信成功日時として扱う。
 - 成功日時の更新は短いトランザクションで行ロックを取得し、本文等を上書きせずMailSentAtだけを更新する。並行送信が後から終了しても既存日時より古い値へ戻さない。全選択行を一括確定する。
 - SMTP失敗・一部拒否・結果不明は以前の日時を保持する。送信成功後のDB更新失敗もログへ記録し、メールを自動再送しない。画面は「送信処理が終了しました。」とし、配達成功や失敗を断定しない。
-- 明示的に新しく確認した手動再送は許可する。永続キュー・送信試行テーブル・自動配信は追加しない。確認IDの保持方式は一括取込と同じ有効期限付き・本人束縛・再起動失効方式とする。
+- 明示的に新しく確認した手動再送は許可する。永続キュー・送信試行テーブル・自動配信は追加しない。確認IDの保持方式は有効期限付き・本人束縛・再起動失効方式とする。
 
 ## 10. 問い合わせ受付・管理
 
@@ -222,10 +188,10 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 
 ## 12. 起動・設定・実装順序
 
-1. 設定読込み、Common登録、PortalDbContext、Identity Store・TokenProvider、Portalサービス、MVC・CSRF・要求制限を登録する。
+1. 設定読込み、Common登録、PortalDbContext、Identity Store、Portalサービス、MVC・CSRF・要求制限を登録する。
 2. 例外処理、信頼する転送ヘッダー、HTTPS、ルーティング、認証、要求制限、認可を適切な順で構成する。DBやSMTPの起動時書込みは行わない。
 3. 保護画面は既定Siteポリシー、管理はADMIN、匿名経路は明示する。静的ファイルには機密・提供ファイルを置かない。
-4. Commonの契約とDDL差分を整合→Identityと状態・ロール制御→参照画面→設定・管理更新→ファイル・メール→ユーザー取込・導入処理の順に実装する。
+4. Commonの契約とDDL差分を整合→Identityと状態・ロール制御→参照画面→設定・管理更新→ファイル・メール→外部連携仕様の確認の順に実装する。
 
 接続文字列、SMTP、Portalの実URL、保存領域、鍵共有は共通設定ファイルの配置設定とし、Portalは接続文字列を自身の設定から読まずCommonの`IConnectionStringProvider`から受け取る。実運用連絡先などPortal固有の設定はPortalの設定から取得する。設定欠落をデモ値や許可状態で代替しない。サイト公開状態はDB運用で変更し、サイト管理画面へ設定編集を追加しない。
 
@@ -235,14 +201,12 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 | --- | --- |
 | 認可 | PUBLIC/PRIVATEサイト×A～D/ADMIN×ツール3状態と割当て有無。直URL、API、ファイルID差替え、無効化・ロール変更・stamp変更 |
 | Identity | 5回失敗、30分満了、管理解除、同時失敗要求、変更後全Cookie失効、60分スライドと8時間境界 |
-| リンク | 初回14日・再設定1時間、改変、再発行、同時2消費、同時2請求、ロールバック時未消費、メール変更失効 |
 | 競合 | 基本編集、現在版切替、履歴削除、ファイル順序、問い合わせ一括の一部競合で全取消 |
 | ユーザー | 自分・最後の管理者・担当者の無効化拒否、同時担当割当、ユーザー＋設定の原子性 |
 | ファイル | 許可外・上限丁度／超過・設定欠落、パス改変、保存／DB／旧削除失敗、切断時ストリーム解放 |
-| メール | 宛先0・重複・通知設定、非公開ツール通知、SMTP失敗／部分拒否／不明、成功後DB失敗、二重クリック |
+| メール | ロール通知許可×本人設定、未定義ロール拒否、宛先0・重複・通知設定、非公開ツール通知、SMTP失敗／部分拒否／不明、成功後DB失敗、二重クリック |
 | 問い合わせ | 対象とToolId整合、同日並行採番、JST日替わり、失敗時削除・一時添付清掃・欠番 |
-| TSV | BOM有無、不正UTF-8、列数・重複、登録途中停止、確認の期限・別管理者・二重実行、式・改行対策 |
-| 画面 | モックとの項目照合、未保存区画維持、キーボード操作、入力エラー保持、匿名ページの情報最小化 |
+| 画面 | ロール通知許可OFFの直接個人設定GET/POST・API GET/PUT拒否、本人初期OFF、モックとの項目照合、未保存区画維持、キーボード操作、入力エラー保持、匿名ページの情報最小化 |
 
 単体テストは日時・SMTP・ファイル・Common境界を差し替える。トリガー・一意制約・行ロック・Identityのトランザクションは使い捨てSQL Server DBで統合検証し、インメモリーDBだけで合格としない。実SMTP・実IIS・共有Cookieの複数アプリ往復は環境を用意して別途検証する。
 
@@ -251,8 +215,8 @@ AspNetUserTokensのLoginProviderを`SalesSupport.PasswordLinks`に固定する�
 - 既存DBにツールファイルがある場合、最終登録・差し替え管理者と日時の実情報を確認して移行する。推測値で補完しない。
 - 既存のバージョン値は各組0～99・先頭ゼロ禁止の形式に照らして確認し、履歴重複と現在版を個別に修正する。
 - 既存業務DBへのSQL適用手順は[SQL README](../SalesSupport/sql/README.md)を参照する。
-- SMTP、送信元・返信先・送信用宛先、運用連絡先、禁止パスワード初期リスト、IISと鍵共有パス・ACLは導入前に確定する。未決定事項は[検討事項](06_検討事項.md)で管理する。
+- SMTP、送信元・返信先・送信用宛先、運用連絡先、IISと鍵共有パス・ACLは導入前に確定する。未決定事項は[検討事項](06_検討事項.md)で管理する。
 
 ## 15. 技術資料
 
-標準TokenProviderの期限設定・派生方法は[MicrosoftのIdentityトークンプロバイダー資料](https://learn.microsoft.com/en-us/aspnet/core/blazor/security/webassembly/standalone-with-identity/account-confirmation-and-password-recovery?view=aspnetcore-10.0)を参照する。画面方式は本案件のMVCを維持し、リンクの用途別番号・原子的消費は本書固有の設計である。Cookie・EFマッピング等の資料は[Common詳細設計](10_Common詳細設計.md)を参照する。
+Identityのユーザー管理、Cookie共有、EFマッピング等の技術資料は[Common詳細設計](10_Common詳細設計.md)を参照する。外部連携契約は[検討事項](06_検討事項.md#identity)で管理する。

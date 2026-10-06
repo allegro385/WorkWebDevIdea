@@ -31,7 +31,7 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 
 ### 既に管理者を作成した開発用DBへダミーデータを追加する
 
-先にPortalの開発専用`add-test-user`コマンドで有効な一般ユーザーを一名以上作成してください。既存DBにテーブルがある場合、`001_CreateTables.sql`は再実行しません。`002_SeedMasterData.sql`は必要なマスタが未投入の場合に適用します。
+先にPortalの開発専用`add-test-user`コマンドでロールADMINとAの試験用ユーザーをそれぞれ一名以上作成してください。既存DBにテーブルがある場合、`001_CreateTables.sql`は再実行しません。`002_SeedMasterData.sql`は必要なマスタが未投入の場合に適用します。
 
 1. SSMSで開発専用SQL Serverへ接続し、ツールバーのDB選択で対象の開発DBを選びます。接続先サーバー名とDB名を確認してください。
 2. `900_SeedDummyData.sql`をSSMSで開き、先頭の`@ExpectedDevelopmentDatabase = N'__開発DB名を入力__'`を対象DB名へ書き換えます。SQLCMDモードは不要です。
@@ -43,22 +43,31 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 
 ## 既存DBのロール移行
 
-`001_CreateTables.sql`は既存DBへ再実行しません。保守時間にアプリへの新規要求を止め、接続先とバックアップを確認した上で次の順に進めます。移行前に使い捨ての開発専用DBでSQLとコマンドを検証してください。
+本システムは始動前であり、現行001・002は新規DBへ適用します。既存ユーザーへのログインID割当てや既存DBのロール移行は今回の対象に含めません。既存DBがある場合は新規DDLを再実行せず、[移行範囲・適用方法](../../設計書/06_検討事項.md#repository)を別途決めてください。
 
-1. 旧スキーマの既存DBへ`003_MigrateRoleToolSchema.sql`を一度だけ適用する。Rolesに一時的な`USER`を残し、既存ツールすべてにAを割り当てる。ToolCategories.SortOrderを削除する。
-2. 新版Portalを配置し、同じDB設定で`dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- migrate-user-roles`を実行する。全既存USERをUserManager経由でAへ変更し、SecurityStampを更新する。失敗時は原因を修正して再実行する。
-3. `SELECT COUNT(*) FROM portal.AspNetUsers WHERE RoleCode = 'USER'`が0であることを確認し、`004_CompleteRoleMigration.sql`を適用する。旧ロールを削除する。
-4. アプリへの要求を再開し、Aユーザーの一覧・直接URL、ADMINの一覧、B～Dの未割当てツール拒否を確認する。
-
-新規DBでは`001`、`002`を適用し、`003`と`004`は実行しません。ロール名称とツール割当てはDB運用で管理します。`ADMIN`をToolRolesへ登録せず、一般ロールだけを関連付けます。
+ロール名称・通知許可・ツール割当ては管理者がDB操作で管理します。ADMINをToolRolesへ登録せず、一般ロールだけを関連付けます。
 
 ## 制約・監査の検証
 
 テーブル・列・制約は[DB設計](../../設計書/04_DB設計.md)を正とします。空の開発専用DBへ`001`・`002`を適用後、次のSQLを実行します。検証中のデータ変更はロールバックします。
 
-- `tests/VerifySchema.sql`：公開状態のNULL拒否、業務日付・バージョン・拡張子の形式、本文長、ツール状態色、監査列とトリガー、カテゴリ名の重複許可、初期マスタ、ロール・ツールのスキーマ。
-- `tests/VerifyUploadAndVersion.sql`：アップロード情報の必須列と外部キー、TSVポリシー、バージョンの範囲・先頭ゼロ拒否。
+- `tests/VerifySchema.sql`：公開状態のNULL拒否、業務日付・バージョン・拡張子の形式、本文長、ツール状態色、監査列とトリガー、カテゴリ名の重複許可、初期マスタ、ロール・ツールのスキーマ、LoginId列、初期ロール通知許可と本人通知既定OFF。
+- `tests/VerifyUploadAndVersion.sql`：アップロード情報の必須列と外部キー、廃止取込ポリシーの不存在、バージョンの範囲・先頭ゼロ拒否。
 
 本文の長さは`DATALENGTH <= 20000`で末尾空白も含めて判定します。監査トリガーは`USER_NAME()`を記録し、登録時の更新回数を0、作成・更新日時を同一にします。更新時は作成監査列を保持し、対象トリガー自身だけの再入を防ぎます。
 
 既存DBの制約変更には別途ALTER移行が必要です。アップロード情報の実値と不適合バージョンを確認し、新規構築SQLで既存DBを更新しないでください。`002`の再実行ではコード・設定・ポリシーの初期値が更新されるため、運用で変更した値を事前に確認します。
+
+## 外部ログインID・通知設定の新規構築
+
+現行001はUserIdのGuidを維持し、Identityのログイン名をLoginId/NormalizedLoginId列に分離しています。Roles.NoticeMailEnabledはDB既定0、002の新規行はADMIN・A～C=1、D=0。002再実行で運用変更済み通知フラグを上書きしません。UserPreferencesの通知2列は既定0です。
+
+ユーザーの本番作成は今後の移行プロジェクトからIdentity API経由で行います。LoginIdの文字規則・標準正規化の適否とPasswordHashの受渡し互換性は未確定です。今回の変更は始動前の新規DB向けで、旧ユーザーへメールからログインIDを自動割当てするSQLは提供しません。旧版の開発DBは必要な内容を外部保管して新しい使い捨てDBで検証します。現行アプリを旧ログイン列のまま稼働させません。
+
+管理者による通知フラグ変更例（接続先・対象ロールを確認した上で実行）：
+
+```sql
+UPDATE portal.Roles SET NoticeMailEnabled = 0 WHERE RoleCode = 'D';
+```
+
+ロール変更では本人設定を消去しません。OFFはお知らせ対象・個人設定利用から除外し、問い合わせメールは維持します。

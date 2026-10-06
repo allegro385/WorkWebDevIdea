@@ -11,14 +11,12 @@
     <partial name="_ValidationSummary" />
     <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Update" asp-route-userId="@Model.Input.UserId" data-ss-once>
         <input type="hidden" name="ConcurrencyStamp" value="@Model.Input.ConcurrencyStamp" />
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="user-name">表示名<span class="badge pt-required">必須</span></label>
-            <input class="form-control" id="user-name" name="DisplayName" value="@Model.Input.DisplayName" maxlength="100" />
-        </div>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="user-email">メールアドレス<span class="badge pt-required">必須</span></label>
-            <input class="form-control" id="user-email" name="Email" type="email" value="@Model.Input.Email" maxlength="256" />
-        </div>
+        <p>ログインID・表示名・メールアドレスは連携元システムで管理します。</p>
+        <dl class="pt-detail-list">
+            <dt>ログインID</dt><dd>@Model.LoginId</dd>
+            <dt>表示名</dt><dd>@Model.DisplayName</dd>
+            <dt>メールアドレス</dt><dd>@Model.Email</dd>
+        </dl>
         <div class="pt-field">
             <label class="form-label pt-field-label" for="user-state">状態</label>
             <select class="form-select" id="user-state" name="IsActive">
@@ -58,8 +56,8 @@
             <dd>@(Model.LockoutEnd is { } lockoutEnd ? lockoutEnd.ToString("yyyy/MM/dd HH:mm") : "-----")</dd>
             <dt>ログイン失敗回数</dt>
             <dd>@Model.AccessFailedCount 回</dd>
-            <dt>初回パスワード</dt>
-            <dd>@(Model.HasPassword ? "設定済み" : "未設定")</dd>
+            <dt>資格情報の連携</dt>
+            <dd>@(Model.HasPassword ? "連携済み" : "未連携")</dd>
             <dt>最終利用日時</dt>
             <dd>@(Model.LastAccessAt is { } lastAccessAt ? lastAccessAt.ToString("yyyy/MM/dd HH:mm") : "-----")</dd>
         </dl>
@@ -71,11 +69,6 @@
                     <button type="submit" class="btn btn-outline-primary">ロック解除</button>
                 </form>
             }
-            <form method="post" asp-area="Admin" asp-controller="Users" asp-action="SendPasswordLink" asp-route-userId="@Model.Input.UserId" data-ss-once>
-                <button type="submit" class="btn btn-outline-primary">
-                    @(Model.HasPassword ? "パスワード再設定メールを送信" : "初回パスワード設定メールを送信")
-                </button>
-            </form>
         </div>
     </section>
 </div>

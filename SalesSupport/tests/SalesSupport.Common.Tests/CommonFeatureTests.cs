@@ -50,7 +50,7 @@ public sealed class CommonFeatureTests : IDisposable
     {
         var storage = CreateStorage(maxFileSizeBytes: 100, ".tsv");
         string path;
-        await using (var handle = await storage.SaveTemporaryAsync(new(UploadPurpose.UserImport, null, "C:\\work\\users.TSV"), new MemoryStream(new byte[10])))
+        await using (var handle = await storage.SaveTemporaryAsync(new(UploadPurpose.InquiryAttachment, null, "C:\\work\\users.TSV"), new MemoryStream(new byte[10])))
         {
             path = Path.Combine(temporaryRoot, handle.RelativePath);
             Assert.True(File.Exists(path));
@@ -58,7 +58,7 @@ public sealed class CommonFeatureTests : IDisposable
             Assert.Equal(".tsv", handle.Extension);
             Assert.Equal("users.TSV", handle.OriginalName);
             Assert.DoesNotContain("users", handle.RelativePath, StringComparison.OrdinalIgnoreCase);
-            Assert.StartsWith(Path.Combine("USER_IMPORT", "Site"), handle.RelativePath, StringComparison.Ordinal);
+            Assert.StartsWith(Path.Combine("INQUIRY_ATTACHMENT", "Site"), handle.RelativePath, StringComparison.Ordinal);
         }
         Assert.False(File.Exists(path));
     }
@@ -69,7 +69,7 @@ public sealed class CommonFeatureTests : IDisposable
     {
         var storage = CreateStorage(maxFileSizeBytes: 8, ".tsv");
         var error = await Assert.ThrowsAsync<UploadRejectedException>(() =>
-            storage.SaveTemporaryAsync(new(UploadPurpose.UserImport, null, "users.tsv"), new MemoryStream(new byte[9])));
+            storage.SaveTemporaryAsync(new(UploadPurpose.InquiryAttachment, null, "users.tsv"), new MemoryStream(new byte[9])));
         Assert.Equal("MAX_FILE_SIZE", error.Error.Code);
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
@@ -80,7 +80,7 @@ public sealed class CommonFeatureTests : IDisposable
     {
         var storage = CreateStorage(maxFileSizeBytes: 100, ".tsv");
         var error = await Assert.ThrowsAsync<UploadRejectedException>(() =>
-            storage.SaveTemporaryAsync(new(UploadPurpose.UserImport, null, "users.exe"), new MemoryStream(new byte[1])));
+            storage.SaveTemporaryAsync(new(UploadPurpose.InquiryAttachment, null, "users.exe"), new MemoryStream(new byte[1])));
         Assert.Equal("INVALID_INPUT", error.Error.Code);
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
@@ -134,7 +134,7 @@ public sealed class CommonFeatureTests : IDisposable
     {
         var storage = CreateStorage(maxFileSizeBytes: 8, ".tsv");
         await Assert.ThrowsAsync<UploadRejectedException>(() =>
-            storage.SaveTemporaryAsync(new(UploadPurpose.UserImport, null, "users.tsv"), new ForwardOnlyStream(new byte[9])));
+            storage.SaveTemporaryAsync(new(UploadPurpose.InquiryAttachment, null, "users.tsv"), new ForwardOnlyStream(new byte[9])));
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 

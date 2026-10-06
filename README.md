@@ -30,6 +30,6 @@ dotnet build SalesSupport/SampleEstimate.slnx
 dotnet test SalesSupport/SampleEstimate.slnx --no-build
 ```
 
-起動には共通設定ファイル、開発用DB、鍵・保存領域、禁止パスワード一覧が必要です。設定とHTTPS起動手順はPortalのREADMEを参照してください。
+起動には共通設定ファイル、開発用DB、鍵・保存領域が必要です。設定とHTTPS起動手順はPortalのREADMEを参照してください。
 
 リリース前の判断・環境確認事項は [検討事項](設計書/06_検討事項.md) に従って確定し、実DB、SMTP、IIS、共有Cookieの複数アプリ往復を対象環境で検証します。
