@@ -17,10 +17,10 @@ public interface IToolStatusService
 public sealed class ToolStatusService(IDbContextFactory<CommonDbContext> factory, ICodeMasterReader codes,
     IOptions<CommonOptions> options) : IToolStatusService
 {
-    /// <summary>単独開発はDB未確認と表示し、通常はDBの現在値を表示名へ変換して不整合を拒否します。</summary>
+    /// <summary>ツールマスタを参照しない設定では未参照と表示し、通常はDBの現在値を表示名へ変換して不整合を拒否します。</summary>
     public async Task<string> GetStatusNameAsync(CancellationToken ct = default)
     {
-        if (options.Value.IsStandaloneTool) return "単独開発（DB確認なし）";
+        if (options.Value.IsToolMasterBypassed) return "ツールマスタ未参照";
         await using var db = await factory.CreateDbContextAsync(ct);
         var status = await db.Tools.AsNoTracking().Where(x => x.ToolId == options.Value.ToolId)
             .Select(x => x.Status).SingleOrDefaultAsync(ct);

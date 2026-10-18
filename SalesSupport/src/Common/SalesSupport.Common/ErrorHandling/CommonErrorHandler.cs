@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
 using SalesSupport.Common.Data;
@@ -19,7 +21,8 @@ public interface IErrorHandler
     Task<ErrorPresentation> HandleAsync(ErrorRequest request, CancellationToken ct = default);
 }
 /// <summary>表示用定義を検索し、ログ側へ一方向に通知します。</summary>
-public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factory, ISystemErrorLogger logger) : IErrorHandler
+public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factory, ISystemErrorLogger logger, IOptions<CommonOptions> options,
+    ILogger<CommonErrorHandler> console) : IErrorHandler
 {
 
     /// <summary>例外や秘密値を表示へ混入させません。</summary>
@@ -47,6 +50,8 @@ public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factor
             catch (Exception) { /* 表示用DBも利用できない場合は固定文言を維持します。 */ }
         }
         await logger.WriteAsync(new SystemErrorEvent(id, code, Exception: request.Exception, ErrorLevel: level, Details: request.Details), ct);
+        // デバッグ実行用の省略設定がある開発環境に限り、原因を追えるよう例外の詳細をホストのログ（コンソール）へも出力します。
+        if (options.Value.HasDevelopmentBypass) console.LogError(request.Exception, "処理中にエラーが発生しました。ErrorId={ErrorId}, ErrorCode={ErrorCode}", id, code);
         return new(id, message, request.StatusCode is 400 or 409 or 500 or 503 ? request.StatusCode : 500);
     }
 

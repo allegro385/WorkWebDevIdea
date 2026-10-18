@@ -140,11 +140,12 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
-| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 通常は未設定拒否。単独開発だけ未設定で起動でき、DB利用時は拒否。値をエラー本文へ出さない |
+| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 通常は未設定拒否。ツールの認証・ツールマスタを両方省略した場合だけ未設定で起動でき、DB利用時は拒否。値をエラー本文へ出さない |
 | Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
-| SalesSupport:Tool:CheckPublicationStatus | 既定true、Tool専用 | falseは単独開発。CommonのDEVELOPMENTとホストDevelopmentの両方が必要。Portalには適用しない |
+| SalesSupport:Tool:RequireAuthentication | 既定true、Tool専用 | falseは開発用の仮管理者で認証を省略。CommonのDEVELOPMENTとホストDevelopmentの両方が必要。Portalには適用しない |
+| SalesSupport:Tool:UseToolMaster | 既定true、Tool専用 | falseはツールマスタ参照・DBログ・ツール単位のアップロードを省略。条件は同上 |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
@@ -180,13 +181,27 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 ## 5. Authentication
 
-### ツールの単独開発
+### ツールのデバッグ実行用の省略設定
 
-`AddSalesSupportCommon(ApplicationKind.Tool, environment)`はCommon設定の`SalesSupport:Tool:CheckPublicationStatus`を先に確認する。`true`または未設定は通常の共有Cookie・DB認可を適用する。`false`はCommonの`DEVELOPMENT`とホストの`Development`の両方を起動時に検証し、不一致・不正値は構成エラーとして拒否する。Portalはこのツール専用設定を適用しない。
+`AddSalesSupportCommon(ApplicationKind.Tool, environment)`はCommon設定の次の2つを先に確認する。どちらも既定（未設定）は`true`で、通常の共有Cookie・DB認可を適用する。`false`はCommonの`DEVELOPMENT`とホストの`Development`の両方を起動時に検証し、不一致・不正値は構成エラーとして拒否する。ホストの`Development`は各ツールの`https`起動プロファイルが与えるため、実質デバッグ実行時だけ有効になる。Portalはこれらのツール専用設定を適用しない。
 
-単独開発の既定認可は設定されたToolIdの`ToolUse`だけを認証なしで許可する。Cookieを認証に使わず、CurrentUserはnullのままとし、認証チケットは発行しない。管理者やサイト入場、他ToolIdへ許可を拡張しない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーの認証要件は維持する。サンプルの案件画面は`SalesSupportTool`を明示して単独開発からの直接アクセスも拒否する。
+| キー | `false`の動作 |
+| --- | --- |
+| `SalesSupport:Tool:RequireAuthentication` | 共有Cookieを認証に使わず、開発用の仮管理者を要求ごとに認証済みユーザーとして設定する。認証チケット・Cookieは発行しない |
+| `SalesSupport:Tool:UseToolMaster` | ツールマスタ（`Tools`・`ToolRoles`）を参照せず、設定されたToolIdの`ToolUse`だけを許可する。DBログを保存せず、ツール単位のアップロードを拒否する |
 
-このモードではDB接続文字列なしで起動できる。DBの公開状態・業務日付・ログは参照・保存せず、業務日付には現在のJST日付を使う。サンプルの状態表示はDB未確認と明示する。サンプルとテンプレートはアップロードと案件保存を画面・サーバー両方で拒否し、許可ポリシーや認証ユーザーを固定値で代用しない。DBを使う開発確認と本番では設定を`true`へ戻し、通常の確認フローを使う。
+| 認証 | ツールマスタ | 接続文字列 | 動作 |
+| --- | --- | --- | --- |
+| `true` | `true` | 必須 | 本番と同じ通常フロー |
+| `false` | `true` | 必須 | 仮管理者で通常のDB認可を行う。サイト公開状態・ツール行・WEB種別を確認し、ADMINのためロール割当ては不要。アップロード条件はDBから取得し、ログは仮管理者のUserIdで保存する |
+| `true` | `false` | 必須 | Portalでログインした実ユーザーを通常どおりCookie検証する。ツール利用はToolIdの一致だけで判定し、サイト公開状態も確認しない |
+| `false` | `false` | 不要 | DBを参照しない。業務日付は現在のJST日付を使い、接続文字列を与えてもDB機能を有効にしない |
+
+- 仮管理者はLoginId`AdminUser`、UserId`00000000-0000-0000-0000-000000000001`、RoleCode`ADMIN`の固定値とし、Commonの定数`DevelopmentUser`で定義する。AspNetUsersへ登録せず、IdentityユーザーをSQLで作らない。UserIdは`Guid.Empty`（未設定の意味で使われる値）と区別する。
+- 仮管理者はAspNetUsersに存在しないため、ユーザーを外部キーで参照する保存（サンプルの案件等）はできない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーは共有Cookieスキームに限定し、仮管理者では満たさない。サンプルの案件画面はこのポリシーで仮管理者からの直接アクセスを拒否し、保存は`IsAuthenticationBypassed`で画面・サーバー両方から拒否する。
+- `UseToolMaster=false`では`IUploadPolicyProvider`がツール単位の用途（`TOOL_INPUT`・`REFERENCE`・`APP`）を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否する。許可ポリシーを固定値で代用しない。ツールはこの例外の文言で案内と入力欄の無効化を行い、モード判定を持たない。
+- どちらかを`false`にした場合、障害はDBログの有無にかかわらずホストの`ILogger`（コンソール）へ例外の詳細を出力する。開発環境に限定されるため、本番では出力しない。
+- DBを使う結合確認と本番では両方を`true`（または未設定）にする。
 
 ### 認証・要求処理
 
@@ -290,7 +305,7 @@ FailureReasonはINVALID_CREDENTIALS、ACCOUNT_LOCKED、UNAUTHENTICATED、INACTIV
 
 1. 要求内の発生ごとにErrorIdを生成する。
 2. ErrorCodesを取得し、未登録・取得失敗は固定の一般エラー文言へ代替する。
-3. 文言と安全な関連情報からログを1回だけ試行する。
+3. 文言と安全な関連情報からログを1回だけ試行する。ツールのデバッグ実行用の省略設定（5節）がある場合は、ホストの`ILogger`へも例外の詳細を出力する。
 4. 画面には表示文言とErrorIdのみ返す。APIには安全なProblemDetailsを返す。
 
 ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ばない。Mail内で記録済みの失敗はErrorId／記録済み情報を結果へ付け、呼出元が再記録しない。入力エラーは400、競合409、予期しないエラー500、依存先障害503を基本とし、認証応答は5節に従う。
@@ -305,7 +320,7 @@ ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ば�
 | --- | --- |
 | UploadPurpose | InquiryAttachment／Reference／App／ToolInput |
 | UploadPolicySnapshot | PolicyId、Purpose、ToolId?、MaxFileSizeBytes、Extensions |
-| IUploadPolicyProvider.GetAsync(purpose, toolId?) | DBのポリシーと拡張子を一緒に取得 |
+| IUploadPolicyProvider.GetAsync(purpose, toolId?) | DBのポリシーと拡張子を一緒に取得。`UseToolMaster=false`ではツール単位の用途を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否 |
 | IUploadValidator.ValidateAsync(stream, originalName, policy) | 検証結果。ストリームを読みながら実容量を制限 |
 | IFileStorage.SaveTemporaryAsync(request, stream) | TemporaryFileHandle |
 | IFileStorage.SavePermanentAsync(request, stream) | StoredFile |

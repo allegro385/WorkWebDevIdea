@@ -18,7 +18,7 @@ ToolIdは`SAMPLE-ESTIMATE`、PortalからのURLは`/tools/SAMPLE-ESTIMATE/app`�
 
 ## 準備と検証
 
-画面・計算・TSV出力の単独開発では、Common設定の`SalesSupport:Tool:CheckPublicationStatus=false`を使います。Commonの`DEVELOPMENT`とホストの`Development`の両方が必要です。ログイン・DBデータ・接続文字列は不要ですが、共通設定ファイルへの相対パス、鍵・一時保存フォルダー等は準備します。公開状態欄には「単独開発（DB確認なし）」と表示し、JSTの現在日付を使い、DBログは保存しません。このモードでは明細ファイルと案件の保存・検索・更新は利用できません。[単独開発の設定手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
+デバッグ実行では、Common設定の`SalesSupport:Tool:RequireAuthentication`と`SalesSupport:Tool:UseToolMaster`を個別に`false`にできます。どちらもCommonの`DEVELOPMENT`とホストの`Development`の両方が必要です。認証を省略すると開発用の仮管理者で動作するため、案件の保存・一覧（本人の案件を扱う機能）は利用できません。ツールマスタを省略すると、公開状態欄に「ツールマスタ未参照」と表示し、DBログを保存せず、明細ファイルはCommonが拒否します。両方を省略すると接続文字列なしで入力画面・計算・TSV出力を試せ、JSTの現在日付を使います。[デバッグ実行の設定手順](../../../config/README.md#ツールをデバッグ実行する)を参照してください。
 
 DB機能・共有Cookieの開発確認と本番では`true`（未設定時も`true`）へ戻します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`false`を指定すると起動を拒否します。
 

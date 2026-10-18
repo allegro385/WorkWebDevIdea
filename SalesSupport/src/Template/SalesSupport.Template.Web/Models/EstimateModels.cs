@@ -65,12 +65,17 @@ public sealed class EstimateViewModel
     /// <summary>区分の選択肢です。</summary>
     public IReadOnlyList<EstimateCategory> Categories { get; init; } = [];
 
-    /// <summary>明細ファイルの許可拡張子と容量上限の案内文です。</summary>
-    public string DetailFileHint { get; init; } = "";
+    /// <summary>明細ファイルを選択できるかと、許可拡張子・容量上限または利用できない理由の案内です。</summary>
+    public DetailFileHint DetailFile { get; init; } = new(false, "");
 
     /// <summary>操作後にだけ表示する処理結果です。</summary>
     public OperationMessage? Message { get; init; }
 }
+
+/// <summary>明細ファイル欄の案内です。</summary>
+/// <param name="Enabled">ファイルを選択できる場合はtrueです。Commonがアップロードを拒否する設定ではfalseです。</param>
+/// <param name="Message">許可拡張子と容量上限、または利用できない理由です。</param>
+public sealed record DetailFileHint(bool Enabled, string Message);
 
 /// <summary>計算結果です。入力値と算出値だけを保持し、ファイルの内容は保持しません。</summary>
 /// <param name="ProjectName">入力された案件名です。</param>

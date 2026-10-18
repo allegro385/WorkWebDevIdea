@@ -67,9 +67,9 @@ SalesSupport\scripts\new-tool.bat T001
 
 共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。
 
-単独開発では共通設定の`SalesSupport:Tool:CheckPublicationStatus=false`を使います。Commonの`DEVELOPMENT`とホストの`Development`を確認し、ログイン・DBなしで画面表示・計算・TSV出力ができます。業務日付は現在のJST日付、明細ファイルは無効、DBログは保存しません。接続文字列は空のままで起動できます。詳細は[共通設定の単独開発手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
+デバッグ実行では、共通設定の`SalesSupport:Tool:RequireAuthentication=false`で開発用の仮管理者による認証省略、`SalesSupport:Tool:UseToolMaster=false`でツールマスタ参照・DBログの省略を個別に選べます。どちらもCommonの`DEVELOPMENT`とホストの`Development`の両方が必要です。ツールマスタを省略すると明細ファイルはCommonが拒否し、画面の入力欄も無効になります。両方を省略すると、接続文字列が空のままでも画面表示・計算・TSV出力ができ、業務日付は現在のJST日付になります。詳細は[共通設定のデバッグ実行手順](../../../config/README.md#ツールをデバッグ実行する)を参照してください。
 
-DBを使う開発確認と本番は`true`（未設定時も`true`）を使います。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`false`を指定すると起動を拒否します。
+DBを使う結合確認と本番は両方`true`（未設定時も`true`）を使います。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`false`を指定すると起動を拒否します。
 
 Data ProtectionキーはWindows DPAPIで保護するため、起動できるのはWindowsだけです。Linuxではビルドと単体テストのみ実行できます。
 

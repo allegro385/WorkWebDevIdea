@@ -28,7 +28,9 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
         // 未検証の利用者と、入場制限案内・認証画面には通常機能への導線を表示しません。
         if (user is null || !ViewData.GetPageShell().ShowCommonMenus)
             return View(new SalesSupportHeaderModel(null, false, options.Value.IsDevelopment, links.Portal(), [], [], links.Local("account/logout")));
-        var canNotify = await db.Roles.AsNoTracking().AnyAsync(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled, HttpContext.RequestAborted);
+        // DBを使わないデバッグ実行では、ロールの通知フラグを読まずに個人設定を隠します。
+        var canNotify = options.Value.UsesDatabase
+            && await db.Roles.AsNoTracking().AnyAsync(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled, HttpContext.RequestAborted);
         List<HeaderLink> support = [];
         if (canNotify) support.Add(new("個人設定", links.Portal("preferences")));
         support.Add(new("利用マニュアル・FAQ", links.Portal("help")));

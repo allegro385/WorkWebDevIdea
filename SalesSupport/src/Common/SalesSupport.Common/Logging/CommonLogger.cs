@@ -137,7 +137,8 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     /// <summary>SQL待機と接続を独立した上限内に制限し、業務トランザクションから分離します。</summary>
     private async Task<LogWriteResult> SaveAsync(object entity)
     {
-        if (application.Value.IsStandaloneTool) return LogWriteResult.Skipped;
+        // ツールマスタを省略したデバッグ実行ではDBログを保存しません。
+        if (application.Value.IsToolMasterBypassed) return LogWriteResult.Skipped;
         try
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(settings.Value.TimeoutSeconds));

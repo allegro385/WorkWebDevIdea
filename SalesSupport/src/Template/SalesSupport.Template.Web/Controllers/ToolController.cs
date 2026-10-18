@@ -106,7 +106,7 @@ public sealed class ToolController(IEstimateService estimates, IUsageLogger usag
         {
             Input = input,
             Categories = estimates.GetCategories(),
-            DetailFileHint = await estimates.GetDetailFileHintAsync(ct),
+            DetailFile = await estimates.GetDetailFileHintAsync(ct),
             Message = message
         };
     }

@@ -200,9 +200,9 @@ public sealed class ToolControllerLoggingTests
         public IReadOnlyList<EstimateCategory> GetCategories() => [new("STANDARD", "通常", 0)];
 
         /// <summary>必要な場合に画面案内の取得失敗を再現します。</summary>
-        public Task<string> GetDetailFileHintAsync(CancellationToken ct = default) => FailHint
-            ? Task.FromException<string>(new InvalidOperationException("条件取得失敗"))
-            : Task.FromResult(".tsv");
+        public Task<DetailFileHint> GetDetailFileHintAsync(CancellationToken ct = default) => FailHint
+            ? Task.FromException<DetailFileHint>(new InvalidOperationException("条件取得失敗"))
+            : Task.FromResult(new DetailFileHint(true, ".tsv"));
 
         /// <summary>固定の計算結果を返します。</summary>
         public Task<EstimateOutcome> CalculateAsync(EstimateRequest request, CancellationToken ct = default) =>

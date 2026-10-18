@@ -43,12 +43,12 @@ public sealed class AccessEvaluator(ICurrentUserAccessor current, ISystemSetting
     /// <summary>未定義状態や取得障害は例外とし、許可へ変換しません。</summary>
     public async Task<AccessDecision> EvaluateAsync(AccessRequest request, CancellationToken ct = default)
     {
-        // 単独開発でも対象ツールの入口・実行だけを許可し、サイト管理や他ツールへの許可には使いません。
-        if (options.Value.IsStandaloneTool && request.Purpose == AccessPurpose.ToolUse)
-            return !string.IsNullOrWhiteSpace(request.ToolId) && request.ToolId == options.Value.ToolId
-                ? new(true) : new(false, 400, "INVALID_INPUT");
         var user = current.User;
         if (user is null) return new(false, 401, "UNAUTHENTICATED");
+        // ツールマスタを省略したデバッグ実行では、対象ツールの入口・実行だけをDBなしで許可し、サイト管理や他ツールへの許可には使いません。
+        if (options.Value.IsToolMasterBypassed && request.Purpose == AccessPurpose.ToolUse)
+            return !string.IsNullOrWhiteSpace(request.ToolId) && request.ToolId == options.Value.ToolId
+                ? new(true) : new(false, 400, "INVALID_INPUT");
         await using var db = await factory.CreateDbContextAsync(ct);
         if (!await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == user.RoleCode, ct)) return new(false, 403, "ROLE_DENIED");
         var publication = await settings.GetPublicationStatusAsync(ct);

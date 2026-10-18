@@ -68,7 +68,7 @@
                             <label class="form-check-label" for="output-download">TSVファイルをダウンロードする</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@CommonSettings.Value.IsStandaloneTool" />
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@CommonSettings.Value.IsAuthenticationBypassed" />
                             <label class="form-check-label" for="output-save">要約を案件として保存する</label>
                         </div>
                     </div>
@@ -76,8 +76,8 @@
                 <div class="tt-field tt-field-top">
                     <label class="form-label tt-field-label" for="detailFile">明細ファイル</label>
                     <div>
-                        <input class="form-control" type="file" id="detailFile" name="detailFile" disabled="@CommonSettings.Value.IsStandaloneTool" />
-                        <p class="tt-field-note">@Model.DetailFileHint</p>
+                        <input class="form-control" type="file" id="detailFile" name="detailFile" disabled="@(!Model.DetailFile.Enabled)" />
+                        <p class="tt-field-note">@Model.DetailFile.Message</p>
                         @* ファイルの項目エラーはServiceが同じ項目名で返すため、入力欄の横へ表示します。 *@
                         @Html.ValidationMessage(EstimateService.DetailFileField, new { @class = "tt-field-error" })
                     </div>
@@ -88,7 +88,7 @@
             </div>
         </section>
     </form>
-    @if (!CommonSettings.Value.IsStandaloneTool)
+    @if (!CommonSettings.Value.IsAuthenticationBypassed)
     {
         <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">保存した案件の一覧・集計</a>
     }
