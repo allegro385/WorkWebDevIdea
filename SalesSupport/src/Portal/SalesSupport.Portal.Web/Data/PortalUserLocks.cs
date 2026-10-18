@@ -12,5 +12,5 @@ public static class PortalUserLocks
     /// <param name="ct">要求のキャンセルトークンです。</param>
     /// <returns>存在しない場合はnullを返します。</returns>
     public static Task<ApplicationUser?> LockUserAsync(this PortalDbContext db, Guid userId, CancellationToken ct) =>
-        db.Users.FromSql($"SELECT * FROM portal.AspNetUsers WITH (UPDLOCK, HOLDLOCK) WHERE UserId = {userId}").SingleOrDefaultAsync(ct);
+        db.Users.FromSqlRaw("SELECT * FROM portal.AspNetUsers WITH (UPDLOCK, HOLDLOCK)").SingleOrDefaultAsync(x => x.Id == userId, ct);
 }

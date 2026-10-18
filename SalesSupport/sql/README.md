@@ -60,6 +60,8 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 
 ## 外部ログインID・通知設定の新規構築
 
+メールOTPは既存のAspNetUserTokensをUserManager経由で使用し、DDLの追加・変更はありません。`SalesSupport.EmailOtp` / `State.v1`のValueは期限・試行・送信履歴のメタデータで、OTP自体は保存しません。本人メールの保証とEmailConfirmed=true、LockoutEnabled=trueは連携元とIdentity APIによる取込処理で満たします。Identity列をSQLで直接更新しないでください。内部UserID（GUID）と外部UserIDに由来するLoginIDは独立した値です。
+
 現行001はUserIdのGuidを維持し、Identityのログイン名をLoginId/NormalizedLoginId列に分離しています。Roles.NoticeMailEnabledはDB既定0、002の新規行はADMIN・A～C=1、D=0。002再実行で運用変更済み通知フラグを上書きしません。UserPreferencesの通知2列は既定0です。
 
 ユーザーの本番作成は今後の移行プロジェクトからIdentity API経由で行います。LoginIdの文字規則・標準正規化の適否とPasswordHashの受渡し互換性は未確定です。今回の変更は始動前の新規DB向けで、旧ユーザーへメールからログインIDを自動割当てするSQLは提供しません。旧版の開発DBは必要な内容を外部保管して新しい使い捨てDBで検証します。現行アプリを旧ログイン列のまま稼働させません。

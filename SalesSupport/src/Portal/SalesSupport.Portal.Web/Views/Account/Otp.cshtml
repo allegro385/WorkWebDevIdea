@@ -1,0 +1,28 @@
+@model OtpViewModel
+@section Head {
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+<div class="pt-auth">
+    <p>連携済みのメールアドレスへ送信した数字6桁の確認コードを入力してください。有効期限は発行から5分です。</p>
+    @if (Model.Message is not null)
+    {
+        <div class="alert alert-info" role="status">@Model.Message</div>
+    }
+    <form method="post" asp-controller="Account" asp-action="Otp" data-ss-once>
+        <div class="pt-field">
+            <label class="form-label" asp-for="Input.Code">確認コード</label>
+            <input class="form-control" asp-for="Input.Code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus />
+        </div>
+        <div class="form-check my-3">
+            <input class="form-check-input" asp-for="Input.RememberBrowser" />
+            <label class="form-check-label" asp-for="Input.RememberBrowser">このブラウザーでは30日間、確認コードの入力を省略する</label>
+        </div>
+        <p class="text-muted">共有PCでは選択しないでください。ログインの有効期限が切れた場合は、IDとパスワードの入力が必要です。</p>
+        <button class="btn btn-primary" type="submit">確認してログイン</button>
+    </form>
+    <form class="mt-3" method="post" asp-controller="Account" asp-action="ResendOtp" data-ss-once>
+        <button class="btn btn-outline-secondary" type="submit">確認コードを再送する</button>
+        <p class="text-muted mt-2">再送は60秒間隔、15分間に最大5回です。再送前のコードは無効になります。</p>
+    </form>
+    <a class="d-inline-block mt-3" asp-controller="Account" asp-action="Login">ログインからやり直す</a>
+</div>

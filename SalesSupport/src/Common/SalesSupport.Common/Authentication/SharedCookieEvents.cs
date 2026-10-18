@@ -22,12 +22,14 @@ public static class SharedCookieContract
     public const string Scheme = "Identity.Application";
     public const string CookieName = ".SalesSupport.Auth";
     public const string InitialUtc = "sales_support.initial_utc";
+    public const string LoginPolicy = "sales_support.login_policy";
+    public const string CompletedLoginPolicy = "email_otp_v1";
 
     /// <summary>ログイン成功時だけ初回時刻を設定します。</summary>
     public static AuthenticationProperties CreateSignInProperties(DateTimeOffset utc) => new()
     {
         IsPersistent = false,
-        Items = { [InitialUtc] = utc.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture) }
+        Items = { [InitialUtc] = utc.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture), [LoginPolicy] = CompletedLoginPolicy }
     };
 }
 
@@ -50,6 +52,7 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
         var claims = identityOptions.Value.ClaimsIdentity;
         var now = clock.GetUtcNow();
         var valid = Guid.TryParse(context.Principal?.FindFirstValue(claims.UserIdClaimType), out var userId)
+            && context.Properties.Items.TryGetValue(SharedCookieContract.LoginPolicy, out var policy) && policy == SharedCookieContract.CompletedLoginPolicy
             && context.Properties.Items.TryGetValue(SharedCookieContract.InitialUtc, out var text)
             && long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var initial)
             && initial <= now.ToUnixTimeSeconds() && initial > now.ToUnixTimeSeconds() - (long)TimeSpan.FromHours(8).TotalSeconds;
@@ -74,7 +77,7 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
         else
         {
             var login = new Uri(new Uri(options.Value.PortalBaseUrl), "account/login");
-            var returnUrl = context.Request.PathBase.Add(context.Request.Path).Value ?? "/";
+            var returnUrl = (context.Request.PathBase.Add(context.Request.Path).Value ?? "/") + context.Request.QueryString;
             context.Response.Redirect(login + "?returnUrl=" + Uri.EscapeDataString(returnUrl));
         }
         return Task.CompletedTask;

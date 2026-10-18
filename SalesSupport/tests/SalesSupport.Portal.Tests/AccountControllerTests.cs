@@ -15,7 +15,7 @@ public sealed class AccountControllerTests
     [Fact]
     public async Task LoginAcceptsExternalIdAndLocalReturnUrl()
     {
-        var service = new StubAccountService { Result = new(LoginOutcome.Succeeded) };
+        var service = new StubAccountService { Result = new(LoginOutcome.Succeeded, ReturnUrl: "/tools") };
         var controller = Create(service);
         var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret", ReturnUrl = "/tools" }, default);
         Assert.Equal("staff001", service.LoginId);
@@ -65,10 +65,51 @@ public sealed class AccountControllerTests
         public string? LoginId { get; private set; }
 
         /// <summary>指定した認証結果を返します。</summary>
-        public Task<LoginResult> SignInAsync(string? loginId, string? password, CancellationToken ct = default)
+        public Task<LoginResult> SignInAsync(string? loginId, string? password, string? returnUrl = null, CancellationToken ct = default)
         {
             LoginId = loginId;
             return Task.FromResult(Result);
         }
+
+        /// <summary>OTP要求に対して指定した結果だけを返します。</summary>
+        public Task<LoginResult> VerifyOtpAsync(string? code, bool rememberBrowser, CancellationToken ct = default) => Task.FromResult(Result);
+        /// <summary>再送の表示を確認するため指定結果を返します。</summary>
+        public Task<LoginResult> ResendOtpAsync(CancellationToken ct = default) => Task.FromResult(Result);
+        /// <summary>一時認証済みの画面を表示します。</summary>
+        public Task<bool> HasPendingLoginAsync() => Task.FromResult(true);
+    }
+
+    /// <summary>パスワード確認後はOTP画面に進み、通常画面へ遷移しません。</summary>
+    [Fact]
+    public async Task PasswordSuccessDisplaysOtp()
+    {
+        var controller = Create(new StubAccountService { Result = new(LoginOutcome.RequiresOtp) });
+        var result = await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret" }, default);
+        Assert.IsType<OtpViewModel>(Assert.IsType<ViewResult>(result).Model);
+    }
+
+    /// <summary>コードの再表示を避け、記憶指定だけを保持します。</summary>
+    [Fact]
+    public async Task OtpFailureClearsCodeAndModelState()
+    {
+        var controller = Create(new StubAccountService());
+        controller.ModelState.SetModelValue("Input.Code", "123456", "123456");
+        var result = await controller.Otp(new OtpInput { Code = "123456", RememberBrowser = true }, default);
+        var model = Assert.IsType<OtpViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Null(model.Input.Code);
+        Assert.True(model.Input.RememberBrowser);
+        Assert.Empty(controller.ModelState);
+    }
+
+    /// <summary>パスワードの入力値を消しても、必須入力などのエラーは表示できる状態にします。</summary>
+    [Fact]
+    public async Task PasswordRedisplayKeepsValidationButClearsAttemptedValue()
+    {
+        var controller = Create(new StubAccountService());
+        controller.ModelState.SetModelValue("Input.Password", "secret", "secret");
+        controller.ModelState.AddModelError("Input.Password", "パスワードを入力してください。");
+        await controller.Login(new LoginInput { LoginId = "staff001", Password = "secret" }, default);
+        Assert.Null(controller.ModelState["Input.Password"]!.AttemptedValue);
+        Assert.Single(controller.ModelState["Input.Password"]!.Errors);
     }
 }

@@ -30,3 +30,20 @@ public sealed class LoginViewModel
 /// <summary>入場制限案内画面の表示情報です。</summary>
 /// <param name="Message">DB運用で設定した案内文、または共通の既定メッセージです。</param>
 public sealed record PrivateNoticeViewModel(string Message);
+
+/// <summary>メールで受け取った確認コードと、任意のブラウザー記憶指定です。</summary>
+public sealed class OtpInput
+{
+    [Display(Name = "確認コード")]
+    [Required(ErrorMessage = "確認コードを入力してください。")]
+    [RegularExpression("^[0-9]{6}$", ErrorMessage = "確認コードは数字6桁で入力してください。")]
+    public string? Code { get; set; }
+    public bool RememberBrowser { get; set; }
+}
+
+/// <summary>確認コードを復元しないOTP入力画面の表示情報です。</summary>
+public sealed class OtpViewModel
+{
+    public OtpInput Input { get; init; } = new();
+    public string? Message { get; init; }
+}

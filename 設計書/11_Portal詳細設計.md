@@ -54,6 +54,7 @@ SalesSupport.Portal.Web/
 | 画面 | Controller・経路 | Service | 認可 |
 | --- | --- | --- | --- |
 | P001 ログイン | Account / GET・POST `/account/login` | AccountService | 匿名可、IP制限 |
+| P001 メールOTP | Account / GET・POST `/account/otp`、POST `/account/otp/resend` | AccountService | 匿名可、一時Cookie必須、POSTはIP制限・CSRF |
 | ログアウト | Commonの同一アプリ内POSTハンドラー | Common | 公開状態にかかわらずCSRF検証 |
 | P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
 | P002 トップ | Home / GET `/` | HomeService | Site |
@@ -89,13 +90,25 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 
 1. 信頼するプロキシ適用後、IP制限30回/分とCSRFを検証する。
 2. ログインIDをIdentity標準のNormalizeNameで正規化し、ポータルのNormalizedLoginIdからユーザーを取得する。Emailで検索しない。有効状態・ロール存在を確認する。
-3. CheckPasswordSignInAsyncで連携済みPasswordHashを検証し、失敗回数・30分ロックを管理する。EmailConfirmedは条件にしない。パスワードをトリムしない。
-4. 行ロック後に最新状態を再取得し、資格情報検証時とSecurityStampが一致する場合だけLastAccessAtをUserManagerで更新・確定し、非永続共有Cookieを発行する。
-5. 安全なローカル戻り先だけを許可し、Privateサイトの一般ユーザーは入場制限案内へ遷移する。失敗文言はログインIDまたはパスワードの共通文言に統一する。
+3. ユーザー行をUPDLOCK/HOLDLOCKで取得・再読込し、有効状態・ロール・ロック・確認済み本人メール・SecurityStampを確認する。UserManager.CheckPasswordAsyncで連携済みPasswordHashを検証する。パスワードはトリムしない。パスワード成功だけで失敗回数をリセットしない。
+4. ブラウザー記憶が有効なら認証完了へ進む。それ以外は送信枠とOTP要求をDBへ確定し、15分の一時Cookieを発行する。DBトランザクション外でSMTPへ一度送信し、受付成功が確定した最新要求だけをDBで送信済みにする。共有Cookieはまだ発行しない。
+5. OTP入力時は再びユーザー行ロックを取得し、一時Cookieの本人・試行ID、資格情報の世代、メール、LoginID、要求期限・送信状態・コードを確認する。成功時に要求を一回消費し、失敗回数リセットとLastAccessAt更新を同一トランザクションで確定する。任意の30日記憶を発行し、共通のCompleteAsyncで共有セッションを開始する。
+6. 安全なローカル戻り先だけを許可し、Privateサイトの一般ユーザーは入場制限案内へ遷移する。パスワード確認失敗はログインIDまたはパスワードの共通文言に統一する。OTP画面にはコード・メールアドレス・内部理由を再表示しない。
 
 - UserIdはGuidのまま、UserNameをLoginId、NormalizedUserNameをNormalizedLoginIdへマッピングする。ログインIDの文字ルールは未決定で、現行256文字と標準正規化は暫定。
 - パスワードの変更・再設定は連携元で行う。ポータルのPasswordLinkService、設定トークンProvider、設定メール、パスワード変更・再設定経路を設けない。
 - 外部データ受信・移行プロジェクトとハッシュ受渡し契約は[未決定事項](06_検討事項.md#identity)として残す。ログインで連携元へ都度照会しない。
+
+### メールOTPの保存とCookie契約
+
+- 桁数・期限・送信上限・画面操作は[画面・機能設計](02_画面・機能設計.md#メールotpとブラウザー記憶)を正とする。パスワード・OTP失敗を共通のAccessFailedCountへ累積し、UserManager.AccessFailedAsyncで5回・30分ロックする。ロック対象外のユーザーを拒否する。
+- Identity標準EmailTokenProviderを登録し、UserManager.GenerateUserTokenAsync/VerifyUserTokenAsyncを使用する。用途を`PortalEmailOtp:{再送ごとのGUID}`として本人・メール・SecurityStampへ束縛する。標準の時刻許容に加え、DBに保存した発行から5分の期限を検証する。独自の暗号・パスワードハッシュを追加しない。
+- AspNetUserTokensの用途別JSONで状態を保存する。[物理契約](04_DB設計.md#users)に従い、OTP自体は保存しない。SMTP失敗・結果不明でも送信枠を消費し、自動再送しない。アカウントごとに最新の試行だけを有効にする。別タブ・別ブラウザーで新たに送信した場合は以前の試行を無効化する。
+- 一時Cookieはスキーム`SalesSupport.OtpPending`、名前`.SalesSupport.OtpPending`、非永続・固定15分。本人GUID・試行GUIDと安全な戻り先を保護して保持し、認証完了・ログイン再開始で削除する。通常の認証には使用しない。
+- 記憶Cookieはスキーム`SalesSupport.OtpRemember`、名前`.SalesSupport.OtpRemember`、永続・固定30日・スライド更新なし。本人GUID・SecurityStamp・LoginID・メールを保護し、パスワードの再確認後にDBの最新値と照合する。通常ログアウトでは削除しない。OTP成功と本人の選択がある場合だけ発行する。
+- 両CookieともSecure・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
+- 共通の認証完了処理が共有Cookieへ`sales_support.login_policy=email_otp_v1`を設定する。Commonは全保護要求でこの印を要求し、旧方式のCookie・一時Cookie・記憶Cookieだけでは通常機能を許可しない。Portalと全ツールのCommonを同時に更新し、既存ログインを再認証させる。
+- 将来のSSO等は方式に固有の本人確認と、内部GUIDへ対応付けた後の共有セッション開始を分離して追加する。リンク元の独自認証とのSSO・独自トークン交換・汎用プロバイダー層は今回追加しない。
 
 ## 6. ユーザー管理・外部連携
 

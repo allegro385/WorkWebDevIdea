@@ -26,6 +26,8 @@ public static class PortalServiceExtensions
         // 接続文字列はCommonが共通設定ファイルから取得した値を使用し、Portalの設定ファイルからは読み取りません。
         services.AddDbContext<PortalDbContext>((provider, options) => options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
         AddIdentity(services);
+        PortalLoginCookies.Register(services);
+        services.AddScoped<PortalLoginCookies>();
         services.Configure<MailTemplateOptions>(NoticeMailTemplates.AddDefaults);
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
@@ -95,7 +97,8 @@ public static class PortalServiceExtensions
             options.Password.RequireNonAlphanumeric = false;
         })
         .AddSignInManager()
-        .AddEntityFrameworkStores<PortalDbContext>();
+        .AddEntityFrameworkStores<PortalDbContext>()
+        .AddTokenProvider<EmailTokenProvider<ApplicationUser>>(TokenOptions.DefaultEmailProvider);
 
     /// <summary>接続元単位の固定時間窓による要求制限を登録します。待機キューは設けません。</summary>
     private static void AddRequestLimits(IServiceCollection services, IConfiguration configuration)
