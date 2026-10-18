@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.RateLimiting;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.DependencyInjection;
 using SalesSupport.Common.ErrorHandling;
@@ -7,7 +6,7 @@ using SalesSupport.Portal.Web.Bootstrap;
 var importTestUsers = LocalTestUserImportCommand.IsRequested(args);
 // 取込の引数をホスト設定へ渡さず、ロール指定が環境設定等を上書きしないようにします。
 var builder = WebApplication.CreateBuilder(importTestUsers ? [] : args);
-builder.Services.AddSalesSupportPortal(builder.Configuration, builder.Environment);
+builder.Services.AddSalesSupportPortal(builder.Configuration);
 
 var app = builder.Build();
 if (importTestUsers)

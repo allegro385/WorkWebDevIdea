@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
-using SalesSupport.Common.MasterData;
 using SalesSupport.Common.UI;
 using SalesSupport.Portal.Web.Areas.Admin.Models;
 using SalesSupport.Portal.Web.Bootstrap;

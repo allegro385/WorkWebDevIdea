@@ -127,6 +127,18 @@ public sealed class CommonBoundaryTests
         Assert.Contains("color:#000000", output.Attributes["style"].Value.ToString());
     }
 
+    /// <summary>未登録コードは名称を推測せず「不明」とし、色を付けません。</summary>
+    [Fact]
+    public async Task BadgeShowsUnknownForUnregisteredCode()
+    {
+        var helper = new CodeBadgeTagHelper(new StubCodes()) { CodeType = "TOOL_STATUS", CodeValue = "MISSING" };
+        var context = new TagHelperContext(new TagHelperAttributeList(), new Dictionary<object, object>(), "badge");
+        var output = new TagHelperOutput("code-badge", new TagHelperAttributeList(), (useCached, encoder) => Task.FromResult<TagHelperContent>(new DefaultTagHelperContent()));
+        await helper.ProcessAsync(context, output);
+        Assert.Equal("不明", output.Content.GetContent(System.Text.Encodings.Web.HtmlEncoder.Create(System.Text.Unicode.UnicodeRanges.All)));
+        Assert.False(output.Attributes.ContainsName("style"));
+    }
+
     /// <summary>配置先の内側を保存領域に指定すると起動検証を失敗させます。</summary>
     [Fact]
     public void StorageRejectsDeploymentDirectory()
@@ -228,8 +240,9 @@ public sealed class CommonBoundaryTests
     /// <summary>固定色のコードを供給します。</summary>
     private sealed class StubCodes : ICodeMasterReader
     {
-        /// <summary>テスト用の表示コードを返します。</summary>
-        public Task<CodeOption?> FindAsync(string codeType, string codeValue, CancellationToken ct = default) => Task.FromResult<CodeOption?>(new("PUBLIC", "公開", 1, "#808080"));
+        /// <summary>PUBLICだけを登録済みのテスト用表示コードとして返します。</summary>
+        public Task<CodeOption?> FindAsync(string codeType, string codeValue, CancellationToken ct = default) =>
+            Task.FromResult(codeValue == "PUBLIC" ? new CodeOption("PUBLIC", "公開", 1, "#808080") : null);
         /// <summary>一覧取得は使用しません。</summary>
         public Task<IReadOnlyList<CodeOption>> GetOptionsAsync(string codeType, CancellationToken ct = default) => throw new NotSupportedException();
     }
