@@ -16,9 +16,10 @@ END TRY
 BEGIN CATCH
     IF ERROR_NUMBER() <> 547 THROW;
 END CATCH;
+-- 照合順序が大文字小文字を区別しない場合、初期データの拡張子の大文字版は主キー重複になるため、初期データにない拡張子で確認する。
 BEGIN TRY
     INSERT portal.FileUploadPolicyExtensions (PolicyId, Extension)
-    SELECT TOP (1) PolicyId, '.PDF' FROM portal.FileUploadPolicies;
+    SELECT TOP (1) PolicyId, '.CASEPROBE' FROM portal.FileUploadPolicies;
     THROW 51002, 'Uppercase extension accepted', 1;
 END TRY
 BEGIN CATCH
