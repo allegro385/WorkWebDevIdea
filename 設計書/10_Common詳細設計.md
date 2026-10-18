@@ -218,7 +218,7 @@ Tools.StatusのPUBLIC／PRIVATE／HIDDENとRoleCodeの可否は02を正とする
 
 - ExpireTimeSpan=60分、SlidingExpiration=true、非永続。初回認証時のUTC Unix秒をAuthenticationPropertiesの `sales_support.initial_utc` へ記録する。
 - ログイン成功時だけ初回時刻を作成し、チケット再発行でも維持する。欠落・不正・未来時刻は拒否する。全アプリの時刻同期を運用前提とする。
-- 認証完了のプロパティ`sales_support.login_policy=email_otp_v1`を要求する。旧方式の共有Cookieを拒否して再認証させる。PortalのOTPまたは有効な30日記憶の確認後だけ、このプロパティ付き共有Cookieを発行する。一時認証・記憶用Cookieの登録はPortalが所有し、ツールには追加しない。
+- 認証完了のプロパティ`sales_support.login_policy=email_otp_v1`を要求し、欠落・不一致は拒否する。PortalのOTPまたは有効な30日記憶の確認後だけ、このプロパティ付き共有Cookieを発行する。一時認証・記憶用Cookieの登録はPortalが所有し、ツールには追加しない。
 - 未認証HTML要求はPathBase・Path・QueryStringを安全なローカル戻り先としてPortalへ誘導し、認証後にツール側で再認可する。APIは401。OTPの値やパスワードを戻り先へ含めない。
 - 各保護要求で初回認証から8時間以上なら拒否する。Cookieの更新でこの上限は延長しない。
 - CheckSlidingExpirationでは標準のShouldRenew判定を維持し、NoSlidingRenewal要求だけfalseにする。ユーザー情報更新時も対象外要求から不要な再発行をしない。
@@ -452,7 +452,7 @@ EndpointメタデータをCookie更新判定で参照できるよう、ルーテ
 
 ### SQLとの整合
 
-新規構築SQLの制約と監査列は[SQL README](../SalesSupport/sql/README.md)を参照する。既存DBへの移行では現在のデータと制約を確認し、移行手順を個別に決める。
+新規構築SQLの制約と監査列は[SQL README](../SalesSupport/sql/README.md)を参照する。開発中は旧版からのデータ移行を行わず、構造変更を初期構築SQLへ反映して新しい開発DBで検証する。
 
 ### 外部情報・業務判断として残すもの
 

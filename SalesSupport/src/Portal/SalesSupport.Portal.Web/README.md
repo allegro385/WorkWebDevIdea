@@ -27,7 +27,7 @@
 
 パスワード確認後に`/account/otp`でメールの数字6桁を入力します。OTPは発行後5分、再送60秒間隔・直近15分に5回、照合失敗はパスワードと合算で5回・30分ロックです。本人が選択したブラウザーではOTP成功から30日間省略でき、通常ログアウトで記憶は維持します。共有セッションの60分・最大8時間とは別です。SMTP無効・失敗・結果不明ではログインを完了せず、開発時の送信先はDevelopmentRecipientへ置換します。OTPをログへ出力する開発用迂回経路はありません。
 
-Identity標準EmailTokenProviderと既存AspNetUserTokensを利用し、DDL・パッケージ追加はありません。Portalと全ツールのCommonを同時配備してください。旧Cookieは新しい認証完了印がないため再ログインとなります。詳細は[OTPの保存・Cookie契約](../../../../設計書/11_Portal詳細設計.md#メールotpの保存とcookie契約)を参照してください。
+Identity標準EmailTokenProviderとAspNetUserTokensを利用します。Portalと全ツールのCommonを同時配備してください。共有Cookieの認証完了印の欠落・不一致は拒否します。詳細は[OTPの保存・Cookie契約](../../../../設計書/11_Portal詳細設計.md#メールotpの保存とcookie契約)を参照してください。
 
 ## 実行に必要な設定
 
@@ -69,7 +69,7 @@ Data Protectionの鍵はWindows DPAPIで保護するため、起動できるの�
 
 ## 開発試験用のユーザーを追加する
 
-開発専用DBのログイン確認だけに使用します。本番ユーザーと初期管理者は移行プロジェクトで供給する方針で、Portalの本番用新規登録・TSV取込・設定メール・パスワード変更／再設定は提供しません。
+開発専用DBのログイン確認だけに使用します。本番ユーザーと初期管理者は外部ユーザー連携プロジェクトで供給する方針で、Portalの本番用新規登録・TSV取込・設定メール・パスワード変更／再設定は提供しません。
 
 ```powershell
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
