@@ -97,7 +97,7 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 
 - UserIdはGuidのまま、UserNameをLoginId、NormalizedUserNameをNormalizedLoginIdへマッピングする。ログインIDの文字ルールは未決定で、現行256文字と標準正規化は暫定。
 - パスワードの変更・再設定は連携元で行う。ポータルのPasswordLinkService、設定トークンProvider、設定メール、パスワード変更・再設定経路を設けない。
-- 外部データ受信・移行プロジェクトとハッシュ受渡し契約は[未決定事項](06_検討事項.md#identity)として残す。ログインで連携元へ都度照会しない。
+- 外部ユーザー連携プロジェクト・受信処理とハッシュ受渡し契約は[未決定事項](06_検討事項.md#identity)として残す。ログインで連携元へ都度照会しない。
 
 ### メールOTPの保存とCookie契約
 
@@ -107,7 +107,7 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - 一時Cookieはスキーム`SalesSupport.OtpPending`、名前`.SalesSupport.OtpPending`、非永続・固定15分。本人GUID・試行GUIDと安全な戻り先を保護して保持し、認証完了・ログイン再開始で削除する。通常の認証には使用しない。
 - 記憶Cookieはスキーム`SalesSupport.OtpRemember`、名前`.SalesSupport.OtpRemember`、永続・固定30日・スライド更新なし。本人GUID・SecurityStamp・LoginID・メールを保護し、パスワードの再確認後にDBの最新値と照合する。通常ログアウトでは削除しない。OTP成功と本人の選択がある場合だけ発行する。
 - 両CookieともSecure・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
-- 共通の認証完了処理が共有Cookieへ`sales_support.login_policy=email_otp_v1`を設定する。Commonは全保護要求でこの印を要求し、旧方式のCookie・一時Cookie・記憶Cookieだけでは通常機能を許可しない。Portalと全ツールのCommonを同時に更新し、既存ログインを再認証させる。
+- 共通の認証完了処理が共有Cookieへ`sales_support.login_policy=email_otp_v1`を設定する。Commonは全保護要求でこの印を要求し、欠落・不一致は拒否する。一時Cookie・記憶Cookieだけでは通常機能を許可しない。Portalと全ツールは同じ共有Cookie契約で配備する。
 - 将来のSSO等は方式に固有の本人確認と、内部GUIDへ対応付けた後の共有セッション開始を分離して追加する。リンク元の独自認証とのSSO・独自トークン交換・汎用プロバイダー層は今回追加しない。
 
 ## 6. ユーザー管理・外部連携
@@ -116,10 +116,10 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - 更新は一般ロール間のRoleCodeとIsActiveだけ。現在値・変更先の一般ロール存在を検証し、ADMINとの相互変更、自身と最後の有効管理者の無効化、担当中管理者の無効化を拒否する。
 - ConcurrencyStampとUserManagerを使い、変更時にSecurityStampを更新する。外部連携属性を上書きせず、ユーザーを物理削除しない。
 - ロック解除は行ロック・ConcurrencyStamp照合後、SetLockoutEndDateAsync(null)とResetAccessFailedCountAsyncを同時確定する。有効状態やパスワードを変更しない。
-- 本番ユーザー作成と資格情報・表示名・メールの更新はデータ移行用プロジェクトからIdentity APIで行う。初期管理者も連携で供給する。TSV登録・bootstrap-admin・設定メール発行は廃止。
+- 本番ユーザー作成と資格情報・表示名・メールの更新は外部ユーザー連携プロジェクトからIdentity APIで行う。初期管理者も連携で供給する。TSV登録・bootstrap-admin・設定メール発行は廃止。
 - 開発限定add-test-userはCommonのDEVELOPMENTとホストDevelopmentを確認し、ログインID・メール・表示名・ロールA～D／ADMIN・秘密入力パスワードを取得する。開発限定import-test-usersも同じ環境制限と保存処理を使う。UserManager.CreateAsyncと通知初期OFFのUserPreferenceを一人ごとの同一トランザクションで作成する。メール送信は行わない。Identityの開発用作成条件を連携済みハッシュの照合へ適用しない。
 - import-test-users [--role A|B|C|D|ADMIN]はロール省略時A。UTF-8の標準入力からログインID・メールアドレス・平文パスワード・表示名の4列を読み、全行の形式・上限1,000件／1,048,576文字・Identity正規化後のファイル内重複を保存前に検証する。ヘッダーは任意、入力値のタブ・改行・制御文字は不可。ホスト構成へ取込引数を渡さない。入力不備では0件、DB重複・保存失敗では最初の失敗で停止し、確定済み行は保持する。既存ユーザーを更新せず、行番号・登録済み件数だけを表示する。入力・例外内容・パスワードを結果へ表示せず、ファイル保存・Webアップロード・自動再試行を追加しない。終了コードは0成功／1保存失敗／2環境拒否／3入力不備。[具体的な形式と実行手順](../SalesSupport/src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)を参照。
-- 通知設定は連携作成時に2項目OFF、後続連携で保持する。内部UserIdを変えない。同期方式と初期ロール・有効状態・管理者供給手順は移行設計で確定する。
+- 通知設定は連携作成時に2項目OFF、後続連携で保持する。内部UserIdを変えない。同期方式と初期ロール・有効状態・管理者供給手順は連携設計で確定する。
 - お知らせ送信確認と問い合わせ送信IDはConfirmationStoreで本人束縛・一回消費・30分・全用途200件上限。再起動で失効し、永続化・自動再開を行わない。
 
 ## 7. 一覧・個人設定・FAQ
@@ -226,9 +226,9 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 
 ## 14. 導入前の確認事項
 
-- 既存DBにツールファイルがある場合、最終登録・差し替え管理者と日時の実情報を確認して移行する。推測値で補完しない。
-- 既存のバージョン値は各組0～99・先頭ゼロ禁止の形式に照らして確認し、履歴重複と現在版を個別に修正する。
-- 既存業務DBへのSQL適用手順は[SQL README](../SalesSupport/sql/README.md)を参照する。
+- 開発DBを新規構築した場合、試験用のツールファイルは管理画面から改めて登録し、管理者と登録日時を記録する。旧DBのメタデータは移行しない。
+- 新規登録するバージョン値は各組0～99・先頭ゼロ禁止の形式で検証し、履歴重複と現在版の制約を確認する。
+- 新しい空DBへのSQL適用手順は[SQL README](../SalesSupport/sql/README.md)を参照する。
 - SMTP、送信元・返信先・送信用宛先、運用連絡先、IISと鍵共有パス・ACLは導入前に確定する。未決定事項は[検討事項](06_検討事項.md)で管理する。
 
 ## 15. 技術資料
