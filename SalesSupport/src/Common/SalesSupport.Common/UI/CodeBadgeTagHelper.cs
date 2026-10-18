@@ -15,7 +15,7 @@ public sealed class CodeBadgeTagHelper(ICodeMasterReader codes) : TagHelper
     [HtmlAttributeName("code-value")]
     public string CodeValue { get; set; } = "";
 
-    /// <summary>名称欠落は「不明」、色不正は標準表示とし、値はHTMLエンコードします。</summary>
+    /// <summary>未登録コードは「不明」、色不正は標準表示とし、値はHTMLエンコードします。</summary>
     public override async Task ProcessAsync(TagHelperContext context, TagHelperOutput output)
     {
         var option = await codes.FindAsync(CodeType, CodeValue);
@@ -27,7 +27,7 @@ public sealed class CodeBadgeTagHelper(ICodeMasterReader codes) : TagHelper
             output.Attributes.SetAttribute("style", $"background-color:{color};color:{TextColor(color)}");
             output.Attributes.SetAttribute("class", "badge ss-badge ss-badge-colored");
         }
-        output.Content.SetContent(string.IsNullOrWhiteSpace(option?.CodeName) ? "不明" : option!.CodeName);
+        output.Content.SetContent(option?.CodeName ?? "不明");
     }
 
     /// <summary>背景の相対輝度から白または濃色の文字色を選びます。</summary>

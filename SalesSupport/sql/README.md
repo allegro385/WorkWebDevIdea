@@ -37,7 +37,7 @@ sqlcmd -S .\SQLEXPRESS -E -C -f 65001 -d SalesSupport -i .\sql\002_SeedMasterDat
 2. `900_SeedDummyData.sql`をSSMSで開き、先頭の`@ExpectedDevelopmentDatabase = N'__開発DB名を入力__'`を対象DB名へ書き換えます。SQLCMDモードは不要です。
 3. ファイル全体を実行します。接続中のDB名と記入した名前が異なる場合、および既存の`EnvironmentName`拡張プロパティが`DEVELOPMENT`以外の場合は、データ変更前に停止します。
 
-同じDBへダミーSQLを再投入せず、必要なら新しい開発専用DBを用意します。スクリプトは`SalesSupport.AllowDummyData`拡張プロパティを要求・追加しません。既存DBにこのプロパティが残っていても投入条件には使用しません。
+同じDBへダミーSQLを再投入せず、必要なら新しい開発専用DBを用意します。スクリプトは投入条件にDB拡張プロパティ`EnvironmentName`と接続中DB名だけを使用します。
 
 問い合わせ番号は`portal.AllocateInquiryId`を専用の短いトランザクションとして呼び出します。番号確保後の問い合わせ保存が失敗しても、確保済み番号は再利用しません。
 

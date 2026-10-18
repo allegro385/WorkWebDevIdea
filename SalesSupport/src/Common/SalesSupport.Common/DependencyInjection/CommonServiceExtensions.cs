@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -49,13 +48,11 @@ public static class CommonServiceExtensions
             options.ApplicationName = configuration["SalesSupport:Application:Name"] ?? "";
             options.ToolId = configuration["SalesSupport:Application:ToolId"];
             options.PortalBaseUrl = configuration["SalesSupport:Portal:BaseUrl"] ?? "";
-            options.KeyDirectory = keyDirectory ?? "";
             options.CheckToolPublicationStatus = checkPublication;
         }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "Portal:EnvironmentCodeが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
           .Validate(x => Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
-          .Validate(x => Path.IsPathFullyQualified(x.KeyDirectory) && Directory.Exists(x.KeyDirectory), "DataProtection:KeyDirectoryが必要です。")
           .ValidateOnStart();
         services.AddDbContextFactory<CommonDbContext>(options =>
         {

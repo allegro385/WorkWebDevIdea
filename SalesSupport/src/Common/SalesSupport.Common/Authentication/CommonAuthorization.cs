@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
-using SalesSupport.Common.Contracts;
 using SalesSupport.Common.Logging;
 
 namespace SalesSupport.Common.Authentication;

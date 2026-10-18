@@ -10,7 +10,6 @@ public sealed class CommonOptions
     public string ApplicationName { get; set; } = "";
     public string? ToolId { get; set; }
     public string PortalBaseUrl { get; set; } = "";
-    public string KeyDirectory { get; set; } = "";
 
     /// <summary>ツールの公開状態と共有認証をDBで確認します。falseは単独開発専用です。</summary>
     public bool CheckToolPublicationStatus { get; set; } = true;

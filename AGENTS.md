@@ -35,7 +35,7 @@ DB構造を変更する場合は最新の初期構築SQLを更新し、新しい
 - Commonの契約・DI・マッピング：`設計書/10_Common詳細設計.md`
 - Portalのサービス・保存単位・認証フロー：`設計書/11_Portal詳細設計.md`
 - サンプル・テンプレートツールの範囲と作成方針：`設計書/12_サンプル・テンプレートツール設計方針.md`
-- 現在の実装・実行方法：対象モジュールの `README.md`、`IMPLEMENTATION.md`、`sql/README.md`
+- 現在の実装・実行方法：対象モジュールの `README.md`、`SalesSupport/sql/README.md`
 - 現行画面モック：`設計書/screens/README.md`、`設計書/screens/index.html`。
 - SQL適用・検証：`SalesSupport/sql/README.md`
 - プロジェクト操作の記録：`作業記録/プロジェクト操作履歴.md`

@@ -18,11 +18,11 @@ namespace SalesSupport.Common.Tests;
 /// <summary>OTP完了前のCookie拒否と、ツールからPortalへの戻り先契約を検証します。</summary>
 public sealed class SharedCookieContractTests
 {
-    /// <summary>旧方式または未知の認証方針を持つCookieをDB照会前に拒否します。</summary>
+    /// <summary>認証完了印が欠落・不一致のCookieをDB照会前に拒否します。</summary>
     [Theory]
     [InlineData(null)]
     [InlineData("password_only")]
-    public async Task OldCookieCannotAccessProtectedResources(string? policy)
+    public async Task CookieWithoutCompletedLoginPolicyIsRejected(string? policy)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -69,7 +69,7 @@ public sealed class SharedCookieContractTests
     private static SharedCookieEvents Events() => new(new RejectFactory(), new CurrentUserAccessor(), new ApplicationClock(TimeProvider.System),
         Options.Create(new CommonOptions { PortalBaseUrl = "https://portal.test/" }), Options.Create(new IdentityOptions()));
 
-    /// <summary>旧Cookieの検証でDBに到達した場合に試験を失敗させます。</summary>
+    /// <summary>不正Cookieの検証でDBに到達した場合に試験を失敗させます。</summary>
     private sealed class RejectFactory : IDbContextFactory<CommonDbContext>
     {
         /// <summary>不正Cookieの検証からDB接続を要求しません。</summary>

@@ -1,7 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
@@ -20,7 +19,7 @@ namespace SalesSupport.Portal.Web.Bootstrap;
 public static class PortalServiceExtensions
 {
     /// <summary>Commonの契約を利用してPortalの要求処理に必要なサービスを登録します。</summary>
-    public static IServiceCollection AddSalesSupportPortal(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment environment)
+    public static IServiceCollection AddSalesSupportPortal(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSalesSupportCommon(ApplicationKind.Portal);
         // 接続文字列はCommonが共通設定ファイルから取得した値を使用し、Portalの設定ファイルからは読み取りません。

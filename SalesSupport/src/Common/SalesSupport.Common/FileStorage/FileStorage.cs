@@ -176,7 +176,7 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         var path = Resolve(area, relativePath);
         var directory = Path.GetDirectoryName(path) ?? throw new ConfigurationException("Storage/Path");
         Directory.CreateDirectory(directory);
-        EnsureNoLink(RootOf(area), path);
+        EnsureNoLink(path);
         var buffer = new byte[81920];
         long totalBytes = 0;
         var created = false;
@@ -263,12 +263,12 @@ public sealed class FileStorage(IOptions<StorageOptions> options, IUploadPolicyP
         var root = RootOf(area);
         var full = Path.GetFullPath(Path.Combine(root, relativePath));
         if (!full.StartsWith(root + Path.DirectorySeparatorChar, PathComparison)) throw new ArgumentException("保存領域の外を指しています。", nameof(relativePath));
-        EnsureNoLink(root, full);
+        EnsureNoLink(full);
         return full;
     }
 
     /// <summary>ルート自身とその祖先を含む全既存要素でリンク・再解析ポイントを拒否します。</summary>
-    private static void EnsureNoLink(string root, string fullPath)
+    private static void EnsureNoLink(string fullPath)
     {
         for (var current = fullPath; current is not null; current = Path.GetDirectoryName(current))
         {

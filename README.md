@@ -7,7 +7,7 @@
 - [設計資料一覧](設計書/README.md)：要件、画面、共通基盤、DB、導入・運用、未確定事項。
 - [Portal](SalesSupport/src/Portal/SalesSupport.Portal.Web/README.md)：認証、ツール一覧、お知らせ、問い合わせ、管理画面、起動設定。
 - [共通設定](SalesSupport/config/README.md)：Portalと各Webツールが使用する共通設定ファイル。
-- [SQL](SalesSupport/sql/README.md)：新規DB構築、既存DB移行、開発用データ、検証SQL。
+- [SQL](SalesSupport/sql/README.md)：新規DB構築、開発DBの構築方針、開発用データ、検証SQL。
 - [テンプレート](SalesSupport/src/Template/SalesSupport.Template.Web/README.md)・[ツール生成手順](SalesSupport/scripts/README.md)：ToolIdから新しいWebツールを作成する手順。
 - [サンプル見積ツール](SalesSupport/src/SampleEstimate/SalesSupport.SampleEstimate.Web/README.md)：入力・出力・EF Core操作の実演と機能追加ガイド。
 - [画面モック](設計書/screens/index.html)：静的な画面構成と操作イメージ。

@@ -32,6 +32,7 @@ SalesSupport.Common/
 
 - csprojは `Microsoft.NET.Sdk.Razor`、`AddRazorSupportForMvc=true`、`Microsoft.AspNetCore.App`のFrameworkReferenceを使用する。C#処理も同じDLLへ含める。
 - EF Core SQL Server・Identity EF Coreは10系でホストと統一する。SMTP実装はMailKitを使用する。具体的なパッチ版は実装時に互換性確認して固定し、浮動バージョンを使用しない。
+- restoreの脆弱性警告（NU1901～NU1904）を残さない。推移的依存だけが該当する場合は修正版をCommonで直接参照して固定し、上位パッケージが修正版以上を要求するようになったら直接参照を削除する。現在はMimeKit経由の`System.Security.Cryptography.Pkcs`を10.0.13に固定している。
 - インターフェースはテスト差替えやホストから呼ぶサービス境界に設ける。各クラスへ機械的にインターフェースを作らない。
 - Repository層、全用途のSQL実行基盤、独自DIコンテナーは作らない。
 - Portalの問い合わせ保存、通知先選定、ユーザー登録、採番呼出しはPortalのServiceに置く。ログの抽出・集計はアプリケーションに設けない。
@@ -240,7 +241,7 @@ PortalはログインとUserManagerによるロール・有効状態・ロック
 | IBusinessDateProvider.GetTodayAsync | DateOnly。開発の指定日または実際のJST日付 |
 
 - マスタ取得結果は同一要求内だけ共有する。未知の区分は入力エラー、既知区分で必須値が欠けていれば構成エラーとして選択保存を拒否する。
-- 名称だけ欠落した既存行の表示は「不明」とし、認可や更新の許可には使用しない。ColorCode不正はCSSへ渡さず標準色にする。
+- 未登録コードの表示は「不明」とし、認可や更新の許可には使用しない。名称はDB制約で必須のため、空名称の補完は行わない。ColorCode不正はCSSへ渡さず標準色にする。
 - INQUIRY_TARGETは登録しない。Portalが固定のポータルサイト・その他と、許可されたToolsから対象選択肢を生成する。
 - 実日時と業務日付を別インターフェースにし、認証・ログ・監査・採番へ業務日付を渡さない。本番の業務日付取得ではTEST設定を読み込まない。
 - DateTimeという独自型名は使用しない。DBのdatetime2はUTCとして扱い、Kind未指定値のローカル時刻解釈を防ぐ。
