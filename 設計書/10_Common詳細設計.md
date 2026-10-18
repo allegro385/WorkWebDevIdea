@@ -32,6 +32,7 @@ SalesSupport.Common/
 
 - csprojは `Microsoft.NET.Sdk.Razor`、`AddRazorSupportForMvc=true`、`Microsoft.AspNetCore.App`のFrameworkReferenceを使用する。C#処理も同じDLLへ含める。
 - EF Core SQL Server・Identity EF Coreは10系でホストと統一する。SMTP実装はMailKitを使用する。具体的なパッチ版は実装時に互換性確認して固定し、浮動バージョンを使用しない。
+- restoreの脆弱性警告（NU1901～NU1904）を残さない。推移的依存だけが該当する場合は修正版をCommonで直接参照して固定し、上位パッケージが修正版以上を要求するようになったら直接参照を削除する。現在はMimeKit経由の`System.Security.Cryptography.Pkcs`を10.0.13に固定している。
 - インターフェースはテスト差替えやホストから呼ぶサービス境界に設ける。各クラスへ機械的にインターフェースを作らない。
 - Repository層、全用途のSQL実行基盤、独自DIコンテナーは作らない。
 - Portalの問い合わせ保存、通知先選定、ユーザー登録、採番呼出しはPortalのServiceに置く。ログの抽出・集計はアプリケーションに設けない。
