@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Data;
 
@@ -15,12 +16,12 @@ public interface IUploadPolicyProvider
     Task<UploadPolicySnapshot> GetAsync(UploadPurpose purpose, string? toolId = null, CancellationToken ct = default);
 }
 /// <summary>ポリシーと拡張子を同じクエリで取得し、要求内で共有します。</summary>
-public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> factory) : IUploadPolicyProvider
+public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> factory, IOptions<CommonOptions> options) : IUploadPolicyProvider
 {
     private readonly Dictionary<(UploadPurpose, string?), UploadPolicySnapshot> cache = new();
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    /// <summary>欠落・重複・不正値を許可へ変換しません。</summary>
+    /// <summary>欠落・重複・不正値を許可へ変換しません。ツールマスタを省略したデバッグ実行では、ツール単位の用途を項目エラーとして拒否します。</summary>
     public async Task<UploadPolicySnapshot> GetAsync(UploadPurpose purpose, string? toolId = null, CancellationToken ct = default)
     {
         var (scope, code) = purpose switch
@@ -31,6 +32,9 @@ public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> fact
             UploadPurpose.ToolInput when !string.IsNullOrWhiteSpace(toolId) => ("TOOL", "TOOL_INPUT"),
             _ => throw new ArgumentException("アップロード用途が不正です。")
         };
+        // ツール行と結び付くポリシーを確認できないため、固定値で代用せず利用者へ案内できる形で拒否します。
+        if (options.Value.IsToolMasterBypassed && toolId is not null)
+            throw new UploadRejectedException(new("File", "UPLOAD_UNAVAILABLE", "ツールマスタを参照しない設定ではファイルを使用できません。"));
         await gate.WaitAsync(ct);
         try
         {

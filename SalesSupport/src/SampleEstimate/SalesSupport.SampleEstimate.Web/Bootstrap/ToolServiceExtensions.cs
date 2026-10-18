@@ -14,7 +14,7 @@ public static class ToolServiceExtensions
 {
     /// <summary>共通基盤とツール固有のサービスを登録します。認証・認可・ログ・設定検証はCommonの登録に従います。</summary>
     /// <param name="services">ホストのサービスコレクションです。</param>
-    /// <param name="environment">単独開発の指定をCommonが検証するための実行環境です。</param>
+    /// <param name="environment">デバッグ実行用の省略設定をCommonが検証するための実行環境です。</param>
     /// <returns>登録済みのサービスコレクションです。</returns>
     public static IServiceCollection AddSalesSupportTool(this IServiceCollection services, IHostEnvironment environment)
     {
@@ -23,8 +23,8 @@ public static class ToolServiceExtensions
         // サンプルの表だけをこのDbContextで管理し、接続先はCommonと同じ設定から取得します。
         services.AddDbContext<SampleEstimateDbContext>((provider, options) =>
         {
-            if (provider.GetRequiredService<IOptions<CommonOptions>>().Value.IsStandaloneTool) options.UseSqlServer();
-            else options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase);
+            if (provider.GetRequiredService<IOptions<CommonOptions>>().Value.UsesDatabase) options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase);
+            else options.UseSqlServer();
         });
         services.AddScoped<IEstimateRecordService, EstimateRecordService>();
         services.AddScoped<IToolStatusService, ToolStatusService>();

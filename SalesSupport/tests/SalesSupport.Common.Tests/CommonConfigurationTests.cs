@@ -4,6 +4,7 @@ using Xunit;
 namespace SalesSupport.Common.Tests;
 
 /// <summary>共通設定ファイルの読込み条件、相対パスの解決、および接続文字列の取得条件を確認します。</summary>
+[Collection(CommonConfigPathCollection.Name)]
 public sealed class CommonConfigurationTests : IDisposable
 {
     private readonly string folderName = "ss-config-" + Guid.NewGuid().ToString("N");

@@ -127,16 +127,40 @@ public sealed class EstimateServiceTests : IDisposable
     {
         var hint = await CreateService().GetDetailFileHintAsync();
 
-        Assert.Contains(".tsv", hint);
-        Assert.Contains("1MB", hint);
+        Assert.True(hint.Enabled);
+        Assert.Contains(".tsv", hint.Message);
+        Assert.Contains("1MB", hint.Message);
+    }
+
+    /// <summary>Commonがアップロードを拒否する設定では、理由を案内して選択を無効にし、送信されたファイルも項目エラーにします。</summary>
+    [Fact]
+    public async Task UnavailableUploadIsExplainedAndRejected()
+    {
+        var service = CreateService(new RejectingPolicyProvider());
+
+        var hint = await service.GetDetailFileHintAsync();
+        Assert.False(hint.Enabled);
+        Assert.Equal(RejectingPolicyProvider.Message, hint.Message);
+
+        await using var content = new MemoryStream(Encoding.UTF8.GetBytes("a\tb\n"));
+        var outcome = await service.CalculateAsync(new(Input(quantity: 1, unitPrice: 100, categoryCode: "STANDARD"), content, "detail.tsv"));
+        Assert.Equal(EstimateOutcomeKind.InvalidInput, outcome.Kind);
+        var error = Assert.Single(outcome.Errors.Errors);
+        Assert.Equal(EstimateService.DetailFileField, error.Field);
+        Assert.Equal("UPLOAD_UNAVAILABLE", error.Code);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 
     /// <summary>実際のファイル保存と区切りテキスト出力を使う検証対象を作成します。</summary>
     /// <returns>一時領域を検証用ディレクトリに向けたServiceです。</returns>
-    private IEstimateService CreateService()
+    private IEstimateService CreateService() => CreateService(new StubPolicyProvider());
+
+    /// <summary>指定したアップロード条件の取得元で検証対象を作成します。</summary>
+    /// <param name="policies">アップロード条件の取得元です。</param>
+    /// <returns>一時領域を検証用ディレクトリに向けたServiceです。</returns>
+    private IEstimateService CreateService(IUploadPolicyProvider policies)
     {
         var storageOptions = Options.Create(new StorageOptions { TemporaryRoot = temporaryRoot, CleanupTimeoutSeconds = 5 });
-        var policies = new StubPolicyProvider();
         var storage = new FileStorage(storageOptions, policies, new StubErrorLogger());
         return new EstimateService(storage, policies, new DelimitedTextWriter(), new StubBusinessDateProvider(),
             Options.Create(new CommonOptions { ToolId = ToolId, ApplicationName = "テンプレートツール" }));
@@ -156,6 +180,17 @@ public sealed class EstimateServiceTests : IDisposable
         CategoryCode = categoryCode,
         Output = EstimateOutput.Screen
     };
+
+    /// <summary>ツールマスタを参照しない設定と同じく、ツール単位のアップロードを項目エラーで拒否します。</summary>
+    private sealed class RejectingPolicyProvider : IUploadPolicyProvider
+    {
+        /// <summary>Commonが返す案内と同じ形式の文言です。</summary>
+        public const string Message = "ツールマスタを参照しない設定ではファイルを使用できません。";
+
+        /// <summary>常にアップロードを拒否します。</summary>
+        public Task<UploadPolicySnapshot> GetAsync(UploadPurpose purpose, string? toolId = null, CancellationToken ct = default) =>
+            Task.FromException<UploadPolicySnapshot>(new UploadRejectedException(new("File", "UPLOAD_UNAVAILABLE", Message)));
+    }
 
     /// <summary>DBを参照せず固定のアップロード条件を返します。</summary>
     private sealed class StubPolicyProvider : IUploadPolicyProvider

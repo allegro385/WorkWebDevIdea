@@ -47,9 +47,10 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     public async Task<IActionResult> Execute(EstimateInput input, IFormFile? detailFile, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
-        if (options.Value.IsStandaloneTool && input.Output == EstimateOutput.Save)
+        // 仮管理者はAspNetUsersに存在せず、案件の所有者として登録できないため保存を拒否します。
+        if (options.Value.IsAuthenticationBypassed && input.Output == EstimateOutput.Save)
         {
-            ModelState.AddModelError("Input.Output", "案件の保存には開発用DBとPortalを使用してください。");
+            ModelState.AddModelError("Input.Output", "案件の保存にはPortalでログインしてください（認証を省略したデバッグ実行では保存できません）。");
             return await FailureViewAsync(input, ct);
         }
         if (input.Output == EstimateOutput.Save && input.SubmissionId == Guid.Empty)
@@ -124,7 +125,7 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
             Input = input,
             ToolStatusName = await status.GetStatusNameAsync(ct),
             Categories = estimates.GetCategories(),
-            DetailFileHint = await estimates.GetDetailFileHintAsync(ct),
+            DetailFile = await estimates.GetDetailFileHintAsync(ct),
             Message = message
         };
     }

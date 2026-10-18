@@ -48,7 +48,8 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
         current.User = null;
-        if (options.Value.IsStandaloneTool) { context.RejectPrincipal(); return; }
+        // 認証を省略したデバッグ実行では、共有Cookieの実ユーザーを使いません。
+        if (options.Value.IsAuthenticationBypassed) { context.RejectPrincipal(); return; }
         var claims = identityOptions.Value.ClaimsIdentity;
         var now = clock.GetUtcNow();
         var valid = Guid.TryParse(context.Principal?.FindFirstValue(claims.UserIdClaimType), out var userId)

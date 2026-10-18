@@ -16,9 +16,9 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
     /// <summary>共通設定ファイル上の接続文字列名です。</summary>
     public const string ConnectionName = "SalesSupport";
 
-    /// <summary>通常は未設定で起動を止めます。単独開発の場合だけ未設定のまま保持し、DB利用時に拒否します。</summary>
+    /// <summary>通常は未設定で起動を止めます。DBを使わないデバッグ実行の場合だけ未設定のまま保持し、DB利用時に拒否します。</summary>
     /// <param name="configuration">共通設定ファイルから構成した設定。</param>
-    /// <param name="requireConnectionString">通常はtrue。検証済み単独開発の登録時だけfalseを指定します。</param>
+    /// <param name="requireConnectionString">通常はtrue。認証とツールマスタを両方省略した検証済みのデバッグ実行だけfalseを指定します。</param>
     public ConnectionStringProvider(IConfiguration configuration, bool requireConnectionString = true)
     {
         var value = configuration.GetConnectionString(ConnectionName);

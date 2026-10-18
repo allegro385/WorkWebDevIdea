@@ -69,7 +69,7 @@ DB構造を変更する場合は最新の初期構築SQLを更新し、新しい
 - `RoleCode` または `IsActive` の変更時は SecurityStamp を更新する。
 - 管理者を含むログインはメールOTP必須とし、本人が選択したブラウザーではOTP成功から固定30日間省略できる。通常ログアウトで記憶を維持し、資格情報・メールの変更時はSecurityStampを更新する。外部UserIDはLoginIDとして認証に使用し、内部UserID（GUID）は独立した関連キーとする。具体的なOTP条件は画面・機能設計に従う。
 - 保護対象リクエストでは IsActive、RoleCode、SecurityStamp、サイト公開状態、ツール状態を再確認する。Cookie の存在、Referer、過去の画面操作だけで認可しない。
-- ツールの単独開発ではCommonの`SalesSupport:Tool:CheckPublicationStatus=false`による例外を認める。Commonの`DEVELOPMENT`とホストの`Development`の両方を確認し、認証ユーザー・Cookieを作らず画面・計算だけを試す。アップロードと案件保存等のDB機能は拒否する。本番での省略指定は起動拒否、未設定は通常のDB確認。Portalには適用しない。
+- ツールのデバッグ実行ではCommonの`SalesSupport:Tool:RequireAuthentication=false`（開発用の仮管理者`AdminUser`で認証を省略。Cookie・認証チケットを発行せず、DBへ登録しない）と`SalesSupport:Tool:UseToolMaster=false`（ツールマスタ参照・DBログ・ツール単位のアップロードを省略）による例外を個別に認める。Commonの`DEVELOPMENT`とホストの`Development`の両方を確認する。仮管理者ではユーザーを外部キーで参照する保存と明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーを拒否する。本番での省略指定は起動拒否、未設定は通常のDB確認。Portalには適用しない。
 - 設定欠落、未定義コード、状態やポリシーの取得失敗時は許可側へ倒さない。
 - パスワード、ハッシュ、認証・再設定トークン、接続文字列、Data Protection キーなどの秘密情報を、画面・メール・ログ・ソースへ出さない。
 - メールOTPは認証用メール本文だけに含め、画面への再表示・ログ出力・ソースへの固定・DBへの平文保存は行わない。

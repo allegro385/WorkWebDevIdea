@@ -51,14 +51,15 @@ D:\SalesSupport\
 
 | キー | 雛形の値 | 区分 |
 | --- | --- | --- |
-| `ConnectionStrings:SalesSupport` | 空 | 通常は必須、ツールの単独開発だけ未設定で可 |
+| `ConnectionStrings:SalesSupport` | 空 | 通常は必須。ツールで認証とツールマスタを両方省略した場合だけ未設定で可 |
 | `SalesSupport:Mail:Host` / `From` | 空 | 導入時に設定（メールを使う場合） |
 | `SalesSupport:Mail:MaxRecipients` | `0` | 導入時に設定。実SMTPの上限を確認して決めます |
 | `SalesSupport:Mail:UserName` / `Password` | 空 | SMTP認証が必要な場合だけ一組で設定 |
 | `SalesSupport:Mail:DevelopmentRecipient` | 空 | `EnvironmentCode`が`DEVELOPMENT`のとき必須 |
 | `SalesSupport:Mail:Port` / `TlsMode` | `587` / `StartTls` | 一般的な送信用の組合せ。実SMTPに合わせて確認 |
 | `Portal:EnvironmentCode` | `PRODUCTION` | 開発環境では`DEVELOPMENT`へ変更 |
-| `SalesSupport:Tool:CheckPublicationStatus` | 本番向け`true`、開発向け`false` | WebツールのDB認証・公開状態確認。未設定は`true`。`false`は単独開発専用 |
+| `SalesSupport:Tool:RequireAuthentication` | `true` | Webツールの共有Cookie認証。未設定は`true`。`false`は開発用の仮管理者で動かすデバッグ実行専用 |
+| `SalesSupport:Tool:UseToolMaster` | `true` | Webツールのツールマスタ参照・DBログ。未設定は`true`。`false`はデバッグ実行専用 |
 | `SalesSupport:Application:Name` | `営業支援ポータル` | 画面・メールの表示名 |
 | `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更 |
 | `SalesSupport:DataProtection:KeyDirectory` | `../keys` | 配置に合わせて変更 |
@@ -69,19 +70,29 @@ D:\SalesSupport\
 | `SalesSupport:Logging:TimeoutSeconds` | `3` | 既定値 |
 | `SalesSupport:Proxy:KnownProxies` | `[]` | 既定値。空では転送ヘッダーを採用しません |
 
-開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。PortalとDBを使う検証には、空の接続文字列へ使い捨ての開発用DBを指定してください。
+開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。PortalとDBを使う検証には、空の接続文字列へ使い捨ての開発用DBを指定してください。接続文字列を空のままツールをデバッグ実行する場合は、[認証とツールマスタを両方`false`](#ツールをデバッグ実行する)にします。
 
-## ツールを単独で開発する
+## ツールをデバッグ実行する
 
-共通設定の`SalesSupport:Tool:CheckPublicationStatus=false`で、サンプル・テンプレートの入力画面、計算、TSV出力をPortalへのログインやDBデータなしで試せます。Commonの`Portal:EnvironmentCode=DEVELOPMENT`と、ホストの`ASPNETCORE_ENVIRONMENT=Development`の両方が必要です。通常のデバッグ起動には各ツールの`https`プロファイルを使います。共通設定ファイルへの相対パス、ToolId、アプリ名、既存の鍵・一時保存フォルダー等の設定は必要です。接続文字列は空のままで起動できます。
+ツールのデバッグ実行では、共通設定の次の2つを個別に`false`へ変更できます。どちらも雛形と未設定は`true`（本番と同じ動作）です。`false`にするには、Commonの`Portal:EnvironmentCode=DEVELOPMENT`と、ホストの`ASPNETCORE_ENVIRONMENT=Development`の両方が必要です。後者は各ツールの`https`起動プロファイルが設定します。条件を満たさない状態で`false`を指定すると起動を拒否します。Portalはこれらの設定を無視し、常に通常の認証・DB確認を行います。
 
-- このモードでは共有Cookieを認証に使わず、認証ユーザー・チケットを作りません。サイト・ツール公開状態とロールのDB確認を省略し、業務日付は現在のJST日付、DBログは保存しません。
-- サンプルの状態表示は「単独開発（DB確認なし）」です。DBの状態を「公開」として表示しません。
-- 明細ファイルのアップロードと案件の保存・検索・更新は利用できません。画面の項目を無効にし、直接送信・URLアクセスも拒否します。アップロードポリシーを設定や固定値で代用しません。
-- DBを使う開発・結合確認では`true`へ戻し、開発用DB、Portalのログイン、ツール・ロール割当て・ポリシーを準備します。単独開発中は接続文字列を与えてもDB機能を有効にしません。
-- 本番は`true`（未設定も`true`）で、現行ユーザー・サイト状態・ツール状態をDBで確認します。`false`を本番またはホストの開発環境以外で指定すると起動を拒否します。Portalはこのツール専用設定を無視し、常に通常の認証・DB確認を行います。
+| キー | `false`にしたときの動作 |
+| --- | --- |
+| `SalesSupport:Tool:RequireAuthentication` | Portalへログインせず、開発用の仮管理者（LoginId`AdminUser`、UserId`00000000-0000-0000-0000-000000000001`、ロール`ADMIN`）で動かします。共有Cookieは使わず、仮管理者はDBへ登録しません |
+| `SalesSupport:Tool:UseToolMaster` | ツールマスタ（ツール行・ロール割当て）を参照せず、設定したToolIdの画面だけを利用できます。DBログを保存せず、明細ファイルなどツール単位のアップロードはCommonが拒否します |
 
-設定変更後はアプリを再起動してください。環境変数で上書きする場合のキーは`SalesSupport__Tool__CheckPublicationStatus`です。
+| 認証 | ツールマスタ | 接続文字列 | 主な用途 |
+| --- | --- | --- | --- |
+| `true` | `true` | 必須 | 結合確認・本番 |
+| `false` | `true` | 必須 | ログインなしでツール行・アップロード条件・ログを確認する。ツール行は登録が必要、ロール割当ては不要 |
+| `true` | `false` | 必須 | Portalでログインして、ツール未登録のまま画面を確認する |
+| `false` | `false` | 不要 | DBなしで入力画面・計算・TSV出力を確認する。業務日付は現在のJST日付 |
+
+- どちらかを`false`にすると、障害の詳細をコンソールにも出力します。DBログの有無とは関係なく出力します。
+- 仮管理者はAspNetUsersに存在しないため、サンプルの案件保存・一覧などユーザーに紐づく機能は利用できません。
+- 共通設定ファイルへの相対パス、ToolId、アプリ名、鍵・一時保存フォルダー等の設定は、どの組合せでも必要です。
+
+設定変更後はアプリを再起動してください。環境変数で上書きする場合のキーは`SalesSupport__Tool__RequireAuthentication`と`SalesSupport__Tool__UseToolMaster`です。
 
 `SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`がPortal名になります。
 
