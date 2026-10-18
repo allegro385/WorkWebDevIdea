@@ -8,7 +8,7 @@
 | --- | --- |
 | PortalDbContext・業務Entity・既存DDLマッピング | 実装済み |
 | Common登録、Identity Store、認証・認可パイプライン | 実装済み |
-| P001 ログイン（IP制限・アカウントロック・共有Cookie発行） | 実装済み |
+| P001 ログイン・メールOTP（IP制限・アカウントロック・30日記憶・共有Cookie発行） | 実装済み |
 | P011 入場制限案内 | 実装済み |
 | P002 トップ（公開システムお知らせ・メニューカード） | 実装済み |
 | P003・P008 ツール一覧／お気に入り（ロール別表示、直接起動・取得、星印の登録・解除） | 実装済み |
@@ -23,7 +23,11 @@
 
 検証の実行方法は[検証](#検証)を参照してください。実行結果は[プロジェクト操作履歴](../../../../作業記録/プロジェクト操作履歴.md)へ記録します。
 
-ログインには外部連携されたログインIDとIdentity互換PasswordHashを持つ有効ユーザーが必要です。連携プロジェクトは未実装です。メール確認済みはログイン条件にしません。
+ログインには外部連携されたLoginID・Identity互換PasswordHash・確認済み本人メール（EmailConfirmed=true）・LockoutEnabled=trueを持つ有効ユーザーが必要です。外部UserIDはLoginIDとして認証に使用し、各データの関連キーは独立した内部GUIDです。連携プロジェクトとリンク元サイトとのSSOは未実装です。
+
+パスワード確認後に`/account/otp`でメールの数字6桁を入力します。OTPは発行後5分、再送60秒間隔・直近15分に5回、照合失敗はパスワードと合算で5回・30分ロックです。本人が選択したブラウザーではOTP成功から30日間省略でき、通常ログアウトで記憶は維持します。共有セッションの60分・最大8時間とは別です。SMTP無効・失敗・結果不明ではログインを完了せず、開発時の送信先はDevelopmentRecipientへ置換します。OTPをログへ出力する開発用迂回経路はありません。
+
+Identity標準EmailTokenProviderと既存AspNetUserTokensを利用し、DDL・パッケージ追加はありません。Portalと全ツールのCommonを同時配備してください。旧Cookieは新しい認証完了印がないため再ログインとなります。詳細は[OTPの保存・Cookie契約](../../../../設計書/11_Portal詳細設計.md#メールotpの保存とcookie契約)を参照してください。
 
 ## 実行に必要な設定
 
@@ -128,7 +132,7 @@ dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-pr
 
 起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`をリポジトリ外へコピーして開発用DBの接続文字列と実際の配置パスを設定し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
 
-単体テストはDB・SMTPへ接続しません。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
+単体テストはDB・SMTPへ接続しません。OTP試験は実際のIdentity・標準TokenProvider・Cookieハンドラーとメモリー内Data Protectionを使い、期限・一回消費・再送・ロック・記憶を確認します。試験専用InterceptorでSQLヒントを除去してInMemoryで評価し、トランザクションは無視します。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 
 実DBでのEF Coreクエリ実行、モデルバインド、ブラウザーでのRazor表示は環境を用意して別途検証してください。
 
@@ -140,4 +144,4 @@ dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-pr
 - 利用マニュアルPDFは`SalesSupport:Manual:*`で指定した永続保存領域の相対配置から配信します。版を含むURLでのキャッシュ制御は運用時の配置方法とあわせて確定が必要です。
 - `Portal:SupportContact`の文面、SMTP、鍵共有パスは導入前に確定が必要な外部情報です（[Portal詳細設計 第14節](../../../../設計書/11_Portal詳細設計.md)）。
 
-ログインIDの文字ルール・大小文字・変更可否、ハッシュ受渡しと自動連携契約は[検討事項](../../../../設計書/06_検討事項.md#identity)に残します。現行256文字とIdentity標準正規化は暫定です。
+ログインIDの文字ルール・大小文字、ハッシュ受渡しと自動連携契約は[検討事項](../../../../設計書/06_検討事項.md#identity)に残します。現行256文字とIdentity標準正規化は暫定です。LoginID変更は現状予定せず、将来変更する場合の本人対応付けとリンク元サイトのSSOは別途設計します。
