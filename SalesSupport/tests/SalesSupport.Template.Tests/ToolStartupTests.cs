@@ -27,9 +27,24 @@ public sealed class ToolStartupTests
         Assert.Equal("Standalone", Variables(first.Value)["SalesSupport__Tool__ExecutionMode"]);
 
         var portal = Variables(profiles.GetProperty("portal"));
-        Assert.False(portal.ContainsKey("SalesSupport__Tool__ExecutionMode"));
+        Assert.Equal("Portal", portal["SalesSupport__Tool__ExecutionMode"]);
         Assert.Equal(Path.Combine(SalesSupportRoot, "config", "salessupport.common.Development.json"),
             Path.GetFullPath(portal["SalesSupport__CommonConfigPath"]!, ProjectFolder));
+    }
+
+    /// <summary>外側のStandalone設定をportalプロファイルで上書きし、共通設定がなければ単独開発へ切り替えず起動を拒否します。</summary>
+    [Fact]
+    public void PortalProfileOverridesStandaloneAndRequiresCommonConfiguration()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), "ss-portal-" + Guid.NewGuid().ToString("N"), "src", "tool", "web");
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [ToolExecutionModeSettings.Key] = "Standalone" })
+            .AddInMemoryCollection(Variables(Profiles().GetProperty("portal"))
+                .Select(x => KeyValuePair.Create(x.Key.Replace("__", ":"), x.Value))).Build();
+        var services = new ServiceCollection().AddLogging();
+        var exception = Assert.Throws<ConfigurationException>(() =>
+            services.AddSalesSupportTool(new StubEnvironment { ContentRootPath = contentRoot }, configuration));
+        Assert.Contains(CommonConfiguration.PathKey, exception.Message);
     }
 
     /// <summary>単独開発の起動プロファイルの設定だけで、共通設定ファイル・鍵・保存領域のないフォルダーから起動時の設定検証を通ります。CSRF検証も既定で適用します。</summary>
