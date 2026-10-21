@@ -8,7 +8,7 @@
 
 | 区分 | 内容 |
 | --- | --- |
-| 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment)`による共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`） |
+| 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration)`による起動モードの確定、共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`）。起動プロファイルは`standalone`（既定）と`portal` |
 | パイプライン | 転送ヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウト（`Program.cs`） |
 | 利用制御 | 共通の既定認可方針による共有Cookieの現行ユーザー・サイト公開状態・ツール状態の確認。ツール側に独自の認証画面を持ちません |
 | 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/`） |
@@ -50,26 +50,32 @@ SalesSupport\scripts\new-tool.bat T001
 | プロジェクトフォルダー | `SalesSupport/src/Template/SalesSupport.Template.Web` |
 | プロジェクト名・ルート名前空間 | `SalesSupport.Template.Web` |
 | テストプロジェクト | `SalesSupport/tests/SalesSupport.Template.Tests` |
-| 起動プロファイルのToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
+| 起動プロファイル（`standalone`・`portal`）のToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
 | 起動プロファイルのポート | `7075` / `5275` |
 
-`ToolId`は配置設定であり、ソースへ書きません。`Properties/launchSettings.json`の`__TOOL_ID__`・`__TOOL_NAME__`はローカル起動用のプレースホルダーで、生成時に実値へ置き換わります。DB確認を有効にしてテンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
+`ToolId`は配置設定であり、ソースへ書きません。`Properties/launchSettings.json`の`__TOOL_ID__`・`__TOOL_NAME__`はローカル起動用のプレースホルダーで、生成時に実値へ置き換わります。`portal`プロファイルでテンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
 
 ## 実行に必要な設定
 
-接続文字列・鍵・保存領域を含む共通設定は[共通設定ファイル](../../../config/README.md)で管理します。ツール固有の値は各アプリの環境変数で与えます。
+起動モードは2つあり、Visual Studioの起動プロファイルで選びます。生成直後のF5は`standalone`です。詳細は[共通設定の単独開発手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
+
+| 起動プロファイル | 用途 | 必要なもの |
+| --- | --- | --- |
+| `standalone`（既定） | 画面・計算・TSV出力の開発 | なし（Portal・DB・SMTP・共通設定ファイル・鍵／保存フォルダーは不要） |
+| `portal` | Portalでログインした実ユーザーでの結合試験 | Portalの起動、`SalesSupport/config/salessupport.common.Development.json`、開発用DB、DB上のツール行・ロール割当て・アップロード条件 |
+
+単独開発では明細ファイルのアップロードをCommonが拒否し、画面の入力欄も無効になります。業務日付は現在のJST日付で、ログはDBへ保存しません。CSRF検証は有効です。
+
+ツール固有の値は各アプリの環境変数で与えます。ローカルでは起動プロファイルに設定済みです。
 
 | 環境変数 | 内容 |
 | --- | --- |
-| `SalesSupport__CommonConfigPath` | 共通設定ファイルへの、アプリの実行フォルダーからの相対パス |
 | `SalesSupport__Application__ToolId` | このアプリが対応するツールのID。Portalのツールマスタに登録済みのWEBツールと一致させます |
 | `SalesSupport__Application__Name` | 障害ログへ記録するアプリ名 |
+| `SalesSupport__Tool__ExecutionMode` | `standalone`プロファイルだけ`Standalone`。未設定は連携モード。本番では設定しません |
+| `SalesSupport__CommonConfigPath` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。標準配置（IIS）では不要で、`portal`プロファイルはローカル用の値を設定済み |
 
-共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。
-
-デバッグ実行では、共通設定の`SalesSupport:Tool:RequireAuthentication=false`で開発用の仮管理者による認証省略、`SalesSupport:Tool:UseToolMaster=false`でツールマスタ参照・DBログの省略を個別に選べます。どちらもCommonの`DEVELOPMENT`とホストの`Development`の両方が必要です。ツールマスタを省略すると明細ファイルはCommonが拒否し、画面の入力欄も無効になります。両方を省略すると、接続文字列が空のままでも画面表示・計算・TSV出力ができ、業務日付は現在のJST日付になります。詳細は[共通設定のデバッグ実行手順](../../../config/README.md#ツールをデバッグ実行する)を参照してください。
-
-DBを使う結合確認と本番は両方`true`（未設定時も`true`）を使います。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`false`を指定すると起動を拒否します。
+連携モードの共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`Standalone`を指定すると起動を拒否します。
 
 Data ProtectionキーはWindows DPAPIで保護するため、起動できるのはWindowsだけです。Linuxではビルドと単体テストのみ実行できます。
 
@@ -80,7 +86,7 @@ Data ProtectionキーはWindows DPAPIで保護するため、起動できるの�
 ```text
 dotnet build SalesSupport/template.slnx
 dotnet test SalesSupport/template.slnx
-dotnet run --project SalesSupport/src/Template/SalesSupport.Template.Web --launch-profile https
+dotnet run --project SalesSupport/src/Template/SalesSupport.Template.Web --launch-profile standalone
 ```
 
-単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は実DBとPortalを併用した環境での確認が必要です。ローカル起動には上記の環境変数と共通設定ファイルが必要です。
+単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は`portal`プロファイルで実DBとPortalを併用した環境での確認が必要です。

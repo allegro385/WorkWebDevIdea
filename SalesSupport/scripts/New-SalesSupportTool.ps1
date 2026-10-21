@@ -248,7 +248,7 @@ function Test-ProjectPaths {
 
 <#
 .SYNOPSIS
-    生成したJSONの構文とローカル起動用のToolId・表示名を検査します。
+    生成したJSONの構文と、単独開発・ポータル連携の各起動プロファイルのToolId・表示名・起動モードを検査します。
 #>
 function Test-GeneratedJson {
     param([string[]]$Roots, [string]$LaunchSettingsPath, [string]$ExpectedToolId, [string]$ExpectedName)
@@ -262,10 +262,20 @@ function Test-GeneratedJson {
     }
     try {
         $settings = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($LaunchSettingsPath)) -ErrorAction Stop
-        $variables = $settings.profiles.https.environmentVariables
-        if ($variables.'SalesSupport__Application__ToolId' -cne $ExpectedToolId -or
-            $variables.'SalesSupport__Application__Name' -cne $ExpectedName) {
-            $findings += "$LaunchSettingsPath：ToolIdまたはアプリ名が入力値と一致しません。"
+        # 生成直後のF5を単独開発にするため、先頭の起動プロファイルは standalone とします。
+        if (@($settings.profiles.PSObject.Properties.Name)[0] -cne 'standalone') {
+            $findings += "$LaunchSettingsPath：先頭の起動プロファイルが standalone ではありません。"
+        }
+        foreach ($expected in @(@{ Name = 'standalone'; Mode = 'Standalone' }, @{ Name = 'portal'; Mode = $null })) {
+            $variables = $settings.profiles.($expected.Name).environmentVariables
+            if ($null -eq $variables) { $findings += "$LaunchSettingsPath：起動プロファイル $($expected.Name) がありません。"; continue }
+            if ($variables.'SalesSupport__Application__ToolId' -cne $ExpectedToolId -or
+                $variables.'SalesSupport__Application__Name' -cne $ExpectedName) {
+                $findings += "$LaunchSettingsPath：$($expected.Name) のToolIdまたはアプリ名が入力値と一致しません。"
+            }
+            if ($variables.'SalesSupport__Tool__ExecutionMode' -cne $expected.Mode) {
+                $findings += "$LaunchSettingsPath：$($expected.Name) の起動モードが不正です。"
+            }
         }
     }
     catch {
@@ -347,15 +357,23 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 
 ## 実行に必要な設定
 
-接続文字列・鍵・保存領域を含む共通設定は[共通設定ファイル](../../../config/README.md)で管理します。ツール固有の値は各アプリの環境変数で与えます。
+起動プロファイルは``standalone``（既定、Visual StudioのF5）と``portal``の2つを``Properties/launchSettings.json``へ生成済みです。
+
+| 起動プロファイル | 用途 | 必要なもの |
+| --- | --- | --- |
+| ``standalone`` | 画面・計算・出力の開発（単独開発） | なし（Portal・DB・SMTP・共通設定ファイル・鍵／保存フォルダーは不要） |
+| ``portal`` | Portalでログインした実ユーザーでの結合試験 | Portalの起動、``SalesSupport/config/salessupport.common.Development.json``、開発用DBとツール行等の登録 |
+
+単独開発の範囲は[共通設定の単独開発手順](../../../config/README.md#ツールを単独で開発する)を参照してください。接続文字列・鍵・保存領域を含む連携モードの共通設定は[共通設定ファイル](../../../config/README.md)で管理します。ツール固有の値は各アプリの環境変数で与えます。
 
 | 環境変数 | 内容 |
 | --- | --- |
-| ``SalesSupport__CommonConfigPath`` | 共通設定ファイルへの、アプリの実行フォルダーからの相対パス |
 | ``SalesSupport__Application__ToolId`` | ``$toolIdValue`` |
 | ``SalesSupport__Application__Name`` | 障害ログへ記録するアプリ名 |
+| ``SalesSupport__Tool__ExecutionMode`` | ``standalone``プロファイルだけ``Standalone``。配置環境では設定しません |
+| ``SalesSupport__CommonConfigPath`` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置では不要 |
 
-ローカル起動用の値は``Properties/launchSettings.json``へ生成済みです。配置環境ではIISの``web.config``で同じ環境変数を設定します。
+配置環境ではIISの``web.config``でToolIdとアプリ名を設定します。
 
 ## 生成後に別途必要な作業
 
@@ -371,10 +389,10 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 ``````text
 dotnet build SalesSupport/$solutionName
 dotnet test SalesSupport/$solutionName
-dotnet run --project SalesSupport/src/$identifier/$projectName --launch-profile https
+dotnet run --project SalesSupport/src/$identifier/$projectName --launch-profile standalone
 ``````
 
-単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は実DBとPortalを併用した環境で確認してください。
+単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
 "@
 [System.IO.File]::WriteAllText((Join-Path $destinationProjectPath 'README.md'), $readme, (New-Object System.Text.UTF8Encoding($false)))
 

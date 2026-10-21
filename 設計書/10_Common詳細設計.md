@@ -99,8 +99,9 @@ ApplicationUserのマッピングはCommonから提供し、Portalは再定義�
 ### 登録インターフェース
 
 ```csharp
-services.AddSalesSupportCommon(ApplicationKind.Portal);
-// 各ツールでは ApplicationKind.Tool。共通設定はCommonが共通設定ファイルから取得し、ToolIdはアプリごとの環境変数から取得。
+services.AddSalesSupportCommon(ApplicationKind.Portal, builder.Environment, builder.Configuration);
+// 各ツールでは ApplicationKind.Tool。ホスト設定から起動モードと共通設定ファイルの場所を決め、
+// 共通設定はCommonが共通設定ファイルから取得し、ToolIdはアプリごとの環境変数から取得。
 // ホストのDbContextはCommonの接続文字列を使用する。
 services.AddDbContext<PortalDbContext>((provider, options) =>
     options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
@@ -122,14 +123,16 @@ CommonのDBサービスはIDbContextFactoryから処理ごとにContextを取得
 
 ### 設定の取得元
 
-Commonが必要とする設定は、Commonが所有する共通設定ファイル1つで管理する。ポータルと各ツールは自身の設定ファイルへ接続文字列その他の共通設定を持たず、Commonが読み取った値をDependency Injectionで受け取る。
+Commonが必要とする設定は、Commonが所有する共通設定ファイル1つで管理する。ポータルと各ツールは自身の設定ファイルへ接続文字列その他の共通設定を持たず、Commonが読み取った値をDependency Injectionで受け取る。ただし、Webツールの[単独開発](#ツールの起動モード)では共通設定ファイルを読まない。
 
 | 段 | 取得元 | 対象 |
 | --- | --- | --- |
-| 1 | 共通設定ファイル（JSON、必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
+| 0 | ホスト設定（起動プロファイル・環境変数・各アプリの`appsettings*.json`） | 共通設定ファイルを読む前に決める`SalesSupport:Tool:ExecutionMode`と`SalesSupport:CommonConfigPath` |
+| 1 | 共通設定ファイル（JSON、連携モードで必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
 | 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`Portal__EnvironmentCode`等 |
 
-- 共通設定ファイルの場所は環境変数`SalesSupport__CommonConfigPath`で各アプリへ与える。値は各アプリの実行フォルダーからの相対パスとし、未設定、絶対パス、不在、書式不正は起動時に構成エラーとする。既定の場所は探索しない。
+- 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定なら既定の`../../config/salessupport.common.json`とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（`<ルート>\apps\<アプリ名>\`と`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
+- 親フォルダーを順に探す処理は行わず、読込先を一意に決める。絶対パス、制御文字、不在、書式不正は起動時に構成エラーとし、エラーには解決後のファイルパスと理由を示す。設定値の内容は表示しない。
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
 - アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と障害ログに使う`Application:Name`は各アプリの環境変数で与える。
@@ -140,12 +143,10 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
-| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 通常は未設定拒否。ツールの認証・ツールマスタを両方省略した場合だけ未設定で起動でき、DB利用時は拒否。値をエラー本文へ出さない |
+| ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
 | Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
-| SalesSupport:Tool:RequireAuthentication | 既定true、Tool専用 | falseは開発用の仮管理者で認証を省略。CommonのDEVELOPMENTとホストDevelopmentの両方が必要。Portalには適用しない |
-| SalesSupport:Tool:UseToolMaster | 既定true、Tool専用 | falseはツールマスタ参照・DBログ・ツール単位のアップロードを省略。条件は同上 |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
@@ -161,6 +162,13 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:Logging:TimeoutSeconds | 3秒 | 正の整数。独立したログ処理の上限 |
 | SalesSupport:Storage:CleanupTimeoutSeconds | 5秒 | 正の整数。清掃の待機上限 |
 | SalesSupport:Proxy:KnownProxies | 既定空 | 信頼済みのIPだけを設定 |
+
+上表は連携モードの共通設定ファイルのキーである。次の2つはホスト設定から読み、共通設定ファイルには書かない。
+
+| キー | 初期値 | 検証 |
+| --- | --- | --- |
+| SalesSupport:Tool:ExecutionMode | `Portal` | `Portal`／`Standalone`のみ。`Standalone`はToolかつホスト`Development`だけ。詳細は5節 |
+| SalesSupport:CommonConfigPath | `../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
 
 - 共通設定ファイルの後に配置環境変数を適用し、環境変数を優先する。`Portal__EnvironmentCode`との既存契約を維持する。実行中の再読込みは行わず、共通設定ファイルの変更はポータルと全Webツールの再起動で反映する。
 - Cookie名は `.SalesSupport.Auth`、スキームは `Identity.Application`、Data ProtectionのApplicationNameは `SalesSupport` に統一する。いずれもCommonの定数。Cookie Path=/、Domain未指定。別環境は別ホスト・別キー領域で分離し、同一Cookieが混在する配置を行わない。
@@ -181,27 +189,23 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 
 ## 5. Authentication
 
-### ツールのデバッグ実行用の省略設定
+### ツールの起動モード
 
-`AddSalesSupportCommon(ApplicationKind.Tool, environment)`はCommon設定の次の2つを先に確認する。どちらも既定（未設定）は`true`で、通常の共有Cookie・DB認可を適用する。`false`はCommonの`DEVELOPMENT`とホストの`Development`の両方を起動時に検証し、不一致・不正値は構成エラーとして拒否する。ホストの`Development`は各ツールの`https`起動プロファイルが与えるため、実質デバッグ実行時だけ有効になる。Portalはこれらのツール専用設定を適用しない。
+Webツールは「ポータル連携」と「単独開発」の2つの起動モードを持つ。モードはホスト設定（起動プロファイル・環境変数・各アプリの`appsettings*.json`）の`SalesSupport:Tool:ExecutionMode`で選び、共通設定ファイルには書かない。`AddSalesSupportCommon(kind, environment, hostConfiguration)`は共通設定ファイルを読む前にモードを確定する。コンパイル構成（Debug／Release）では切り替えない。
 
-| キー | `false`の動作 |
-| --- | --- |
-| `SalesSupport:Tool:RequireAuthentication` | 共有Cookieを認証に使わず、開発用の仮管理者を要求ごとに認証済みユーザーとして設定する。認証チケット・Cookieは発行しない |
-| `SalesSupport:Tool:UseToolMaster` | ツールマスタ（`Tools`・`ToolRoles`）を参照せず、設定されたToolIdの`ToolUse`だけを許可する。DBログを保存せず、ツール単位のアップロードを拒否する |
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `Portal`（未設定時の既定） | 結合試験・本番 | 共通設定ファイルを読み、共有Cookie・DB認可・DBログを含む通常フローを適用する。設定不備は構成エラーとし、単独開発へ切り替えない |
+| `Standalone` | 通常のデバッグ実行（F5） | 共通設定ファイルを読まない。ポータル・DB・SMTP・共有鍵フォルダー・保存領域なしで入力画面・計算・ファイル出力を動かす |
 
-| 認証 | ツールマスタ | 接続文字列 | 動作 |
-| --- | --- | --- | --- |
-| `true` | `true` | 必須 | 本番と同じ通常フロー |
-| `false` | `true` | 必須 | 仮管理者で通常のDB認可を行う。サイト公開状態・ツール行・WEB種別を確認し、ADMINのためロール割当ては不要。アップロード条件はDBから取得し、ログは仮管理者のUserIdで保存する |
-| `true` | `false` | 必須 | Portalでログインした実ユーザーを通常どおりCookie検証する。ツール利用はToolIdの一致だけで判定し、サイト公開状態も確認しない |
-| `false` | `false` | 不要 | DBを参照しない。業務日付は現在のJST日付を使い、接続文字列を与えてもDB機能を有効にしない |
-
-- 仮管理者はLoginId`AdminUser`、UserId`00000000-0000-0000-0000-000000000001`、RoleCode`ADMIN`の固定値とし、Commonの定数`DevelopmentUser`で定義する。AspNetUsersへ登録せず、IdentityユーザーをSQLで作らない。UserIdは`Guid.Empty`（未設定の意味で使われる値）と区別する。
-- 仮管理者はAspNetUsersに存在しないため、ユーザーを外部キーで参照する保存（サンプルの案件等）はできない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーは共有Cookieスキームに限定し、仮管理者では満たさない。サンプルの案件画面はこのポリシーで仮管理者からの直接アクセスを拒否し、保存は`IsAuthenticationBypassed`で画面・サーバー両方から拒否する。
-- `UseToolMaster=false`では`IUploadPolicyProvider`がツール単位の用途（`TOOL_INPUT`・`REFERENCE`・`APP`）を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否する。許可ポリシーを固定値で代用しない。ツールはこの例外の文言で案内と入力欄の無効化を行い、モード判定を持たない。
-- どちらかを`false`にした場合、障害はDBログの有無にかかわらずホストの`ILogger`（コンソール）へ例外の詳細を出力する。開発環境に限定されるため、本番では出力しない。
-- DBを使う結合確認と本番では両方を`true`（または未設定）にする。
+- `Standalone`はToolで、かつホスト環境が`Development`の場合だけ受け付ける。Portalでの指定、`Development`以外での指定、未定義値は起動時の構成エラーとする。
+- 単独開発では共有Cookieを認証に使わず、認証ユーザー・仮ユーザー・認証チケットを作らない。既定認可は自端末（ループバック）からの要求に限り、設定されたToolIdの`ToolUse`だけを認証なしで許可する。他の接続元は`TOOL_UNAVAILABLE`（404）で拒否する。サイト入場・管理者・他ToolIdへ許可を拡張しない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーは共有Cookieの実ユーザーを要求するため、単独開発では満たさない。
+- DBを参照・保存しない（ツールマスタ、サイト公開状態、ロール、システム設定、操作・利用・障害ログ）。業務日付は現在のJST日付を使う。`IUploadPolicyProvider`はツール単位の用途（`TOOL_INPUT`・`REFERENCE`・`APP`）を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否し、許可ポリシーを固定値で代用しない。ツールはこの例外の文言で案内と入力欄の無効化を行う。認証ユーザーやDBを必要とする機能（サンプルの案件保存等）は連携モードで確認する。
+- CSRF検証は維持する。暗号鍵にはASP.NET Core標準のData Protectionの既定保存先（開発者のユーザープロファイル）を使い、Portalと共有する鍵フォルダーを要求しない。
+- `EnvironmentCode`は`DEVELOPMENT`として扱う。`ToolId`と`Application:Name`はホスト設定（起動プロファイルの環境変数）から取得して検証する。Portal URL・接続文字列・保存領域・SMTPは要求せず、ファイル保存領域は提供しない。
+- 共通ヘッダーはPortalへのリンク・ログイン・ログアウトを表示せず、「単独開発」と表示する。
+- 障害は画面にErrorIdを示し、ホストの`ILogger`（コンソール）へ例外の詳細を出力する。開発環境に限定されるため本番では出力しない。
+- ツール固有のDBを単独開発で使うこと（接続文字列の取得元を含む）は対象外とし、[検討事項](06_検討事項.md#tool-database)で扱う。
 
 ### 認証・要求処理
 
@@ -305,7 +309,7 @@ FailureReasonはINVALID_CREDENTIALS、ACCOUNT_LOCKED、UNAUTHENTICATED、INACTIV
 
 1. 要求内の発生ごとにErrorIdを生成する。
 2. ErrorCodesを取得し、未登録・取得失敗は固定の一般エラー文言へ代替する。
-3. 文言と安全な関連情報からログを1回だけ試行する。ツールのデバッグ実行用の省略設定（5節）がある場合は、ホストの`ILogger`へも例外の詳細を出力する。
+3. 文言と安全な関連情報からログを1回だけ試行する。ツールの単独開発（5節）では、ホストの`ILogger`へも例外の詳細を出力する。
 4. 画面には表示文言とErrorIdのみ返す。APIには安全なProblemDetailsを返す。
 
 ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ばない。Mail内で記録済みの失敗はErrorId／記録済み情報を結果へ付け、呼出元が再記録しない。入力エラーは400、競合409、予期しないエラー500、依存先障害503を基本とし、認証応答は5節に従う。
@@ -320,7 +324,7 @@ ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ば�
 | --- | --- |
 | UploadPurpose | InquiryAttachment／Reference／App／ToolInput |
 | UploadPolicySnapshot | PolicyId、Purpose、ToolId?、MaxFileSizeBytes、Extensions |
-| IUploadPolicyProvider.GetAsync(purpose, toolId?) | DBのポリシーと拡張子を一緒に取得。`UseToolMaster=false`ではツール単位の用途を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否 |
+| IUploadPolicyProvider.GetAsync(purpose, toolId?) | DBのポリシーと拡張子を一緒に取得。ツールの単独開発ではツール単位の用途を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否 |
 | IUploadValidator.ValidateAsync(stream, originalName, policy) | 検証結果。ストリームを読みながら実容量を制限 |
 | IFileStorage.SaveTemporaryAsync(request, stream) | TemporaryFileHandle |
 | IFileStorage.SavePermanentAsync(request, stream) | StoredFile |

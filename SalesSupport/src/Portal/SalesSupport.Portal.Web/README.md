@@ -37,7 +37,7 @@ Identity標準EmailTokenProviderとAspNetUserTokensを利用します。Portal�
 
 接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
 
-環境変数`SalesSupport__CommonConfigPath`へ、Portalの実行フォルダーから共通設定ファイルへの相対パスを設定してください。未設定・絶対パス・不在・書式不正は構成エラーです。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
+Portalはコンテンツルートから既定の相対パス`../../config/salessupport.common.json`で共通設定ファイルを読みます。IISの標準配置（`<ルート>\apps\portal\`と`<ルート>\config\`）ではパス指定は不要です。配置が異なる場合だけ環境変数`SalesSupport__CommonConfigPath`へコンテンツルートからの相対パスを設定します。ローカルの`https`起動プロファイルは`../../../config/salessupport.common.Development.json`を指定済みです。絶対パス・不在・書式不正は構成エラーで、解決後のパスと理由を表示します。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
 
 | キー | 内容 |
 | --- | --- |
@@ -106,7 +106,7 @@ try {
 }
 ```
 
-発行済みDLLからは同じパイプ先を`dotnet SalesSupport.Portal.Web.dll import-test-users --role ADMIN`に置き換えます。Commonの`DEVELOPMENT`とホストの`Development`を両方設定し、実DBではなく開発専用DBへ接続してください。
+発行済みDLLからは、共通設定ファイルの既定パスがコンテンツルート（現在のフォルダー）基準になるため発行フォルダーへ移動し、同じパイプ先を`dotnet SalesSupport.Portal.Web.dll import-test-users --role ADMIN`に置き換えます。Commonの`DEVELOPMENT`とホストの`Development`を両方設定し、実DBではなく開発専用DBへ接続してください。
 
 全行の形式・重複を確認してから、UserManager.CreateAsyncで一人ずつ作成します。内部UserIdは新しいGuid、有効状態ON、通知2項目OFFです。パスワードはIdentityでハッシュ化し、メール送信・入力TSVのサーバー保存・既存ユーザーの更新は行いません。入力値や例外内容を結果へ表示せず、失敗時は行番号と登録済み件数を表示します。
 
@@ -130,7 +130,7 @@ dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
-起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`をリポジトリ外へコピーして開発用DBの接続文字列と実際の配置パスを設定し、環境変数`SalesSupport__CommonConfigPath`へPortalの実行フォルダーからの相対パスを設定してから実行してください。ビルドと単体テストには不要です。
+起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`を同じフォルダーの`salessupport.common.Development.json`（`.gitignore`で除外済み）へコピーし、開発用DBの接続文字列等を設定してから実行してください。`https`起動プロファイルがこのファイルを指定します。鍵・保存領域は既定で`SalesSupport/keys/`と`SalesSupport/storage/`（いずれも除外済み）を使うため、事前に作成します。ビルドと単体テストには不要です。
 
 単体テストはDB・SMTPへ接続しません。OTP試験は実際のIdentity・標準TokenProvider・Cookieハンドラーとメモリー内Data Protectionを使い、期限・一回消費・再送・ロック・記憶を確認します。試験専用InterceptorでSQLヒントを除去してInMemoryで評価し、トランザクションは無視します。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 
