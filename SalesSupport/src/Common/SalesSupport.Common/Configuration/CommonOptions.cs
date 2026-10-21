@@ -11,23 +11,11 @@ public sealed class CommonOptions
     public string? ToolId { get; set; }
     public string PortalBaseUrl { get; set; } = "";
 
-    /// <summary>ツールの共有Cookie認証を行います。falseはデバッグ実行専用で、開発用の仮管理者で動作します。</summary>
-    public bool RequireAuthentication { get; set; } = true;
+    /// <summary>ツールの起動モードです。Portalでは常に<see cref="ToolExecutionMode.Portal"/>です。</summary>
+    public ToolExecutionMode ExecutionMode { get; set; }
 
-    /// <summary>ツールマスタを参照し、DBログを保存します。falseはデバッグ実行専用です。</summary>
-    public bool UseToolMaster { get; set; } = true;
-
-    /// <summary>起動時に検証された、仮管理者で認証を省略するツールかを返します。</summary>
-    public bool IsAuthenticationBypassed => Kind == ApplicationKind.Tool && IsDevelopment && !RequireAuthentication;
-
-    /// <summary>起動時に検証された、ツールマスタ参照とDBログを省略するツールかを返します。</summary>
-    public bool IsToolMasterBypassed => Kind == ApplicationKind.Tool && IsDevelopment && !UseToolMaster;
-
-    /// <summary>DBを使用するかを返します。認証とツールマスタを両方省略した場合だけDBを使いません。</summary>
-    public bool UsesDatabase => !IsAuthenticationBypassed || !IsToolMasterBypassed;
-
-    /// <summary>デバッグ実行用の省略設定がいずれかあるかを返します。障害をコンソールへも出力する判定に使います。</summary>
-    public bool HasDevelopmentBypass => IsAuthenticationBypassed || IsToolMasterBypassed;
+    /// <summary>起動時に検証された、Portal・DB・共通設定ファイルを使わない単独開発のツールかを返します。</summary>
+    public bool IsStandalone => Kind == ApplicationKind.Tool && IsDevelopment && ExecutionMode == ToolExecutionMode.Standalone;
 
     /// <summary>開発環境向けの動作を適用するかを判定します。未設定・不正値は開発扱いにしません。</summary>
     public bool IsDevelopment => EnvironmentCode == "DEVELOPMENT";

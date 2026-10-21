@@ -65,26 +65,17 @@ public sealed class HeaderNotificationTests
         }
     }
 
-    /// <summary>DBを使わないデバッグ実行では、仮管理者でもロールの通知フラグを読まずに個人設定を隠します。</summary>
+    /// <summary>単独開発では利用者がいなくてもDBを読まず、Portalへのリンク・メニュー・ログアウトを出さずに単独開発と示します。</summary>
     [Fact]
-    public async Task DatabaseFreeModeDoesNotReadRoleFlag()
+    public async Task StandaloneHeaderHasNoPortalLinks()
     {
-        var name = Guid.NewGuid().ToString();
-        var root = new InMemoryDatabaseRoot();
-        await using (var seed = new SeedContext(new DbContextOptionsBuilder<SeedContext>().UseInMemoryDatabase(name, root).Options))
-        {
-            seed.Add(new RoleAccessRecord { RoleCode = "ADMIN", NoticeMailEnabled = true });
-            await seed.SaveChangesAsync();
-        }
-        await using var db = new CommonDbContext(new DbContextOptionsBuilder<CommonDbContext>().UseInMemoryDatabase(name, root).Options);
-        var current = new CurrentUserAccessor();
-        current.SetVerified(DevelopmentUser.Create());
+        await using var db = new CommonDbContext(new DbContextOptionsBuilder<CommonDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var options = Options.Create(new CommonOptions
         {
-            Kind = ApplicationKind.Tool, PortalBaseUrl = "https://example.invalid/", EnvironmentCode = "DEVELOPMENT", RequireAuthentication = false, UseToolMaster = false
+            Kind = ApplicationKind.Tool, EnvironmentCode = "DEVELOPMENT", ToolId = "T001", ExecutionMode = ToolExecutionMode.Standalone
         });
         var http = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
-        var component = new SalesSupportHeaderViewComponent(current, options, new SalesSupportLinks(options, http), db)
+        var component = new SalesSupportHeaderViewComponent(new CurrentUserAccessor(), options, new SalesSupportLinks(options, http), db)
         {
             ViewComponentContext = new ViewComponentContext
             {
@@ -97,8 +88,13 @@ public sealed class HeaderNotificationTests
             }
         };
         var model = Assert.IsType<SalesSupportHeaderModel>(Assert.IsType<ViewViewComponentResult>(await component.InvokeAsync()).ViewData!.Model);
-        Assert.Equal(DevelopmentUser.LoginId, model.DisplayName);
-        Assert.DoesNotContain(model.Menus.SelectMany(x => x.Links), x => x.Label == "個人設定");
+        Assert.True(model.IsStandalone);
+        Assert.True(model.IsDevelopment);
+        Assert.Null(model.DisplayName);
+        Assert.Null(model.PortalTopUrl);
+        Assert.Null(model.LogoutUrl);
+        Assert.Empty(model.Menus);
+        Assert.Empty(model.AccountLinks);
     }
 
     /// <summary>本番と同じ読取りモデルで使い捨てデータを投入します。</summary>

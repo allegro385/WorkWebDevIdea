@@ -267,13 +267,16 @@ function Test-GeneratedJson {
             $findings += "$LaunchSettingsPath：先頭の起動プロファイルが standalone ではありません。"
         }
         foreach ($expected in @(@{ Name = 'standalone'; Mode = 'Standalone' }, @{ Name = 'portal'; Mode = $null })) {
-            $variables = $settings.profiles.($expected.Name).environmentVariables
-            if ($null -eq $variables) { $findings += "$LaunchSettingsPath：起動プロファイル $($expected.Name) がありません。"; continue }
-            if ($variables.'SalesSupport__Application__ToolId' -cne $ExpectedToolId -or
-                $variables.'SalesSupport__Application__Name' -cne $ExpectedName) {
+            # StrictModeでは存在しないプロパティの参照が例外になるため、PSObject経由で有無を確認します。
+            $profileEntry = $settings.profiles.PSObject.Properties[$expected.Name]
+            if ($null -eq $profileEntry) { $findings += "$LaunchSettingsPath：起動プロファイル $($expected.Name) がありません。"; continue }
+            $variables = $profileEntry.Value.environmentVariables.PSObject.Properties
+            $valueOf = { param($name) $entry = $variables[$name]; if ($null -eq $entry) { $null } else { $entry.Value } }
+            if ((& $valueOf 'SalesSupport__Application__ToolId') -cne $ExpectedToolId -or
+                (& $valueOf 'SalesSupport__Application__Name') -cne $ExpectedName) {
                 $findings += "$LaunchSettingsPath：$($expected.Name) のToolIdまたはアプリ名が入力値と一致しません。"
             }
-            if ($variables.'SalesSupport__Tool__ExecutionMode' -cne $expected.Mode) {
+            if ((& $valueOf 'SalesSupport__Tool__ExecutionMode') -cne $expected.Mode) {
                 $findings += "$LaunchSettingsPath：$($expected.Name) の起動モードが不正です。"
             }
         }

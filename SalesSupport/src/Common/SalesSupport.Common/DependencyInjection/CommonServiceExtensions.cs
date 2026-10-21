@@ -26,47 +26,45 @@ namespace SalesSupport.Common.DependencyInjection;
 /// <summary>共通基盤をホストへ登録します。</summary>
 public static class CommonServiceExtensions
 {
-    /// <summary>共通データ取得・入力出力を登録します。共通設定はCommonの設定ファイルから取得し、Identity StoreはPortalが登録します。</summary>
+    /// <summary>共通データ取得・入力出力を登録します。起動モードを確定してから共通設定ファイルを読み、Identity StoreはPortalが登録します。</summary>
     /// <param name="services">共通基盤を登録するサービスです。</param>
     /// <param name="kind">PortalまたはToolを指定します。</param>
-    /// <param name="environment">ツールのデバッグ実行用の省略設定を検証するホスト環境です。省略時は認証・ツールマスタの省略を認めません。</param>
-    public static IServiceCollection AddSalesSupportCommon(this IServiceCollection services, ApplicationKind kind, IHostEnvironment? environment = null)
+    /// <param name="environment">共通設定ファイルの基準になるコンテンツルートと、単独開発を検証する実行環境です。</param>
+    /// <param name="hostConfiguration">起動モードと共通設定ファイルの場所を読むホスト設定です。</param>
+    public static IServiceCollection AddSalesSupportCommon(this IServiceCollection services, ApplicationKind kind, IHostEnvironment environment, IConfiguration hostConfiguration)
     {
-        var common = CommonConfiguration.Load();
-        var configuration = common.Values;
-        var switches = ToolDevelopmentSettings.Read(configuration, kind, environment);
-        var bypassAuthentication = !switches.RequireAuthentication;
-        // 認証とツールマスタを両方省略した場合だけDBを使いません。
-        var usesDatabase = switches.RequireAuthentication || switches.UseToolMaster;
-        // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。
-        var connections = new ConnectionStringProvider(configuration, requireConnectionString: usesDatabase);
+        var mode = ToolExecutionModeSettings.Read(hostConfiguration, kind, environment);
+        var standalone = mode == ToolExecutionMode.Standalone;
+        // 単独開発は共通設定ファイルを読まず、ToolId・アプリ名はホスト設定（起動プロファイルの環境変数）から取得します。
+        var common = standalone ? null : CommonConfiguration.Load(environment.ContentRootPath, hostConfiguration[CommonConfiguration.PathKey]);
+        var configuration = common?.Values ?? hostConfiguration;
+        // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。単独開発は接続文字列を持ちません。
+        var connections = new ConnectionStringProvider(standalone ? new ConfigurationBuilder().Build() : configuration, requireConnectionString: !standalone);
         services.AddSingleton<IConnectionStringProvider>(connections);
-        // 設定内のフォルダーは共通設定ファイルからの相対パスで指定するため、起動時に絶対パスへ解決します。
-        var keyDirectory = common.ResolvePath(configuration["SalesSupport:DataProtection:KeyDirectory"], "SalesSupport:DataProtection:KeyDirectory");
         services.AddOptions<CommonOptions>().Configure(options =>
         {
             options.Kind = kind;
-            options.EnvironmentCode = configuration["Portal:EnvironmentCode"] ?? "";
+            options.EnvironmentCode = standalone ? "DEVELOPMENT" : configuration["Portal:EnvironmentCode"] ?? "";
             options.ApplicationName = configuration["SalesSupport:Application:Name"] ?? "";
             options.ToolId = configuration["SalesSupport:Application:ToolId"];
-            options.PortalBaseUrl = configuration["SalesSupport:Portal:BaseUrl"] ?? "";
-            options.RequireAuthentication = switches.RequireAuthentication;
-            options.UseToolMaster = switches.UseToolMaster;
+            options.PortalBaseUrl = standalone ? "" : configuration["SalesSupport:Portal:BaseUrl"] ?? "";
+            options.ExecutionMode = mode;
         }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "Portal:EnvironmentCodeが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
-          .Validate(x => Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
+          // 単独開発はPortalへのリンクを作らないため、Portal URLを要求しません。
+          .Validate(x => x.IsStandalone || Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
           .ValidateOnStart();
         services.AddDbContextFactory<CommonDbContext>(options =>
         {
-            if (usesDatabase) options.UseSqlServer(connections.SalesSupportDatabase);
-            else options.UseSqlServer();
+            if (standalone) options.UseSqlServer();
+            else options.UseSqlServer(connections.SalesSupportDatabase);
             options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
         });
         services.AddDbContextFactory<LogDbContext>(options =>
         {
-            if (usesDatabase) options.UseSqlServer(connections.SalesSupportDatabase);
-            else options.UseSqlServer();
+            if (standalone) options.UseSqlServer();
+            else options.UseSqlServer(connections.SalesSupportDatabase);
         });
         services.AddOptions<LoggingOptions>().Bind(configuration.GetSection("SalesSupport:Logging"))
             .Validate(x => x.TimeoutSeconds > 0, "Logging:TimeoutSecondsが不正です。").ValidateOnStart();
@@ -108,19 +106,20 @@ public static class CommonServiceExtensions
         services.AddHttpContextAccessor();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, CommonAuthorizationResultHandler>();
-        // 認証を省略したデバッグ実行では、既定の認証方式を開発用の仮管理者へ切り替えます。
-        var defaultScheme = bypassAuthentication ? DevelopmentUserAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
+        // 単独開発は既定の認証方式でCookieを読まず、自端末からの対象ツール利用だけを既定認可で許可します。
+        var defaultScheme = standalone ? StandaloneToolAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
         services.AddAuthorization(options =>
         {
-            // 明示ポリシーは共有Cookieの実ユーザーだけを対象とし、DBに存在しない仮管理者では満たしません。
+            // 明示ポリシーは共有Cookieの実ユーザーだけを対象とし、単独開発では満たしません。
             options.AddPolicy("SalesSupportAdmin", policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Admin: true)));
             options.AddPolicy("SalesSupportTool", policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: true)));
-            options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(defaultScheme).RequireAuthenticatedUser()
-                .AddRequirements(new CommonAccessRequirement(Tool: kind == ApplicationKind.Tool)).Build();
+            var fallback = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(defaultScheme);
+            if (!standalone) fallback.RequireAuthenticatedUser();
+            options.FallbackPolicy = fallback.AddRequirements(new CommonAccessRequirement(Tool: kind == ApplicationKind.Tool)).Build();
         });
         services.AddOptions<Microsoft.AspNetCore.Identity.IdentityOptions>();
         var authentication = services.AddAuthentication(defaultScheme);
-        if (bypassAuthentication) authentication.AddScheme<AuthenticationSchemeOptions, DevelopmentUserAuthenticationHandler>(DevelopmentUserAuthenticationHandler.SchemeName, _ => { });
+        if (standalone) authentication.AddScheme<AuthenticationSchemeOptions, StandaloneToolAuthenticationHandler>(StandaloneToolAuthenticationHandler.SchemeName, _ => { });
         authentication.AddCookie(SharedCookieContract.Scheme, options =>
         {
             options.Cookie.Name = SharedCookieContract.CookieName;
@@ -132,6 +131,14 @@ public static class CommonServiceExtensions
             options.SlidingExpiration = true;
             options.EventsType = typeof(SharedCookieEvents);
         });
+        // 単独開発（共通設定ファイルなし）はPortalと鍵を共有しないため、ASP.NET Core標準の保存先の鍵でCSRFトークン等を保護します。
+        if (common is null)
+        {
+            services.AddDataProtection();
+            return services;
+        }
+        // 設定内のフォルダーは共通設定ファイルからの相対パスで指定するため、起動時に絶対パスへ解決します。
+        var keyDirectory = common.ResolvePath(configuration["SalesSupport:DataProtection:KeyDirectory"], "SalesSupport:DataProtection:KeyDirectory");
         if (string.IsNullOrWhiteSpace(keyDirectory) || !Directory.Exists(keyDirectory))
             throw new ConfigurationException("SalesSupport:DataProtection:KeyDirectory");
         var protection = services.AddDataProtection().SetApplicationName("SalesSupport").PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
@@ -140,9 +147,14 @@ public static class CommonServiceExtensions
         return services;
     }
 
-    /// <summary>設定された保存領域だけを検証します。起動処理でフォルダーを作成しません。</summary>
-    private static void AddStorage(IServiceCollection services, CommonConfiguration common)
+    /// <summary>設定された保存領域だけを検証します。起動処理でフォルダーを作成しません。単独開発（共通設定ファイルなし）では保存領域を提供しません。</summary>
+    private static void AddStorage(IServiceCollection services, CommonConfiguration? common)
     {
+        if (common is null)
+        {
+            services.AddOptions<StorageOptions>();
+            return;
+        }
         services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<StorageOptions>, StoragePathValidation>();
         services.AddOptions<StorageOptions>().Bind(common.Values.GetSection("SalesSupport:Storage"))
             // 保存領域も共通設定ファイルからの相対パスで指定するため、検証より前に絶対パスへ解決します。

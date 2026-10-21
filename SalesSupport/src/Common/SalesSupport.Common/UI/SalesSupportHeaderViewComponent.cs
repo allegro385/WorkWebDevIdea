@@ -14,8 +14,9 @@ public sealed record HeaderLink(string Label, string Url);
 public sealed record HeaderMenu(string Label, IReadOnlyList<HeaderLink> Links);
 
 /// <summary>共通ヘッダーの表示内容です。権限は検証済み情報だけから決定します。</summary>
-public sealed record SalesSupportHeaderModel(string? DisplayName, bool IsAdmin, bool IsDevelopment, string PortalTopUrl,
-    IReadOnlyList<HeaderMenu> Menus, IReadOnlyList<HeaderLink> AccountLinks, string LogoutUrl);
+/// <remarks>単独開発ではPortalへのリンクとログアウトを持たず、<see cref="PortalTopUrl"/>と<see cref="LogoutUrl"/>はNULLです。</remarks>
+public sealed record SalesSupportHeaderModel(string? DisplayName, bool IsAdmin, bool IsDevelopment, string? PortalTopUrl,
+    IReadOnlyList<HeaderMenu> Menus, IReadOnlyList<HeaderLink> AccountLinks, string? LogoutUrl, bool IsStandalone = false);
 
 /// <summary>検証済みユーザー、環境帯、Portalの固定リンクを描画します。</summary>
 public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current, IOptions<CommonOptions> options, ISalesSupportLinks links, CommonDbContext db) : ViewComponent
@@ -23,14 +24,14 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
     /// <summary>管理メニューの表示可否は表示上の制御であり、認可の代替にはしません。</summary>
     public async Task<IViewComponentResult> InvokeAsync()
     {
+        // 単独開発にはPortal・ログイン利用者がないため、Portalへの導線を出さずにモードだけを示します。
+        if (options.Value.IsStandalone) return View(new SalesSupportHeaderModel(null, false, true, null, [], [], null, IsStandalone: true));
         var user = current.User;
         var isAdmin = user?.RoleCode == "ADMIN";
         // 未検証の利用者と、入場制限案内・認証画面には通常機能への導線を表示しません。
         if (user is null || !ViewData.GetPageShell().ShowCommonMenus)
             return View(new SalesSupportHeaderModel(null, false, options.Value.IsDevelopment, links.Portal(), [], [], links.Local("account/logout")));
-        // DBを使わないデバッグ実行では、ロールの通知フラグを読まずに個人設定を隠します。
-        var canNotify = options.Value.UsesDatabase
-            && await db.Roles.AsNoTracking().AnyAsync(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled, HttpContext.RequestAborted);
+        var canNotify = await db.Roles.AsNoTracking().AnyAsync(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled, HttpContext.RequestAborted);
         List<HeaderLink> support = [];
         if (canNotify) support.Add(new("個人設定", links.Portal("preferences")));
         support.Add(new("利用マニュアル・FAQ", links.Portal("help")));

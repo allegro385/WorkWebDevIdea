@@ -5,7 +5,16 @@
 *@
 <header class="ss-header @(Model.IsDevelopment ? "ss-header-development" : "")">
     <div class="ss-container ss-header-inner">
-        <a class="ss-brand" href="@Model.PortalTopUrl">営業支援ポータルサイト</a>
+        @if (Model.IsStandalone)
+        {
+            @* 単独開発はPortalを起動しないため、Portalへのリンクの代わりにモードを表示します。 *@
+            <span class="ss-brand">営業支援ポータルサイト</span>
+            <span class="ss-standalone-label">単独開発</span>
+        }
+        else
+        {
+            <a class="ss-brand" href="@Model.PortalTopUrl">営業支援ポータルサイト</a>
+        }
         <nav class="ss-nav" aria-label="共通メニュー">
             @foreach (var menu in Model.Menus)
             {

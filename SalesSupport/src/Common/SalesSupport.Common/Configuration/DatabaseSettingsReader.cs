@@ -32,10 +32,10 @@ public sealed class DatabaseSettingsReader(IDbContextFactory<CommonDbContext> fa
     /// <summary>案内未設定時は安全な既定文を返します。</summary>
     public async Task<string> GetPrivateMessageAsync(CancellationToken ct = default) => await ReadAsync("SITE", "PRIVATE_MESSAGE", ct) ?? "メンテナンス中です。";
 
-    /// <summary>本番とDBを使わないデバッグ実行ではDBを読まず、その他の開発時だけ日付形式を完全一致で検証します。</summary>
+    /// <summary>本番と単独開発ではDBを読まず、その他の開発時だけ日付形式を完全一致で検証します。</summary>
     public async Task<DateOnly?> GetBusinessDateAsync(CancellationToken ct = default)
     {
-        if (options.Value.EnvironmentCode == "PRODUCTION" || !options.Value.UsesDatabase) return null;
+        if (options.Value.EnvironmentCode == "PRODUCTION" || options.Value.IsStandalone) return null;
         var value = await ReadAsync("TEST", "BUSINESS_DATE", ct);
         if (value is null) return null;
         return DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)

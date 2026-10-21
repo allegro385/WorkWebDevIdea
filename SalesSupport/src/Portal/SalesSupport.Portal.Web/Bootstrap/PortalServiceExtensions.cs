@@ -19,9 +19,12 @@ namespace SalesSupport.Portal.Web.Bootstrap;
 public static class PortalServiceExtensions
 {
     /// <summary>Commonの契約を利用してPortalの要求処理に必要なサービスを登録します。</summary>
-    public static IServiceCollection AddSalesSupportPortal(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="services">ホストのサービスコレクションです。</param>
+    /// <param name="environment">共通設定ファイルの基準になるコンテンツルートを持つ実行環境です。</param>
+    /// <param name="configuration">共通設定ファイルの場所とPortal固有の設定を読むホスト設定です。</param>
+    public static IServiceCollection AddSalesSupportPortal(this IServiceCollection services, IHostEnvironment environment, IConfiguration configuration)
     {
-        services.AddSalesSupportCommon(ApplicationKind.Portal);
+        services.AddSalesSupportCommon(ApplicationKind.Portal, environment, configuration);
         // 接続文字列はCommonが共通設定ファイルから取得した値を使用し、Portalの設定ファイルからは読み取りません。
         services.AddDbContext<PortalDbContext>((provider, options) => options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
         AddIdentity(services);
