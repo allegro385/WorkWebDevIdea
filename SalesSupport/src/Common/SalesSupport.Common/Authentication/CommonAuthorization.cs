@@ -23,7 +23,10 @@ public sealed class CommonAuthorizationHandler(IAccessEvaluator evaluator, ICurr
         try
         {
             var request = requirement.Tool ? new AccessRequest(AccessPurpose.ToolUse, options.Value.ToolId) : new AccessRequest(AccessPurpose.Site);
-            decision = await evaluator.EvaluateAsync(request, http.HttpContext?.RequestAborted ?? default);
+            // 単独開発は認証なしで利用させるため、自端末以外からの要求はツールが存在しない扱いで拒否します。
+            decision = options.Value.IsStandalone && !IsLoopback(http.HttpContext)
+                ? new(false, 404, "TOOL_UNAVAILABLE")
+                : await evaluator.EvaluateAsync(request, http.HttpContext?.RequestAborted ?? default);
             if (decision.Allowed && requirement.Admin && current.User?.RoleCode != "ADMIN") decision = new(false, 403, "ROLE_DENIED");
         }
         catch (OperationCanceledException) when (http.HttpContext?.RequestAborted.IsCancellationRequested == true) { throw; }
@@ -35,6 +38,11 @@ public sealed class CommonAuthorizationHandler(IAccessEvaluator evaluator, ICurr
             context.Fail();
         }
     }
+
+    /// <summary>接続元が自端末かを判定します。接続元が不明な要求は自端末として扱いません。</summary>
+    /// <param name="context">判定する要求です。</param>
+    /// <returns>ループバックアドレスからの要求ならtrueです。</returns>
+    private static bool IsLoopback(HttpContext? context) => context?.Connection.RemoteIpAddress is { } address && System.Net.IPAddress.IsLoopback(address);
 }
 
 /// <summary>認可結果のAPI応答と非公開案内を分離し、拒否を操作ログへ残します。</summary>

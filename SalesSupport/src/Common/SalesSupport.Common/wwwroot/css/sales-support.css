@@ -50,6 +50,16 @@
     white-space: nowrap;
 }
 
+/* 単独開発のモード表示。環境帯の色の上で読めるよう、枠線と同じ文字色を使います。 */
+.ss-standalone-label {
+    border: 1px solid var(--ss-band-ink);
+    border-radius: 0.25rem;
+    color: var(--ss-band-ink);
+    font-weight: 700;
+    padding: 0.1rem 0.5rem;
+    white-space: nowrap;
+}
+
 .ss-nav {
     display: flex;
     align-self: stretch;

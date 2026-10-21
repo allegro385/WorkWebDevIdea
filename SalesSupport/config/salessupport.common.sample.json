@@ -6,10 +6,6 @@
     "EnvironmentCode": "PRODUCTION"
   },
   "SalesSupport": {
-    "Tool": {
-      "RequireAuthentication": true,
-      "UseToolMaster": true
-    },
     "Application": {
       "Name": "営業支援ポータル"
     },

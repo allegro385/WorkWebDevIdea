@@ -68,7 +68,7 @@
                             <label class="form-check-label" for="output-download">TSVファイルをダウンロードする</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@CommonSettings.Value.IsAuthenticationBypassed" />
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@CommonSettings.Value.IsStandalone" />
                             <label class="form-check-label" for="output-save">要約を案件として保存する</label>
                         </div>
                     </div>
@@ -88,7 +88,7 @@
             </div>
         </section>
     </form>
-    @if (!CommonSettings.Value.IsAuthenticationBypassed)
+    @if (!CommonSettings.Value.IsStandalone)
     {
         <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">保存した案件の一覧・集計</a>
     }

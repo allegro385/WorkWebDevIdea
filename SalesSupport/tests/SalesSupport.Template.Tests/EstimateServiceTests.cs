@@ -181,11 +181,11 @@ public sealed class EstimateServiceTests : IDisposable
         Output = EstimateOutput.Screen
     };
 
-    /// <summary>ツールマスタを参照しない設定と同じく、ツール単位のアップロードを項目エラーで拒否します。</summary>
+    /// <summary>単独開発と同じく、ツール単位のアップロードを項目エラーで拒否します。</summary>
     private sealed class RejectingPolicyProvider : IUploadPolicyProvider
     {
         /// <summary>Commonが返す案内と同じ形式の文言です。</summary>
-        public const string Message = "ツールマスタを参照しない設定ではファイルを使用できません。";
+        public const string Message = "単独開発ではファイルを使用できません。portal起動プロファイルで確認してください。";
 
         /// <summary>常にアップロードを拒否します。</summary>
         public Task<UploadPolicySnapshot> GetAsync(UploadPurpose purpose, string? toolId = null, CancellationToken ct = default) =>

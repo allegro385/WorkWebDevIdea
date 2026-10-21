@@ -5,6 +5,9 @@
 **/archive/
 **/appsettings.Development.json
 **/salessupport.common*.json
+# 既定配置で共通設定ファイルから参照するローカルの鍵・保存領域
+SalesSupport/keys/
+SalesSupport/storage/
 !SalesSupport/config/salessupport.common.sample.json
 !SalesSupport/config/salessupport.common.Development.sample.json
 !SalesSupport/src/Portal/SalesSupport.Portal.Web/appsettings.Development.json

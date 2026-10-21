@@ -21,7 +21,7 @@ public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> fact
     private readonly Dictionary<(UploadPurpose, string?), UploadPolicySnapshot> cache = new();
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    /// <summary>欠落・重複・不正値を許可へ変換しません。ツールマスタを省略したデバッグ実行では、ツール単位の用途を項目エラーとして拒否します。</summary>
+    /// <summary>欠落・重複・不正値を許可へ変換しません。単独開発では、ツール単位の用途を項目エラーとして拒否します。</summary>
     public async Task<UploadPolicySnapshot> GetAsync(UploadPurpose purpose, string? toolId = null, CancellationToken ct = default)
     {
         var (scope, code) = purpose switch
@@ -33,8 +33,8 @@ public sealed class UploadPolicyProvider(IDbContextFactory<CommonDbContext> fact
             _ => throw new ArgumentException("アップロード用途が不正です。")
         };
         // ツール行と結び付くポリシーを確認できないため、固定値で代用せず利用者へ案内できる形で拒否します。
-        if (options.Value.IsToolMasterBypassed && toolId is not null)
-            throw new UploadRejectedException(new("File", "UPLOAD_UNAVAILABLE", "ツールマスタを参照しない設定ではファイルを使用できません。"));
+        if (options.Value.IsStandalone && toolId is not null)
+            throw new UploadRejectedException(new("File", "UPLOAD_UNAVAILABLE", "単独開発ではファイルを使用できません。portal起動プロファイルで確認してください。"));
         await gate.WaitAsync(ct);
         try
         {

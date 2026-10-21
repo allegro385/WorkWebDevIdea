@@ -18,16 +18,16 @@ ToolIdは`SAMPLE-ESTIMATE`、PortalからのURLは`/tools/SAMPLE-ESTIMATE/app`�
 
 ## 準備と検証
 
-デバッグ実行では、Common設定の`SalesSupport:Tool:RequireAuthentication`と`SalesSupport:Tool:UseToolMaster`を個別に`false`にできます。どちらもCommonの`DEVELOPMENT`とホストの`Development`の両方が必要です。認証を省略すると開発用の仮管理者で動作するため、案件の保存・一覧（本人の案件を扱う機能）は利用できません。ツールマスタを省略すると、公開状態欄に「ツールマスタ未参照」と表示し、DBログを保存せず、明細ファイルはCommonが拒否します。両方を省略すると接続文字列なしで入力画面・計算・TSV出力を試せ、JSTの現在日付を使います。[デバッグ実行の設定手順](../../../config/README.md#ツールをデバッグ実行する)を参照してください。
+起動プロファイルは`standalone`（既定、Visual StudioのF5）と`portal`の2つです。`standalone`はPortal・DB・SMTP・共通設定ファイルなしで入力画面・計算・TSV出力を試せ、業務日付はJSTの現在日付を使います。公開状態欄は「単独開発（DB確認なし）」と表示し、DBログは保存しません。明細ファイルはCommonが拒否し、案件の保存・一覧（本人の案件を扱う機能）は画面とサーバーの両方で利用できません。[単独開発の設定手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
 
-DB機能・共有Cookieの開発確認と本番では`true`（未設定時も`true`）へ戻します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`false`を指定すると起動を拒否します。
+DB機能・共有Cookieの開発確認には`portal`プロファイルを使い、Portalでログインした実ユーザーで確認します。開発用ユーザーはPortalの[開発限定コマンド](../../Portal/SalesSupport.Portal.Web/README.md#開発試験用のユーザーを追加する)で登録します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`Standalone`を指定すると起動を拒否します。
 
 共通設定と秘密値の置き方は[設定手順](../../../config/README.md)に従います。接続文字列はCommonの`IConnectionStringProvider`から取得します。ローカルのToolId・表示名は`Properties/launchSettings.json`に設定済みです。SQLは[サンプル専用手順](../../../sql/sample/README.md)に従い、開発専用DBへ手動適用してください。IISでは独立アプリケーション・プール、環境変数、同一サイト配下のURLを[導入・運用](../../../../設計書/05_導入・運用.md)に従って用意します。
 
 ```text
 dotnet build SalesSupport/SampleEstimate.slnx
 dotnet test SalesSupport/SampleEstimate.slnx
-dotnet run --project SalesSupport/src/SampleEstimate/SalesSupport.SampleEstimate.Web --launch-profile https
+dotnet run --project SalesSupport/src/SampleEstimate/SalesSupport.SampleEstimate.Web --launch-profile standalone
 ```
 
-単体テストはDB・SMTPへ接続しません。実DBのSQL制約、Portalとの共有Cookie往復、IIS配置、公開状態、アップロード条件のDB取得は別途結合検証してください。機能追加の手順は[機能追加ガイド](機能追加ガイド.md)を参照してください。
+単体テストはDB・SMTPへ接続しません。`portal`プロファイルを使い、実DBのSQL制約、Portalとの共有Cookie往復、IIS配置、公開状態、アップロード条件のDB取得は別途結合検証してください。機能追加の手順は[機能追加ガイド](機能追加ガイド.md)を参照してください。
