@@ -266,7 +266,7 @@ function Test-GeneratedJson {
         if (@($settings.profiles.PSObject.Properties.Name)[0] -cne 'standalone') {
             $findings += "$LaunchSettingsPath：先頭の起動プロファイルが standalone ではありません。"
         }
-        foreach ($expected in @(@{ Name = 'standalone'; Mode = 'Standalone' }, @{ Name = 'portal'; Mode = $null })) {
+        foreach ($expected in @(@{ Name = 'standalone'; Mode = 'Standalone' }, @{ Name = 'portal'; Mode = 'Portal' })) {
             # StrictModeでは存在しないプロパティの参照が例外になるため、PSObject経由で有無を確認します。
             $profileEntry = $settings.profiles.PSObject.Properties[$expected.Name]
             if ($null -eq $profileEntry) { $findings += "$LaunchSettingsPath：起動プロファイル $($expected.Name) がありません。"; continue }
@@ -373,7 +373,7 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 | --- | --- |
 | ``SalesSupport__Application__ToolId`` | ``$toolIdValue`` |
 | ``SalesSupport__Application__Name`` | 障害ログへ記録するアプリ名 |
-| ``SalesSupport__Tool__ExecutionMode`` | ``standalone``プロファイルだけ``Standalone``。配置環境では設定しません |
+| ``SalesSupport__Tool__ExecutionMode`` | ``standalone``は``Standalone``、``portal``は``Portal``を明示。配置環境では設定しません |
 | ``SalesSupport__CommonConfigPath`` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置では不要 |
 
 配置環境ではIISの``web.config``でToolIdとアプリ名を設定します。

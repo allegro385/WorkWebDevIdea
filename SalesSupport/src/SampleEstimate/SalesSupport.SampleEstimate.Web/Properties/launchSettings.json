@@ -21,6 +21,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "SalesSupport__CommonConfigPath": "../../../config/salessupport.common.Development.json",
+        "SalesSupport__Tool__ExecutionMode": "Portal",
         "SalesSupport__Application__ToolId": "SAMPLE-ESTIMATE",
         "SalesSupport__Application__Name": "見積試算・案件記録"
       }
