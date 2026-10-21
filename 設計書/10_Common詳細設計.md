@@ -27,7 +27,7 @@ SalesSupport.Common/
 ├─ UI/                画面モデル、TagHelper、ViewComponent
 ├─ Views/Shared/      レイアウト・部品・共通エラー
 ├─ wwwroot/           CSS・JavaScript・Bootstrap等
-└─ DependencyInjection/ 登録用拡張メソッド
+└─ DependencyInjection/ 登録用拡張メソッド、要求パイプラインの組込み
 ```
 
 - csprojは `Microsoft.NET.Sdk.Razor`、`AddRazorSupportForMvc=true`、`Microsoft.AspNetCore.App`のFrameworkReferenceを使用する。C#処理も同じDLLへ含める。
@@ -106,6 +106,8 @@ services.AddSalesSupportCommon(ApplicationKind.Portal, builder.Environment, buil
 services.AddDbContext<PortalDbContext>((provider, options) =>
     options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
 ```
+
+`AddSalesSupportCommon`はMVC（`AddControllersWithViews`）を登録し、`AutoValidateAntiforgeryTokenAttribute`をグローバルフィルターとして追加する。Portalと各ツールはMVCとCSRFフィルターを重複して登録せず、個別のControllerで無効化しない。
 
 | 寿命 | 対象 |
 | --- | --- |
@@ -444,15 +446,44 @@ Common.ContractsにDTOだけ置き、Controllerと保存処理はPortalに置く
 
 ## 13. ホストへの組込み順序
 
-1. 設定読込み、AddSalesSupportCommon、ホストDbContext・Identity（Portalのみ）、MVC・認可を登録。
-2. 信頼済みプロキシ設定を適用し、CorrelationIdと共通例外処理を開始。
-3. HTTPS、公開静的資産、ルーティングを適用。
-4. AuthenticationでCookieと現行ユーザーを検証。
-5. Authorizationでサイト・ツール・管理者ポリシーを適用。
-6. MVCのCSRF・入力検証を適用し、Controller→Serviceを実行。
-7. 必要な利用ログ・操作ログを1回記録。Streamと一時ファイルを清掃。
+要求パイプラインはCommonが所有する。ホストは`UseSalesSupportPortal`または`UseSalesSupportTool`の1回の呼出しで組み込み、個別のミドルウェア呼出しをProgram.csへ展開しない。順序の定義をCommonの1か所に保ち、ツールが増えても複製しない。
+
+```csharp
+var app = builder.Build();
+app.UseSalesSupportTool();   // Portalでは app.UseSalesSupportPortal();
+await app.RunAsync();
+```
+
+Commonが組み込む順序は次のとおり。
+
+1. 設定読込み、AddSalesSupportCommon（MVC・CSRFフィルター・認可を含む）、ホストDbContext・Identity（Portalのみ）を登録。
+2. 信頼済みプロキシ設定を適用。
+3. 応答へ共通のセキュリティヘッダーを付与。
+4. CorrelationIdと共通例外処理を開始。
+5. HSTS（開発環境以外）、HTTPS、公開静的資産、ルーティングを適用。
+6. AuthenticationでCookieと現行ユーザーを検証。
+7. Portalだけ接続元単位のレート制限を認証の後、認可の前に適用。
+8. Authorizationでサイト・ツール・管理者ポリシーを適用。
+9. 共通ログアウトと既定のコントローラールート（Portalは`Home`、ツールは`Tool`）を登録。
+10. MVCのCSRF・入力検証を適用し、Controller→Serviceを実行。
+11. 必要な利用ログ・操作ログを1回記録。Streamと一時ファイルを清掃。
 
 EndpointメタデータをCookie更新判定で参照できるよう、ルーティングを認証より前に配置する。Cookie標準イベントを置き換える際はIdentityの検証責務を落とさず、本書の要求ごとの照合へ明示的に統合する。
+
+### セキュリティヘッダー
+
+Commonが全応答へ次のヘッダーを付与する。共通例外処理が`Response.Clear()`で応答を作り直してもヘッダーが残るよう、応答の送信直前に付与する。
+
+| ヘッダー | 値 | 目的 |
+| --- | --- | --- |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` | 外部からの資産読込み、枠への埋込み、フォーム送信先の差替えを拒否する |
+| `X-Content-Type-Options` | `nosniff` | 応答の種類を推測で解釈させない |
+| `X-Frame-Options` | `DENY` | `frame-ancestors`を解釈しないブラウザーでも枠への埋込みを拒否する |
+| `Referrer-Policy` | `same-origin` | 外部サイトへ画面のURLを送らない |
+
+画面はRazorの静的フォームだけで構成し、インラインの`<script>`・イベント属性・`eval`相当の処理を置かないため`script-src`に`'unsafe-inline'`と`'unsafe-eval'`を含めない。`style-src`は一覧の状態色をCSSカスタムプロパティとして属性で渡す箇所があるため`'unsafe-inline'`を許可する。`img-src`の`data:`はBootstrapのCSSが内包するSVGアイコンに必要。Portalと各ツールは同一オリジンのため、`form-action 'self'`で共通ヘッダーのログアウトPOSTを満たす。外部ドメインの資産・フォント・CDNを追加する場合は、この値とあわせて見直す。
+
+ヘッダーはブラウザー側の防御であり、認証・認可・入力検証・出力エスケープの代替にしない。
 
 ## 14. 検証計画・残件
 

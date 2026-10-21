@@ -9,7 +9,7 @@
 | 区分 | 内容 |
 | --- | --- |
 | 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration)`による起動モードの確定、共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`）。起動プロファイルは`standalone`（既定）と`portal` |
-| パイプライン | 転送ヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウト（`Program.cs`） |
+| パイプライン | Commonの`UseSalesSupportTool()`が転送ヘッダー、セキュリティヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウトを組み込む（`Program.cs`） |
 | 利用制御 | 共通の既定認可方針による共有Cookieの現行ユーザー・サイト公開状態・ツール状態の確認。ツール側に独自の認証画面を持ちません |
 | 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/`） |
 | 入力例 | 文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択（`Models/EstimateModels.cs`） |

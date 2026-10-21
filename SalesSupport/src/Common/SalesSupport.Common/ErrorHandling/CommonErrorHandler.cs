@@ -60,7 +60,7 @@ public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factor
 public static class CommonErrorExtensions
 {
     /// <summary>共通処理の例外を秘密値を含まない応答へ変換します。</summary>
-    public static IApplicationBuilder UseSalesSupportErrors(this IApplicationBuilder app) => app.Use(async (context, next) =>
+    internal static IApplicationBuilder UseSalesSupportErrors(this IApplicationBuilder app) => app.Use(async (context, next) =>
     {
         _ = context.RequestServices.GetRequiredService<RequestCorrelation>();
         try { await next(context); }
