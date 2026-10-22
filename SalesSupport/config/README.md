@@ -84,9 +84,10 @@ Webツールの通常のデバッグ実行（Visual StudioのF5）は「単独�
 | 起動プロファイル | `SalesSupport:Tool:ExecutionMode` | 用途 |
 | --- | --- | --- |
 | `standalone`（既定） | `Standalone` | 画面・計算・出力の開発。共通設定ファイルを読まない |
-| `portal` | 未設定（`Portal`） | Portalでログインした実ユーザーでの結合試験。この共通設定ファイルと開発用DBが必要 |
+| `portal` | `Portal`（明示） | Portalでログインした実ユーザーでの結合試験。この共通設定ファイルと開発用DBが必要 |
 
 - モードはホスト設定（起動プロファイルの環境変数`SalesSupport__Tool__ExecutionMode`）で選びます。この共通設定ファイルには書きません。未設定は`Portal`です。
+- `portal`プロファイルは`Portal`を明示し、親プロセスの環境変数やアプリ設定に残った`Standalone`を上書きします。
 - `Standalone`はホストの`ASPNETCORE_ENVIRONMENT=Development`の場合だけ受け付けます。それ以外の環境とPortalでは起動を拒否します。連携モードで共通設定に不備があっても、単独開発へ自動的に切り替えません。
 - 単独開発では共有Cookie・ログイン・OTPを使わず、認証ユーザーや仮ユーザーを作りません。自端末（`localhost`）からの対象ツールの画面だけを利用でき、他の端末からの要求は拒否します。サイト・ツールの公開状態とロールは確認しません。
 - CSRF検証は有効です。暗号鍵はASP.NET Core標準の保存先（開発者のユーザープロファイル）を使います。
