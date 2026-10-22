@@ -131,13 +131,14 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | --- | --- | --- |
 | 0 | ホスト設定（起動プロファイル・環境変数・各アプリの`appsettings*.json`） | 共通設定ファイルを読む前に決める`SalesSupport:Tool:ExecutionMode`と`SalesSupport:CommonConfigPath` |
 | 1 | 共通設定ファイル（JSON、連携モードで必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
-| 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`Portal__EnvironmentCode`等 |
+| 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`SalesSupport__EnvironmentCode`等 |
 
 - 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定なら既定の`../../config/salessupport.common.json`とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（`<ルート>\apps\<アプリ名>\`と`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
 - 親フォルダーを順に探す処理は行わず、読込先を一意に決める。絶対パス、制御文字、不在、書式不正は起動時に構成エラーとし、エラーには解決後のファイルパスと理由を示す。設定値の内容は表示しない。
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
-- アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と障害ログに使う`Application:Name`は各アプリの環境変数で与える。
+- アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と、このアプリ自身の名前である`Application:Name`は各アプリの環境変数で与える。
+- サイト名`Site:Name`は全アプリで同じ値のため共通設定ファイルへ置く。`Application:Name`（アプリ自身の名前）と区別し、どちらか一方で両方を表さない。
 - ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は各アプリの設定から取得する。
 - 接続文字列の取得口はCommonの`IConnectionStringProvider.SalesSupportDatabase`だけとする。利用側は`IConfiguration`から接続文字列を読み取らない。
 
@@ -146,8 +147,9 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | キー | 必須範囲・初期値 | 検証 |
 | --- | --- | --- |
 | ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
-| Portal:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
-| SalesSupport:Application:Name | 全アプリ | 1～100文字、ログのApplicationName |
+| SalesSupport:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
+| SalesSupport:Site:Name | 全アプリ | 1～100文字。共通ヘッダー・フッターの表示名とメール文面の`{サイト名}` |
+| SalesSupport:Application:Name | 全アプリ・アプリ固有 | 1～100文字。このアプリ自身の名前。障害ログのApplicationNameとツール画面の対象ツール名に使う |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
 | SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
@@ -172,7 +174,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:Tool:ExecutionMode | `Portal` | `Portal`／`Standalone`のみ。`Standalone`はToolかつホスト`Development`だけ。詳細は5節 |
 | SalesSupport:CommonConfigPath | `../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
 
-- 共通設定ファイルの後に配置環境変数を適用し、環境変数を優先する。`Portal__EnvironmentCode`との既存契約を維持する。実行中の再読込みは行わず、共通設定ファイルの変更はポータルと全Webツールの再起動で反映する。
+- 共通設定ファイルの後に配置環境変数を適用し、環境変数を優先する。実行中の再読込みは行わず、共通設定ファイルの変更はポータルと全Webツールの再起動で反映する。
 - Cookie名は `.SalesSupport.Auth`、スキームは `Identity.Application`、Data ProtectionのApplicationNameは `SalesSupport` に統一する。いずれもCommonの定数。Cookie Path=/、Domain未指定。別環境は別ホスト・別キー領域で分離し、同一Cookieが混在する配置を行わない。
 - IOptions<T>＋ValidateOnStartを使用し、必要な機能の設定だけ検証する。設定の変更反映はアプリ再起動で行う。
 - DB設定は起動時に全件固定しない。公開状態・アップロード条件は対象要求ごとに取得する。
@@ -409,7 +411,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | 部品 | 入力・担当 |
 | --- | --- |
 | _SalesSupportLayout.cshtml | PageShellModel、RenderBody、画面固有Scripts |
-| SalesSupportHeader ViewComponent | 検証済みユーザー、環境帯、Portalの固定リンク |
+| SalesSupportHeader ViewComponent | 検証済みユーザー、環境帯、Portalの固定リンク、設定のサイト名 |
 | Breadcrumbs | ラベルと検証済みサイト内URLの配列 |
 | IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくずと対象ツール名をCommonが付与 |
 | CodeBadge TagHelper | codeType、codeValue。名称・色取得、HTMLエンコード |

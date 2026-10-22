@@ -195,7 +195,7 @@ public sealed class CommonFeatureTests : IDisposable
 
     /// <summary>アプリ名だけを設定したテンプレート整形処理を作成します。</summary>
     private static MailTemplateRenderer CreateRenderer() =>
-        new(Options.Create(new MailTemplateOptions()), Options.Create(new CommonOptions { ApplicationName = "営業支援ポータルサイト" }));
+        new(Options.Create(new MailTemplateOptions()), Options.Create(new CommonOptions { SiteName = "営業支援ポータルサイト" }));
 
     /// <summary>DBを参照せず固定のアップロード条件を返します。</summary>
     private sealed class StubPolicyProvider(long maxFileSizeBytes, string extension) : IUploadPolicyProvider

@@ -1,8 +1,8 @@
 # SalesSupport 共通設定ファイル
 
-Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなく配置環境ごとに1ファイルで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。本番向けは`salessupport.common.sample.json`、開発向けは`salessupport.common.Development.sample.json`です。いずれも実値は含みません。
+Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなく配置環境ごとに1ファイルで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。本番向けは`salessupport.common.example.json`、開発向けは`salessupport.common.Development.example.json`です。いずれも実値は含みません。
 
-開発用ユーザーのTSV雛形は[test-users.sample.tsv](test-users.sample.tsv)です。4列ヘッダーだけを含み、Commonの設定ファイルとしては使用しません。[開発限定の取込コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)の手順で利用してください。
+開発用ユーザーのTSV雛形は[test-users.example.tsv](test-users.example.tsv)です。4列ヘッダーだけを含み、Commonの設定ファイルとしては使用しません。[開発限定の取込コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)の手順で利用してください。
 
 ## 配置
 
@@ -64,8 +64,9 @@ D:\SalesSupport\
 | `SalesSupport:Mail:UserName` / `Password` | 空 | SMTP認証が必要な場合だけ一組で設定 |
 | `SalesSupport:Mail:DevelopmentRecipient` | 空 | `EnvironmentCode`が`DEVELOPMENT`のとき必須 |
 | `SalesSupport:Mail:Port` / `TlsMode` | `587` / `StartTls` | 一般的な送信用の組合せ。実SMTPに合わせて確認 |
-| `Portal:EnvironmentCode` | `PRODUCTION` | 開発環境では`DEVELOPMENT`へ変更 |
-| `SalesSupport:Application:Name` | `営業支援ポータル` | 画面・メールの表示名 |
+| `SalesSupport:EnvironmentCode` | `PRODUCTION` | 開発環境では`DEVELOPMENT`へ変更 |
+| `SalesSupport:Site:Name` | `営業支援ポータルサイト` | 共通ヘッダー・フッターの表示名とメール文面の`{サイト名}`。全アプリで同じ値 |
+| `SalesSupport:Application:Name` | `営業支援ポータル` | このアプリ自身の名前。障害ログの`ApplicationName`とツール画面の対象ツール名 |
 | `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更 |
 | `SalesSupport:DataProtection:KeyDirectory` | `../keys` | 配置に合わせて変更 |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | `../storage/temp` / `../storage/files` | 配置に合わせて変更。空にするとその保存領域を提供しません |
@@ -96,7 +97,7 @@ Webツールの通常のデバッグ実行（Visual StudioのF5）は「単独�
 
 連携試験に使う開発用ユーザーは、Portalの[開発限定コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#開発試験用のユーザーを追加する)で登録します。
 
-`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`がPortal名になります。
+`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`と画面の対象ツール名がPortal名になります。サイト名`Site:Name`は全アプリで同じ値のため上書きしません。
 
 共通設定ファイルをWeb公開領域・アプリ配置フォルダーの外へ置くこととアクセス権は、導入時に運用手順で確認します。Commonはファイルの存在と相対パスを検証しますが、配置フォルダーとの包含関係は起動時に検査しません。
 

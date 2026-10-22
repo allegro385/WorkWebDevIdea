@@ -15,7 +15,7 @@ public sealed record HeaderMenu(string Label, IReadOnlyList<HeaderLink> Links);
 
 /// <summary>共通ヘッダーの表示内容です。権限は検証済み情報だけから決定します。</summary>
 /// <remarks>単独開発ではPortalへのリンクとログアウトを持たず、<see cref="PortalTopUrl"/>と<see cref="LogoutUrl"/>はNULLです。</remarks>
-public sealed record SalesSupportHeaderModel(string? DisplayName, bool IsAdmin, bool IsDevelopment, string? PortalTopUrl,
+public sealed record SalesSupportHeaderModel(string SiteName, string? DisplayName, bool IsAdmin, bool IsDevelopment, string? PortalTopUrl,
     IReadOnlyList<HeaderMenu> Menus, IReadOnlyList<HeaderLink> AccountLinks, string? LogoutUrl, bool IsStandalone = false);
 
 /// <summary>検証済みユーザー、環境帯、Portalの固定リンクを描画します。</summary>
@@ -25,12 +25,12 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
     public async Task<IViewComponentResult> InvokeAsync()
     {
         // 単独開発にはPortal・ログイン利用者がないため、Portalへの導線を出さずにモードだけを示します。
-        if (options.Value.IsStandalone) return View(new SalesSupportHeaderModel(null, false, true, null, [], [], null, IsStandalone: true));
+        if (options.Value.IsStandalone) return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, true, null, [], [], null, IsStandalone: true));
         var user = current.User;
         var isAdmin = user?.RoleCode == "ADMIN";
         // 未検証の利用者と、入場制限案内・認証画面には通常機能への導線を表示しません。
         if (user is null || !ViewData.GetPageShell().ShowCommonMenus)
-            return View(new SalesSupportHeaderModel(null, false, options.Value.IsDevelopment, links.Portal(), [], [], links.Local("account/logout")));
+            return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, options.Value.IsDevelopment, links.Portal(), [], [], links.Local("account/logout")));
         var canNotify = await db.Roles.AsNoTracking().AnyAsync(role => role.RoleCode == user.RoleCode && role.NoticeMailEnabled, HttpContext.RequestAborted);
         List<HeaderLink> support = [];
         if (canNotify) support.Add(new("個人設定", links.Portal("preferences")));
@@ -48,7 +48,7 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
                 new("ツール管理", links.Portal("admin/tools")), new("サイト管理", links.Portal("admin/notices"))
             ]));
         List<HeaderLink> accountLinks = [];
-        return View(new SalesSupportHeaderModel(user?.DisplayName, isAdmin, options.Value.IsDevelopment,
+        return View(new SalesSupportHeaderModel(options.Value.SiteName, user?.DisplayName, isAdmin, options.Value.IsDevelopment,
             links.Portal(), menus, accountLinks, links.Local("account/logout")));
     }
 }

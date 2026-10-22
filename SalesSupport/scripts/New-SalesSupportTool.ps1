@@ -5,7 +5,8 @@
 .DESCRIPTION
     テンプレートツールを複製し、命名規則で導出した名称へ置き換えます。テンプレート自身は変更しません。
     生成後はプレースホルダーと旧テンプレート名の残存、ソリューションとProjectReferenceの参照先を検査し、
-    restore・build・testで確かめます。DB、IIS、証明書、環境変数、本番配置先は変更しません。
+    restore・buildで確かめます。テストプロジェクトは生成しません（テストはテンプレートとサンプルの
+    ソリューションで保持します）。DB、IIS、証明書、環境変数、本番配置先は変更しません。
 
 .PARAMETER ToolId
     Portalのツールマスタへ登録するツールIDです。英数字・下線・ハイフンの1～20文字です。
@@ -23,7 +24,7 @@
     生成するツールのローカルHTTPポートです。省略するとテンプレートと同じ5275のままです。
 
 .PARAMETER SkipBuild
-    生成後のrestore・build・testを実行しません。検査だけを行います。
+    生成後のrestore・buildを実行しません。検査だけを行います。
 
 .EXAMPLE
     .\New-SalesSupportTool.ps1 -ToolId T001 -ToolName "見積計算ツール" -HttpsPort 7101 -HttpPort 5101

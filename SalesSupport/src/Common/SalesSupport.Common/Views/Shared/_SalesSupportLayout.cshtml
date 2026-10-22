@@ -1,3 +1,4 @@
+@inject Microsoft.Extensions.Options.IOptions<SalesSupport.Common.Configuration.CommonOptions> CommonSettings
 @{
     // 画面モデルの型に依存しないよう、表示情報はViewDataのPageShellModelから取得します。
     var shell = ViewData.GetPageShell();
@@ -30,7 +31,7 @@
         </div>
     </main>
     <footer class="ss-footer">
-        <div class="ss-container">営業支援ポータルサイト</div>
+        <div class="ss-container">@CommonSettings.Value.SiteName</div>
     </footer>
     <script src="~/_content/SalesSupport.Common/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/_content/SalesSupport.Common/js/sales-support.js"></script>

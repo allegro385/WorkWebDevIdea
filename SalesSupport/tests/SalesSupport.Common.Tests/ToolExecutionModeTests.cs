@@ -254,9 +254,10 @@ public sealed class ToolExecutionModeTests : IDisposable
         var settings = new
         {
             ConnectionStrings = new { SalesSupport = "Data Source=verify;" },
-            Portal = new { EnvironmentCode = "DEVELOPMENT" },
             SalesSupport = new
             {
+                EnvironmentCode = "DEVELOPMENT",
+                Site = new { Name = "検証サイト" },
                 Application = new { Name = "検証", ToolId = "T001" },
                 Portal = new { BaseUrl = "https://example.invalid/" },
                 DataProtection = new { KeyDirectory = "../keys" }
@@ -279,7 +280,8 @@ public sealed class ToolExecutionModeTests : IDisposable
     {
         [ToolExecutionModeSettings.Key] = "Standalone",
         ["SalesSupport:Application:ToolId"] = "T001",
-        ["SalesSupport:Application:Name"] = "検証ツール"
+        ["SalesSupport:Application:Name"] = "検証ツール",
+        ["SalesSupport:Site:Name"] = "検証サイト"
     });
 
     /// <summary>検証用のコンテンツルートとホスト設定でツールのCommonを登録します。</summary>

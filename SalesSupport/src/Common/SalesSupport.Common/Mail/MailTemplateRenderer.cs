@@ -23,8 +23,8 @@ public sealed class MailTemplateOptions
     public Dictionary<string, MailTemplateDefinition> Templates { get; } = new(StringComparer.Ordinal)
     {
         [MailTemplateKeys.InquiryReceipt] = new(
-            "{システム名}問い合わせ【{カテゴリ}】【No.{問い合わせID}】",
-            "{システム名}へのお問い合わせを受け付けました。\r\n\r\n問い合わせID：{問い合わせID}\r\nカテゴリ：{カテゴリ}\r\n対象：{対象}\r\n\r\n内容：\r\n{内容}\r\n",
+            "{サイト名}問い合わせ【{カテゴリ}】【No.{問い合わせID}】",
+            "{サイト名}へのお問い合わせを受け付けました。\r\n\r\n問い合わせID：{問い合わせID}\r\nカテゴリ：{カテゴリ}\r\n対象：{対象}\r\n\r\n内容：\r\n{内容}\r\n",
             ["問い合わせID", "カテゴリ", "対象", "内容"])
     };
 }
@@ -44,7 +44,7 @@ public sealed class MailTemplateRenderer(IOptions<MailTemplateOptions> templates
     {
         if (!templates.Value.Templates.TryGetValue(templateKey, out var template)) throw new ConfigurationException("Mail:Templates/" + templateKey);
         if (template.RequiredFields.Any(field => !model.ContainsKey(field))) throw new ArgumentException("差込み項目が不足しています。", nameof(model));
-        var values = new Dictionary<string, string>(StringComparer.Ordinal) { ["システム名"] = common.Value.ApplicationName };
+        var values = new Dictionary<string, string>(StringComparer.Ordinal) { ["サイト名"] = common.Value.SiteName };
         foreach (var (key, value) in model) values[key] = value ?? "";
         return new(Apply(template.SubjectFormat, values, multiline: false), Apply(template.BodyFormat, values, multiline: true));
     }

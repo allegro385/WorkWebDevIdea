@@ -83,9 +83,10 @@ public sealed class ToolPipelineTests : IDisposable
         {
             // 接続しないダミーです。未認証の要求はDBを参照する前にログインへ誘導されます。
             ConnectionStrings = new { SalesSupport = "Data Source=tool-pipeline-test;" },
-            Portal = new { EnvironmentCode = "DEVELOPMENT" },
             SalesSupport = new
             {
+                EnvironmentCode = "DEVELOPMENT",
+                Site = new { Name = "結合テストサイト" },
                 // ToolIdとアプリ名は本来アプリごとの環境変数で与えます。テストではプロセス全体の環境変数を変えないよう共通設定ファイルへ書きます。
                 Application = new { Name = "結合テスト", ToolId = "T001" },
                 Portal = new { BaseUrl = PortalBaseUrl },
@@ -113,6 +114,7 @@ public sealed class ToolPipelineTests : IDisposable
         builder.UseSetting("SalesSupport:Tool:ExecutionMode", "Standalone");
         builder.UseSetting("SalesSupport:Application:ToolId", "T001");
         builder.UseSetting("SalesSupport:Application:Name", "結合テスト");
+        builder.UseSetting("SalesSupport:Site:Name", "結合テストサイト");
         builder.ConfigureTestServices(services =>
         {
             // テストサーバーは接続元を設定しないため、ブラウザーで開く場合と同じ自端末からの要求として扱います。
