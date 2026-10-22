@@ -395,7 +395,7 @@ dotnet test SalesSupport/$solutionName
 dotnet run --project SalesSupport/src/$identifier/$projectName --launch-profile standalone
 ``````
 
-単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
+テストはDB・SMTP・Portalへ接続しません。``ToolPipelineTests``は実際の``Program.cs``をテストサーバーで起動し、連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になることを確認します。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
 "@
 [System.IO.File]::WriteAllText((Join-Path $destinationProjectPath 'README.md'), $readme, (New-Object System.Text.UTF8Encoding($false)))
 

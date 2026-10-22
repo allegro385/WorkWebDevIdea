@@ -280,7 +280,7 @@ PortalはログインとUserManagerによるロール・有効状態・ロック
 UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが補う。未知ユーザーの認証失敗はUserId=nullとし、入力メールを保存しない。UsageEventには検証済みユーザーが必須。ツールのToolIdはConfig、Portalのダウンロード対象はDBから解決する。
 
 - CorrelationIdは要求開始時にGUID生成し、同じ要求内で共有する。外部から任意文字列を採用しない。アプリ間HTTP連携が必要な場合だけ信頼済み内部要求として引継ぎを設計する。
-- WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。各ツールの入口にTypeFilterでWebOpenLoggingFilterを適用し、結果フィルターからCommonのIUsageLoggerへ記録する。失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
+- WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。結果フィルターはCommonの`WebOpenLoggingFilter`（`SalesSupport.Common.Logging`）が提供し、各ツールは入口アクションへ`TypeFilter`で適用するだけとする。ツール側へフィルターを複製しない。描画の完了後に応答が2xxの場合だけIUsageLoggerへ記録し、失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
 - WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。
 - DESKTOP_DOWNLOADは認可後の取得要求を1件記録し、取得準備の結果をSUCCESS／FAILUREとする。端末での受信完了を保証しない。
 - LogDbContextを都度作成し、業務の変更追跡やトランザクションを共有しない。3秒の独立上限でawaitし、fire-and-forgetや永続キューは作らない。
@@ -494,6 +494,7 @@ Commonが全応答へ次のヘッダーを付与する。共通例外処理が`R
 | 認証 | Portal→Tool001→Tool002の往復、期限更新、最大8時間、Stamp変更・無効化、DB障害時の拒否 |
 | 認可 | USER／ADMIN×サイト2状態×ツール3状態、直接URL、API、ファイル、管理機能の例外 |
 | Cookie更新 | NoSlidingRenewal、自動ポーリング、静的資産で延長しない。戻り先の外部URL拒否 |
+| 要求パイプライン | 各ツールのテストで実際のProgram.csを起動し、未認証の画面要求がPortalのログインへ誘導されること、CSRFトークンのない更新要求が400になることをDB・Portalなしで確認。ヘッダー値などCommonの値はCommonのテストで確認する |
 | Entity・更新 | 既存DDLとの列対応、DB生成GUID、監査値再取得、同時更新拒否、Identityと設定の原子的保存 |
 | ログ | 書込み失敗で業務成功を維持、二重記録なし、機密値除去、起動と計算の記録単位 |
 | ファイル | 上限境界・非seek Stream・途中切断・領域外パス・再解析ポイント・DB失敗・清掃失敗 |
