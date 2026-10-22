@@ -9,7 +9,7 @@
         <div class="alert alert-info" role="status">@Model.Message</div>
     }
     <form method="post" asp-controller="Account" asp-action="Otp" data-ss-once>
-        <div class="pt-field">
+        <div class="ss-field">
             <label class="form-label" asp-for="Input.Code">確認コード</label>
             <input class="form-control" asp-for="Input.Code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus />
         </div>

@@ -11,39 +11,6 @@
     margin-bottom: 1.25rem;
 }
 
-/* PC幅ではラベル列を十分に確保し、ラベルと必須バッジを同じ行に収めます。 */
-.pt-field {
-    display: grid;
-    grid-template-columns: 16rem 1fr;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    margin-bottom: 1rem;
-}
-
-.pt-field-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0;
-    white-space: nowrap;
-}
-
-.pt-required {
-    background-color: #b02a37;
-    color: #ffffff;
-}
-
-.pt-field-error {
-    grid-column: 2;
-    color: #b02a37;
-}
-
-.pt-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-}
-
 .pt-links {
     margin-top: 1.25rem;
 }
@@ -58,24 +25,9 @@
     white-space: pre-wrap;
 }
 
-/* 狭い画面ではラベルの下へ入力欄を配置します。 */
-@media (max-width: 48rem) {
-    .pt-field {
-        grid-template-columns: 1fr;
-    }
-
-    .pt-field-error {
-        grid-column: 1;
-    }
-}
-
 /* ------------------------------------------------------------------
    画面共通の区画・一覧・入力です。色は共通テーマの変数を使用します。
    ------------------------------------------------------------------ */
-
-.pt-form {
-    width: 100%;
-}
 
 /* Portalの共通メニューはモックの大きさに合わせ、文字と帯の高さを確保します。 */
 .ss-header-inner {
@@ -95,10 +47,6 @@
 .ss-account {
     display: flex;
     align-items: center;
-}
-
-.pt-panel {
-    margin-bottom: 1.5rem;
 }
 
 .pt-panel-title {
@@ -406,10 +354,6 @@
     overflow-wrap: anywhere;
 }
 
-.pt-field-top {
-    align-items: start;
-}
-
 .pt-field-note {
     margin-block: 0.25rem 0;
 }
@@ -421,14 +365,6 @@
 .pt-check-note {
     margin-block: 0.25rem 0;
     padding-left: 1.5rem;
-}
-
-.pt-actions-center {
-    justify-content: center;
-}
-
-.pt-actions-end {
-    justify-content: flex-end;
 }
 
 .pt-filter {

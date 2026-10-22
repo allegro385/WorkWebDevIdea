@@ -8,7 +8,7 @@
     var saveAction = isTool ? "SaveToolNotice" : "Save";
     var confirmAction = isTool ? "ConfirmToolSend" : "ConfirmSend";
 }
-<section class="pt-panel" id="notices">
+<section class="ss-panel" id="notices">
     <h2 class="pt-panel-title">登録済みのお知らせ</h2>
     <partial name="_OperationMessage" model="Model.Message" />
     <form method="post" asp-area="Admin" asp-controller="Notices" asp-action="@confirmAction" asp-route-toolId="@Model.ToolId" data-ss-once>
@@ -58,7 +58,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="pt-actions pt-notice-actions">
+        <div class="ss-actions pt-notice-actions">
             <button type="submit" class="btn btn-primary">選択したお知らせを送信</button>
             @if (isTool)
             {
@@ -80,16 +80,16 @@
             <form method="post" asp-area="Admin" asp-controller="Notices" asp-action="@saveAction" asp-route-toolId="@Model.ToolId" data-ss-once>
                 <input type="hidden" name="NoticeId" value="@editor.NoticeId" />
                 <input type="hidden" name="UpdateCount" value="@editor.UpdateCount" />
-                <div class="pt-field">
-                    <label class="form-label pt-field-label" for="notice-title">タイトル<span class="badge pt-required">必須</span></label>
+                <div class="ss-field">
+                    <label class="form-label ss-field-label" for="notice-title">タイトル<span class="badge ss-required">必須</span></label>
                     <input class="form-control" id="notice-title" name="Title" value="@editor.Title" maxlength="200" />
                 </div>
-                <div class="pt-field pt-field-top">
-                    <label class="form-label pt-field-label" for="notice-content">内容<span class="badge pt-required">必須</span></label>
+                <div class="ss-field ss-field-top">
+                    <label class="form-label ss-field-label" for="notice-content">内容<span class="badge ss-required">必須</span></label>
                     <textarea class="form-control" id="notice-content" name="Content" rows="6" maxlength="10000">@editor.Content</textarea>
                 </div>
-                <div class="pt-field">
-                    <span class="form-label pt-field-label">公開状態</span>
+                <div class="ss-field">
+                    <span class="form-label ss-field-label">公開状態</span>
                     <div>
                         <div class="form-check form-check-inline">
                             <input class="form-check-input" type="radio" id="notice-published" name="IsPublished" value="true" checked="@editor.IsPublished" />
@@ -101,7 +101,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="pt-actions">
+                <div class="ss-actions">
                     <button type="submit" class="btn btn-primary">保存</button>
                     @if (isTool)
                     {

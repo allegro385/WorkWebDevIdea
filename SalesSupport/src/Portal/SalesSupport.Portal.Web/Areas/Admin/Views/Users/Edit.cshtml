@@ -6,7 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<div class="pt-form">
+<div class="ss-form">
     <partial name="_OperationMessage" model="Model.Message" />
     <partial name="_ValidationSummary" />
     <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Update" asp-route-userId="@Model.Input.UserId" data-ss-once>
@@ -17,15 +17,15 @@
             <dt>表示名</dt><dd>@Model.DisplayName</dd>
             <dt>メールアドレス</dt><dd>@Model.Email</dd>
         </dl>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="user-state">状態</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="user-state">状態</label>
             <select class="form-select" id="user-state" name="IsActive">
                 <option value="true" selected="@Model.Input.IsActive">有効</option>
                 <option value="false" selected="@(!Model.Input.IsActive)">無効</option>
             </select>
         </div>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="user-role">ロール</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="user-role">ロール</label>
             @if (Model.RoleCode == "ADMIN")
             {
                 <input type="hidden" name="RoleCode" value="ADMIN" />
@@ -41,13 +41,13 @@
                 </select>
             }
         </div>
-        <div class="pt-actions">
+        <div class="ss-actions">
             <button type="submit" class="btn btn-primary">保存</button>
             <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Users" asp-action="Index">一覧へ戻る</a>
         </div>
     </form>
 
-    <section class="pt-panel">
+    <section class="ss-panel">
         <h2 class="pt-panel-title">ログイン状態</h2>
         <dl class="pt-detail-list">
             <dt>ロック状態</dt>
@@ -61,7 +61,7 @@
             <dt>最終利用日時</dt>
             <dd>@(Model.LastAccessAt is { } lastAccessAt ? lastAccessAt.ToString("yyyy/MM/dd HH:mm") : "-----")</dd>
         </dl>
-        <div class="pt-actions">
+        <div class="ss-actions">
             @if (Model.IsLocked)
             {
                 <form method="post" asp-area="Admin" asp-controller="Users" asp-action="Unlock" asp-route-userId="@Model.Input.UserId" data-ss-once>

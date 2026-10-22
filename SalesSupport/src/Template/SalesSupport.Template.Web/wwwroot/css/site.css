@@ -1,13 +1,5 @@
 /* テンプレートツール固有のスタイルです。ヘッダー・レイアウト・配色はCommonの共通資産が提供します。 */
 
-.tt-form {
-    width: 100%;
-}
-
-.tt-panel {
-    margin-bottom: 1.5rem;
-}
-
 .tt-panel-title {
     margin-bottom: 0.75rem;
     font-size: 1.1rem;
@@ -20,49 +12,10 @@
     background-color: #ffffff;
 }
 
-.tt-field {
-    display: grid;
-    grid-template-columns: 16rem 1fr;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    margin-bottom: 1rem;
-}
-
-.tt-field-top {
-    align-items: start;
-}
-
-.tt-field-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0;
-}
-
-.tt-required {
-    background-color: #b02a37;
-    color: #ffffff;
-}
-
-.tt-field-error {
-    grid-column: 2;
-    color: #b02a37;
-}
-
 .tt-field-note {
     margin: 0.25rem 0 0;
     color: #495057;
     font-size: 0.875rem;
-}
-
-.tt-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-}
-
-.tt-actions-center {
-    justify-content: center;
 }
 
 .tt-result {
@@ -85,13 +38,8 @@
     color: #495057;
 }
 
-@media (max-width: 768px) {
-    .tt-field,
+@media (max-width: 48rem) {
     .tt-result {
         grid-template-columns: 1fr;
-    }
-
-    .tt-field-error {
-        grid-column: 1;
     }
 }

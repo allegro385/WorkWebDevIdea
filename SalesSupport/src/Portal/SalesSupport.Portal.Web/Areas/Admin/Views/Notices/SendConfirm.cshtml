@@ -6,7 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<div class="pt-form">
+<div class="ss-form">
     <p>選択したお知らせを送信します。宛先はBCCへ設定し、宛先ごとの個別送信は行いません。</p>
     <dl class="pt-detail-list">
         @if (Model.ToolName is not null)
@@ -22,7 +22,7 @@
     <form method="post" asp-area="Admin" asp-controller="Notices"
           asp-action="@(Model.NoticeType == "TOOL" ? "SendToolNotice" : "Send")" asp-route-toolId="@Model.ToolId" data-ss-once>
         <input type="hidden" name="confirmationId" value="@Model.ConfirmationId" />
-        <div class="pt-actions">
+        <div class="ss-actions">
             <button type="submit" class="btn btn-primary">送信する</button>
             @if (Model.ToolId is not null)
             {
