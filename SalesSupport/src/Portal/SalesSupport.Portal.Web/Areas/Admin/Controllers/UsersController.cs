@@ -66,7 +66,7 @@ public sealed class UsersController(IUserAdminService users, ICurrentUserAccesso
     {
         var result = await users.UnlockAsync(userId, concurrencyStamp, ct);
         PortalMessages.Set(TempData, result.Outcome == UserAdminOutcome.Saved ? OperationMessageKind.Success : OperationMessageKind.Conflict,
-            result.Outcome == UserAdminOutcome.Saved ? "ロックを解除しました。" : "他の操作で更新されています。再読み込みして最新の内容を確認してください。");
+            result.Outcome == UserAdminOutcome.Saved ? "ロックを解除しました。" : PortalMessages.ConflictText);
         return RedirectToAction(nameof(Edit), new { userId });
     }
 
@@ -83,7 +83,7 @@ public sealed class UsersController(IUserAdminService users, ICurrentUserAccesso
 
     /// <summary>保存できなかった場合の画面内メッセージを作成します。</summary>
     private static OperationMessage MessageFor(UserAdminOutcome outcome, string failureText) => outcome == UserAdminOutcome.Conflict
-        ? new(OperationMessageKind.Conflict, "他の操作で更新されています。再読み込みして最新の内容を確認してください。")
+        ? PortalMessages.Conflict
         : new(OperationMessageKind.Failure, failureText);
 
     /// <summary>管理画面の共通の表示情報を返します。</summary>

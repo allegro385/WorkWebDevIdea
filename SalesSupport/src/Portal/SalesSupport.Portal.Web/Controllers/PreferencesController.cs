@@ -47,8 +47,7 @@ public sealed class PreferencesController(IPreferenceService preferences, ICurre
             case PreferenceOutcome.Denied:
                 return Forbid();
             case PreferenceOutcome.Conflict:
-                return PreferenceView(input, new OperationMessage(OperationMessageKind.Conflict,
-                    "他の操作で更新されています。再読み込みして最新の内容を確認してください。"));
+                return PreferenceView(input, PortalMessages.Conflict);
             default:
                 return PreferenceView(input, new OperationMessage(OperationMessageKind.Failure,
                     "通知設定を保存できませんでした。管理者へお問い合わせください。"));

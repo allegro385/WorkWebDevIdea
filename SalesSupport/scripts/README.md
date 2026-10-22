@@ -47,7 +47,6 @@ ToolIdはハイフンと下線で区切り、各語の先頭だけを大文字�
 | ソリューション | `SalesSupport/<名称>.slnx` |
 | プロジェクト | `SalesSupport/src/<名称>/SalesSupport.<名称>.Web` |
 | ルート名前空間 | `SalesSupport.<名称>.Web` |
-| テストプロジェクト | `SalesSupport/tests/SalesSupport.<名称>.Tests` |
 | Portalからの起動URL例 | `/tools/<ToolId>/app` |
 
 ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル起動用環境変数と生成したREADMEにだけ記載します。
@@ -59,14 +58,13 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 | 置換対象 | 置換後 |
 | --- | --- |
 | `SalesSupport.Template.Web` | `SalesSupport.<名称>.Web` |
-| `SalesSupport.Template.Tests` | `SalesSupport.<名称>.Tests` |
 | `src/Template/` | `src/<名称>/` |
 | `template.slnx` | `<名称>.slnx` |
 | `__TOOL_ID__` | ToolId |
 | `__TOOL_NAME__` | `-ToolName`の値をJSON文字列としてエスケープしたもの |
 | `7075` / `5275` | `-HttpsPort` / `-HttpPort`の値（指定時のみ） |
 
-テンプレートの`README.md`は複製せず、生成したツール用のREADMEを新しく作成します。`bin`・`obj`・`.vs`は複製しません。
+テンプレートの`README.md`は複製せず、生成したツール用のREADMEを新しく作成します。テンプレートのテストプロジェクト（`SalesSupport.Template.Tests`）も複製しません。`bin`・`obj`・`.vs`は複製しません。
 
 ## 検査
 
@@ -83,7 +81,7 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 - プレースホルダーと旧テンプレート名が残っていないこと（ファイル名を含む）
 - ソリューションのプロジェクト参照と各プロジェクトの`ProjectReference`が実在すること
 - 生成したJSONが構文として有効で、ローカル起動設定のToolIdとアプリ名が入力値と一致すること（表示名に引用符やバックスラッシュがある場合も確認）
-- `dotnet restore`・`dotnet build`・`dotnet test`が成功すること（`-SkipBuild`指定時と.NET SDKがない場合は未実行として表示します）
+- `dotnet restore`・`dotnet build`が成功すること（`-SkipBuild`指定時と.NET SDKがない場合は未実行として表示します）。生成したツールはテストプロジェクトを持たないため`dotnet test`は実行しません
 
 ## スクリプトが行わないこと
 

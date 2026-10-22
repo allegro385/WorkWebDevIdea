@@ -108,7 +108,7 @@ public sealed class InquiriesController(IInquiryAdminService inquiries, ICodeMas
 
     /// <summary>保存できなかった場合の画面内メッセージを作成します。</summary>
     private static OperationMessage MessageFor(InquiryAdminOutcome outcome) => outcome == InquiryAdminOutcome.Conflict
-        ? new(OperationMessageKind.Conflict, "他の操作で更新されています。再読み込みして最新の内容を確認してください。")
+        ? PortalMessages.Conflict
         : new(OperationMessageKind.Failure, "入力内容を確認してください。変更は保存していません。");
 
     /// <summary>管理画面の共通の表示情報を返します。</summary>

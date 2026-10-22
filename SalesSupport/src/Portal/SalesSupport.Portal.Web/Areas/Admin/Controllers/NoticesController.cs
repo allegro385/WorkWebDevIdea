@@ -85,7 +85,7 @@ public sealed class NoticesController(INoticeService notices, ToolEditPageBuilde
                 return await RedisplayAsync(noticeType, toolId, input, null, ct);
             case NoticeSaveOutcome.Conflict:
                 return await RedisplayAsync(noticeType, toolId, input,
-                    new OperationMessage(OperationMessageKind.Conflict, "他の操作で更新されています。再読み込みして最新の内容を確認してください。"), ct);
+                    PortalMessages.Conflict, ct);
             default:
                 return await RedisplayAsync(noticeType, toolId, input,
                     new OperationMessage(OperationMessageKind.Failure, "お知らせを保存できませんでした。"), ct);

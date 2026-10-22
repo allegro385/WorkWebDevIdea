@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Contracts;
+using SalesSupport.Portal.Web.Models;
 using SalesSupport.Portal.Web.Services;
 
 namespace SalesSupport.Portal.Web.Controllers;
@@ -41,8 +42,7 @@ public sealed class UsersApiController(ICurrentUserAccessor current, IPreference
         if (result.Outcome == PreferenceOutcome.Succeeded && result.Preferences is { } saved) return saved;
         if (result.Outcome == PreferenceOutcome.Denied) return Forbid();
         if (result.Outcome == PreferenceOutcome.Conflict)
-            return Problem(statusCode: StatusCodes.Status409Conflict, title: "更新が競合しました。",
-                detail: "他の操作で更新されています。最新の内容を取得してからやり直してください。");
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: PortalMessages.ApiConflictTitle, detail: PortalMessages.ApiConflictDetail);
         return Unavailable();
     }
 
