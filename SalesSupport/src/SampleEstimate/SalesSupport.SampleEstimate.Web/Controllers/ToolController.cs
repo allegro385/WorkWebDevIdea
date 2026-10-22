@@ -13,8 +13,8 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 /// <remarks>利用可否の判定は共通の既定認可方針が行うため、この画面で独自の認証・権限確認は実装しません。</remarks>
 [Route("")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class ToolController(IEstimateService estimates, IEstimateRecordService records, IToolStatusService status, IUsageLogger usage, IBusinessDateProvider businessDate,
-    IOptions<CommonOptions> options) : Controller
+public sealed class ToolController(IEstimateService estimates, IEstimateRecordService records, IToolStatusService status, IToolUsageLogger usage, IBusinessDateProvider businessDate,
+    IToolPageShell shell, IOptions<CommonOptions> options) : Controller
 {
     /// <summary>入力不正のときに画面上部へ表示する案内です。</summary>
     private static readonly OperationMessage InvalidInputMessage =
@@ -77,14 +77,14 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
                     preparedResult = File(await estimates.WriteTsvAsync(result, ct), "text/tab-separated-values", estimates.BuildFileName(result));
                 else
                 {
-                    ViewData.SetPageShell(Shell("計算結果"));
+                    ViewData.SetPageShell(shell.Build("計算結果"));
                     preparedResult = View("Result", result);
                 }
             }
         }
         catch
         {
-            await usage.WriteAsync(new UsageEvent(ToolId, "WEB_EXECUTE", "FAILURE"), CancellationToken.None);
+            await usage.WriteExecuteAsync(succeeded: false, CancellationToken.None);
             throw;
         }
 
@@ -95,12 +95,9 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
             return await FailureViewAsync(input, ct);
         }
 
-        await usage.WriteAsync(new UsageEvent(ToolId, "WEB_EXECUTE", "SUCCESS"), ct);
+        await usage.WriteExecuteAsync(succeeded: true, ct);
         return preparedResult!;
     }
-
-    /// <summary>設定から取得した対象ツールのIDです。ログとアップロード条件の判定に使用します。</summary>
-    private string ToolId => options.Value.ToolId ?? "";
 
     /// <summary>入力不正を一度だけ記録し、入力内容を保持したまま入力画面へ戻します。</summary>
     /// <param name="input">再表示する入力です。</param>
@@ -108,7 +105,7 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     /// <returns>項目エラーを表示した入力画面です。</returns>
     private async Task<IActionResult> FailureViewAsync(EstimateInput input, CancellationToken ct)
     {
-        await usage.WriteAsync(new UsageEvent(ToolId, "WEB_EXECUTE", "FAILURE"), ct);
+        await usage.WriteExecuteAsync(succeeded: false, ct);
         return View("Index", await BuildViewAsync(input, InvalidInputMessage, ct));
     }
 
@@ -119,7 +116,8 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     /// <returns>入力画面の表示情報です。</returns>
     private async Task<EstimateViewModel> BuildViewAsync(EstimateInput input, OperationMessage? message, CancellationToken ct)
     {
-        ViewData.SetPageShell(Shell("入力"));
+        // パンくずの上位（Portalのトップ・ツール一覧）と対象ツール名はCommonが付けます。
+        ViewData.SetPageShell(shell.Build("入力"));
         return new EstimateViewModel
         {
             Input = input,
@@ -129,19 +127,4 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
             Message = message
         };
     }
-
-    /// <summary>共通レイアウトへ渡す表示情報を返します。パンくずの上位はPortalの画面です。</summary>
-    /// <param name="title">画面の見出しです。</param>
-    /// <returns>共通レイアウトの表示情報です。</returns>
-    private PageShellModel Shell(string title) => new()
-    {
-        PageTitle = title,
-        CurrentToolName = options.Value.ApplicationName,
-        Breadcrumbs =
-        [
-            new Breadcrumb("トップ", "", LinkTarget.Portal),
-            new Breadcrumb("ツール一覧", "tools", LinkTarget.Portal),
-            new Breadcrumb(title)
-        ]
-    };
 }

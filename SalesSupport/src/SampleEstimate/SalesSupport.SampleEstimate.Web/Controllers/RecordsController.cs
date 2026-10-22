@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
 using SalesSupport.SampleEstimate.Web.Models;
@@ -13,9 +11,12 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 [Route("records")]
 [Authorize(Policy = "SalesSupportTool")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IUsageLogger usage,
-    IOptions<CommonOptions> options) : Controller
+public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IToolUsageLogger usage,
+    IToolPageShell shell) : Controller
 {
+    /// <summary>ツール内の上位階層です。パンくずの上位（Portalのトップ・ツール一覧）はCommonが付けます。</summary>
+    private static readonly Breadcrumb ToolTop = new("見積試算", "", LinkTarget.Local);
+
     /// <summary>条件に一致する案件を一覧と合計で表示します。</summary>
     [HttpGet("")]
     [TypeFilter(typeof(WebOpenLoggingFilter))]
@@ -26,7 +27,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
         if (!string.IsNullOrWhiteSpace(categoryCode) && !categories.Any(x => x.Code == categoryCode))
             ModelState.AddModelError("CategoryCode", "区分を選択してください。");
         var result = ModelState.IsValid ? await records.ListAsync(from, to, categoryCode, ct) : new EstimateRecordList([], 0, 0);
-        ViewData.SetPageShell(Shell("案件一覧・集計"));
+        ViewData.SetPageShell(shell.Build("案件一覧・集計", ToolTop));
         return View(new RecordListViewModel { From = from, To = to, CategoryCode = categoryCode, Categories = categories, Result = result });
     }
 
@@ -36,7 +37,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
     {
         var record = await records.GetAsync(id, ct);
         if (record is null) return NotFound();
-        ViewData.SetPageShell(Shell("保存した案件"));
+        ViewData.SetPageShell(shell.Build("保存した案件", ToolTop));
         return View(record);
     }
 
@@ -46,7 +47,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
     {
         var record = await records.GetAsync(id, ct);
         if (record is null) return NotFound();
-        ViewData.SetPageShell(Shell("案件の編集"));
+        ViewData.SetPageShell(shell.Build("案件の編集", ToolTop));
         return View(RecordEditViewModel.FromRecord(record, estimates.GetCategories()));
     }
 
@@ -56,7 +57,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
     {
         if (id != model.RecordId)
         {
-            await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_EXECUTE", "FAILURE"), ct);
+            await usage.WriteExecuteAsync(succeeded: false, ct);
             return NotFound();
         }
         model.Categories = estimates.GetCategories();
@@ -71,12 +72,12 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
                     var update = await records.UpdateAsync(id, model.UpdateCount, model.Input, result, ct);
                     if (update == RecordUpdateResult.NotFound)
                     {
-                        await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_EXECUTE", "FAILURE"), ct);
+                        await usage.WriteExecuteAsync(succeeded: false, ct);
                         return NotFound();
                     }
                     if (update == RecordUpdateResult.Updated)
                     {
-                        await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_EXECUTE", "SUCCESS"), ct);
+                        await usage.WriteExecuteAsync(succeeded: true, ct);
                         return RedirectToAction(nameof(Details), new { id });
                     }
                     ModelState.AddModelError("", "ほかの更新が先に保存されました。案件を開き直してから編集してください。");
@@ -88,25 +89,11 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
         }
         catch
         {
-            await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_EXECUTE", "FAILURE"), CancellationToken.None);
+            await usage.WriteExecuteAsync(succeeded: false, CancellationToken.None);
             throw;
         }
-        await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_EXECUTE", "FAILURE"), ct);
-        ViewData.SetPageShell(Shell("案件の編集"));
+        await usage.WriteExecuteAsync(succeeded: false, ct);
+        ViewData.SetPageShell(shell.Build("案件の編集", ToolTop));
         return View(model);
     }
-
-    /// <summary>共通レイアウトのパンくずを組み立てます。</summary>
-    private PageShellModel Shell(string title) => new()
-    {
-        PageTitle = title,
-        CurrentToolName = options.Value.ApplicationName,
-        Breadcrumbs =
-        [
-            new Breadcrumb("トップ", "", LinkTarget.Portal),
-            new Breadcrumb("ツール一覧", "tools", LinkTarget.Portal),
-            new Breadcrumb("見積試算", "", LinkTarget.Local),
-            new Breadcrumb(title)
-        ]
-    };
 }

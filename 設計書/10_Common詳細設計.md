@@ -107,7 +107,7 @@ services.AddDbContext<PortalDbContext>((provider, options) =>
     options.UseSqlServer(provider.GetRequiredService<IConnectionStringProvider>().SalesSupportDatabase));
 ```
 
-`AddSalesSupportCommon`はMVC（`AddControllersWithViews`）を登録し、`AutoValidateAntiforgeryTokenAttribute`をグローバルフィルターとして追加する。Portalと各ツールはMVCとCSRFフィルターを重複して登録せず、個別のControllerで無効化しない。
+`AddSalesSupportCommon`はMVC（`AddControllersWithViews`）を登録し、`AutoValidateAntiforgeryTokenAttribute`をグローバルフィルターとして追加する。Portalと各ツールはMVCとCSRFフィルターを重複して登録せず、個別のControllerで無効化しない。一時保存領域を使うツールは`services.RequireTemporaryStorage()`を呼び、未設定を起動時の構成エラーとして検出する。単独開発は保存領域を持たないため対象外とし、この検証式を各ツールへ書き写さない。
 
 | 寿命 | 対象 |
 | --- | --- |
@@ -276,12 +276,13 @@ PortalはログインとUserManagerによるロール・有効状態・ロック
 | IUsageLogger.WriteAsync(UsageEvent) | ToolId、EventType、ResultCode | LogWriteResult |
 | IActivityLogger.WriteAsync(ActivityEvent) | EventType、ResultCode、FailureReason?、対象種別・ID?、許可済み変更コード? | LogWriteResult |
 | ISystemErrorLogger.WriteAsync(SystemErrorEvent) | ErrorId、ErrorCode?、表示用でない安全なログ本文、例外種別?、安全化済みスタック? | LogWriteResult |
+| IToolUsageLogger.WriteOpenAsync()／WriteExecuteAsync(succeeded) | Webツール用。設定のToolIdとWEB_OPEN／WEB_EXECUTEをCommonが補う | LogWriteResult |
 
 UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが補う。未知ユーザーの認証失敗はUserId=nullとし、入力メールを保存しない。UsageEventには検証済みユーザーが必須。ツールのToolIdはConfig、Portalのダウンロード対象はDBから解決する。
 
 - CorrelationIdは要求開始時にGUID生成し、同じ要求内で共有する。外部から任意文字列を採用しない。アプリ間HTTP連携が必要な場合だけ信頼済み内部要求として引継ぎを設計する。
 - WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。結果フィルターはCommonの`WebOpenLoggingFilter`（`SalesSupport.Common.Logging`）が提供し、各ツールは入口アクションへ`TypeFilter`で適用するだけとする。ツール側へフィルターを複製しない。描画の完了後に応答が2xxの場合だけIUsageLoggerへ記録し、失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
-- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。
+- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。記録はCommonの`IToolUsageLogger.WriteExecuteAsync(succeeded, ct)`（`SalesSupport.Common.Logging`）で行い、ToolIdの解決とEventType・ResultCodeの文字列を各ツールへ書き写さない。
 - DESKTOP_DOWNLOADは認可後の取得要求を1件記録し、取得準備の結果をSUCCESS／FAILUREとする。端末での受信完了を保証しない。
 - LogDbContextを都度作成し、業務の変更追跡やトランザクションを共有しない。3秒の独立上限でawaitし、fire-and-forgetや永続キューは作らない。
 - 書込み失敗はFailedを返し、再帰記録・代替ログ・自動再試行をしない。元の計算・保存結果を失敗へ変更しない。
@@ -410,12 +411,13 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | _SalesSupportLayout.cshtml | PageShellModel、RenderBody、画面固有Scripts |
 | SalesSupportHeader ViewComponent | 検証済みユーザー、環境帯、Portalの固定リンク |
 | Breadcrumbs | ラベルと検証済みサイト内URLの配列 |
+| IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくずと対象ツール名をCommonが付与 |
 | CodeBadge TagHelper | codeType、codeValue。名称・色取得、HTMLエンコード |
 | ValidationSummary／FieldError | ModelStateのエラー |
 | OperationMessage | 保存結果・競合・入力失敗の画面内表示 |
 | CommonError | ErrorPresentation。ErrorId表示、例外・物理パスは非表示 |
 
-- PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?を持つ。ユーザーや権限を画面入力から受け取らない。
+- PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?を持つ。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build(title, …)`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。ツール内に中間階層がある場合だけ、そのパンくずを追加で渡す。
 - CSS／JSはRCLの `_content/SalesSupport.Common/` を使用し、各アプリのPathBaseを考慮する。Portalへのリンクとツール内リンクを区別する。
 - Portalと各ツールはレイアウトを指定し、本文だけ実装する。Bootstrap等をホストとCommonで二重読込みしない。
 - モックの固定ユーザー、固定色・データ、同名関数の重複は移植せず、仕様に対応する部品へ置換する。

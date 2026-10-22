@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
 
 namespace SalesSupport.Common.Logging;
 
 /// <summary>Webツールの入口画面の描画が正常に完了した場合だけ、起動（<c>WEB_OPEN</c>）を記録します。</summary>
 /// <remarks>各ツールは入口アクションへ<c>[TypeFilter(typeof(WebOpenLoggingFilter))]</c>で適用し、ツール側へ複製しません。</remarks>
-public sealed class WebOpenLoggingFilter(IUsageLogger usage, IOptions<CommonOptions> options) : IAsyncResultFilter
+public sealed class WebOpenLoggingFilter(IToolUsageLogger usage) : IAsyncResultFilter
 {
     /// <summary>画面応答の完了後に状態を確認し、成功した入口要求を一度記録します。</summary>
     /// <param name="context">描画前の結果です。</param>
@@ -16,6 +14,6 @@ public sealed class WebOpenLoggingFilter(IUsageLogger usage, IOptions<CommonOpti
         var executed = await next();
         if (executed.Canceled || executed.Exception is not null || context.HttpContext.Response.StatusCode is < 200 or >= 300) return;
 
-        await usage.WriteAsync(new UsageEvent(options.Value.ToolId ?? "", "WEB_OPEN", "SUCCESS"), CancellationToken.None);
+        await usage.WriteOpenAsync(CancellationToken.None);
     }
 }

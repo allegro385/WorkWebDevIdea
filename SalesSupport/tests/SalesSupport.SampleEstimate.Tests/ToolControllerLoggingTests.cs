@@ -5,6 +5,7 @@ using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Logging;
+using SalesSupport.Common.UI;
 using SalesSupport.SampleEstimate.Web.Data;
 using SalesSupport.SampleEstimate.Web.Controllers;
 using SalesSupport.SampleEstimate.Web.Models;
@@ -111,7 +112,9 @@ public sealed class ToolControllerLoggingTests
 
     /// <summary>HTTPコンテキストを備えた検証用Controllerを作成します。</summary>
     private static ToolController CreateController(IEstimateService estimates, IUsageLogger usage, StubRecordService? records = null) => new(
-        estimates, records ?? new StubRecordService(), new StubToolStatusService(), usage, new StubBusinessDateProvider(),
+        estimates, records ?? new StubRecordService(), new StubToolStatusService(),
+        new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "SAMPLE-ESTIMATE" })), new StubBusinessDateProvider(),
+        new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "見積試算" })),
         Options.Create(new CommonOptions { ToolId = "SAMPLE-ESTIMATE" }))
     {
         ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }

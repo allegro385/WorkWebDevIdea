@@ -24,7 +24,7 @@ public sealed class WebOpenLoggingFilterTests
     public async Task LogsOnlyCompletedSuccess(int statusCode, bool failed, bool expectedLog)
     {
         var usage = new RecordingUsageLogger();
-        var filter = new WebOpenLoggingFilter(usage, Options.Create(new CommonOptions { ToolId = "T001" }));
+        var filter = new WebOpenLoggingFilter(new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "T001" })));
         var http = new DefaultHttpContext();
         http.Response.StatusCode = statusCode;
         var action = new ActionContext(http, new RouteData(), new ActionDescriptor());
@@ -41,19 +41,5 @@ public sealed class WebOpenLoggingFilterTests
 
         UsageEvent[] expected = expectedLog ? [new UsageEvent("T001", "WEB_OPEN", "SUCCESS")] : [];
         Assert.Equal(expected, usage.Events);
-    }
-
-    /// <summary>記録された利用ログを保持する検証用の記録先です。DBへは書き込みません。</summary>
-    private sealed class RecordingUsageLogger : IUsageLogger
-    {
-        /// <summary>記録順の利用ログです。</summary>
-        public List<UsageEvent> Events { get; } = [];
-
-        /// <summary>記録内容をテストから確認できるように保持します。</summary>
-        public Task<LogWriteResult> WriteAsync(UsageEvent entry, CancellationToken ct = default)
-        {
-            Events.Add(entry);
-            return Task.FromResult(LogWriteResult.Written);
-        }
     }
 }

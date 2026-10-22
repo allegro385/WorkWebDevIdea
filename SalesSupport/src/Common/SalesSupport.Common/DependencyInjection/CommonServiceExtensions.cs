@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
@@ -95,6 +96,8 @@ public static class CommonServiceExtensions
         services.AddScoped<IAccessEvaluator, AccessEvaluator>();
         services.AddSingleton<IDelimitedTextWriter, DelimitedTextWriter>();
         services.AddScoped<ISalesSupportLinks, SalesSupportLinks>();
+        services.AddScoped<IToolPageShell, ToolPageShell>();
+        services.AddScoped<IToolUsageLogger, ToolUsageLogger>();
         services.AddScoped<SharedCookieEvents>();
         services.AddAntiforgery(options =>
         {
@@ -148,6 +151,15 @@ public static class CommonServiceExtensions
         protection.ProtectKeysWithDpapi(protectToLocalMachine: true);
         return services;
     }
+
+    /// <summary>一時保存領域を使うツールで、領域の未設定を起動時の構成エラーとして検出します。</summary>
+    /// <param name="services">検証を追加するサービスです。</param>
+    /// <returns>検証を追加したサービスです。</returns>
+    /// <remarks>単独開発はファイルを扱わず保存領域を持たないため対象外です。一時保存を使わないツールはこの呼出しを省きます。</remarks>
+    public static IServiceCollection RequireTemporaryStorage(this IServiceCollection services) =>
+        services.AddOptions<StorageOptions>()
+            .Validate<IOptions<CommonOptions>>((storage, common) => common.Value.IsStandalone || !string.IsNullOrWhiteSpace(storage.TemporaryRoot), "Storage:TemporaryRootが必要です。")
+            .ValidateOnStart().Services;
 
     /// <summary>設定された保存領域だけを検証します。起動処理でフォルダーを作成しません。単独開発（共通設定ファイルなし）では保存領域を提供しません。</summary>
     private static void AddStorage(IServiceCollection services, CommonConfiguration? common)
