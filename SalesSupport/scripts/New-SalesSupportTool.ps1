@@ -44,6 +44,7 @@ $ErrorActionPreference = 'Stop'
 
 # テンプレート側の名称です。ここに挙げた文字列だけを置換対象とし、任意の文字列を全面置換しません。
 $templateProjectName = 'SalesSupport.Template.Web'
+# テストプロジェクトは生成しません。生成物へ参照が漏れていないかを検査するためだけに名称を保持します。
 $templateTestsName = 'SalesSupport.Template.Tests'
 $templateSolutionName = 'template.slnx'
 $templateSourceFolder = 'Template'
@@ -177,6 +178,24 @@ function Copy-TemplateFile {
 
 <#
 .SYNOPSIS
+    複製したソリューションからテストプロジェクトの区画を取り除きます。
+#>
+function Remove-TestFolderFromSolution {
+    param([string]$SolutionPath)
+
+    $bytes = [System.IO.File]::ReadAllBytes($SolutionPath)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+    if ($hasBom) { $text = $text.Substring(1) }
+    # テストの<Folder>要素だけを行ごと取り除きます。ほかの区画は変更しません。
+    $pattern = '[ \t]*<Folder Name="/tests/">.*?</Folder>\r?\n'
+    $updated = [System.Text.RegularExpressions.Regex]::Replace($text, $pattern, '', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    if ($updated -eq $text) { Stop-WithError "ソリューションからテストの区画を取り除けませんでした：$SolutionPath" }
+    [System.IO.File]::WriteAllText($SolutionPath, $updated, (New-Object System.Text.UTF8Encoding($hasBom)))
+}
+
+<#
+.SYNOPSIS
     フォルダー配下を複製します。フォルダー名・ファイル名にも同じ置換を適用します。
 #>
 function Copy-TemplateTree {
@@ -301,30 +320,25 @@ if ([string]::IsNullOrWhiteSpace($SalesSupportRoot)) { $SalesSupportRoot = Split
 $SalesSupportRoot = [System.IO.Path]::GetFullPath($SalesSupportRoot)
 
 $templateProjectPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot "src/$templateSourceFolder/$templateProjectName"))
-$templateTestsPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot "tests/$templateTestsName"))
 $templateSolutionPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot $templateSolutionName))
-foreach ($required in @($templateProjectPath, $templateTestsPath, $templateSolutionPath)) {
+foreach ($required in @($templateProjectPath, $templateSolutionPath)) {
     if (-not (Test-Path -LiteralPath $required)) { Stop-WithError "テンプレートが見つかりません：$required" }
 }
 
 $projectName = "SalesSupport.$identifier.Web"
-$testsName = "SalesSupport.$identifier.Tests"
 $solutionName = "$identifier.slnx"
 $destinationProjectPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot "src/$identifier/$projectName"))
-$destinationTestsPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot "tests/$testsName"))
 $destinationSolutionPath = [System.IO.Path]::GetFullPath((Join-Path $SalesSupportRoot $solutionName))
 
 Write-Step "ToolId '$toolIdValue' から名称 '$identifier' を導出しました。"
 
 # ----- 2. 生成前の衝突検査 -----
 Assert-NoNameConflict -Directory (Join-Path $SalesSupportRoot 'src') -Name $identifier -Kind 'ソースフォルダー'
-Assert-NoNameConflict -Directory (Join-Path $SalesSupportRoot 'tests') -Name $testsName -Kind 'テストプロジェクト'
 Assert-NoNameConflict -Directory $SalesSupportRoot -Name $solutionName -Kind 'ソリューション'
 
 # ----- 3. 複製と置換 -----
 $replacements = @(
     @{ From = $templateProjectName; To = $projectName },
-    @{ From = $templateTestsName; To = $testsName },
     @{ From = "src/$templateSourceFolder/"; To = "src/$identifier/" },
     @{ From = $templateSolutionName; To = $solutionName },
     @{ From = $toolIdPlaceholder; To = $toolIdValue },
@@ -334,9 +348,10 @@ if ($HttpsPort -gt 0) { $replacements += @{ From = $templateHttpsPort; To = $Htt
 if ($HttpPort -gt 0) { $replacements += @{ From = $templateHttpPort; To = $HttpPort.ToString() } }
 
 $projectFiles = Copy-TemplateTree -SourceRoot $templateProjectPath -DestinationRoot $destinationProjectPath -Replacements $replacements -ExcludedFiles $excludedProjectFiles
-$testFiles = Copy-TemplateTree -SourceRoot $templateTestsPath -DestinationRoot $destinationTestsPath -Replacements $replacements -ExcludedFiles @()
 Copy-TemplateFile -SourcePath $templateSolutionPath -DestinationPath $destinationSolutionPath -Replacements $replacements
-Write-Step "ソース $projectFiles 件、テスト $testFiles 件、ソリューション1件を生成しました。"
+# 生成したツールはテストプロジェクトを持たないため、複製したソリューションからテストの区画を取り除きます。
+Remove-TestFolderFromSolution -SolutionPath $destinationSolutionPath
+Write-Step "ソース $projectFiles 件、ソリューション1件を生成しました。"
 
 # ----- 4. 生成したツールのREADME -----
 $readme = @"
@@ -355,7 +370,6 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 | ToolId | ``$toolIdValue`` |
 | ソリューション | ``SalesSupport/$solutionName`` |
 | プロジェクト | ``SalesSupport/src/$identifier/$projectName`` |
-| テスト | ``SalesSupport/tests/$testsName`` |
 | Portalからの起動URL例 | ``/tools/$toolIdValue/app`` |
 
 ## 実行に必要な設定
@@ -391,52 +405,50 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 
 ``````text
 dotnet build SalesSupport/$solutionName
-dotnet test SalesSupport/$solutionName
 dotnet run --project SalesSupport/src/$identifier/$projectName --launch-profile standalone
 ``````
 
-テストはDB・SMTP・Portalへ接続しません。``ToolPipelineTests``は実際の``Program.cs``をテストサーバーで起動し、連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になることを確認します。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
+このツールにテストプロジェクトはありません。要求パイプライン（連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になること）はCommonが持つ共通の動作であり、テンプレートのソリューションのテストで確認しています。このツール固有の計算・画面を変更したときは、テンプレートとサンプルのテストを参考に検証方法を用意してください。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
 "@
 [System.IO.File]::WriteAllText((Join-Path $destinationProjectPath 'README.md'), $readme, (New-Object System.Text.UTF8Encoding($false)))
 
 # ----- 5. 生成後の検査 -----
 $tokens = @($templateProjectName, $templateTestsName, "src/$templateSourceFolder/", $templateSolutionName, $toolIdPlaceholder, $toolNamePlaceholder)
-$leftovers = Test-NoLeftovers -Roots @($destinationProjectPath, $destinationTestsPath) -Tokens $tokens
+$leftovers = Test-NoLeftovers -Roots @($destinationProjectPath) -Tokens $tokens
 $solutionText = [System.IO.File]::ReadAllText($destinationSolutionPath)
 foreach ($token in $tokens) {
     if ($solutionText.Contains($token)) { $leftovers += "$destinationSolutionPath：$token" }
 }
 $pathFindings = Test-ProjectPaths -SolutionPath $destinationSolutionPath -SolutionRoot $SalesSupportRoot
 $launchSettingsPath = Join-Path $destinationProjectPath 'Properties/launchSettings.json'
-$jsonFindings = Test-GeneratedJson -Roots @($destinationProjectPath, $destinationTestsPath) -LaunchSettingsPath $launchSettingsPath -ExpectedToolId $toolIdValue -ExpectedName $displayName
+$jsonFindings = Test-GeneratedJson -Roots @($destinationProjectPath) -LaunchSettingsPath $launchSettingsPath -ExpectedToolId $toolIdValue -ExpectedName $displayName
 $findings = @($leftovers) + @($pathFindings) + @($jsonFindings)
 if ($findings.Count -gt 0) {
     Write-Host ""
     Write-Host "生成物の検査で問題が見つかりました。完成品として扱わないでください。" -ForegroundColor Red
     foreach ($finding in $findings) { Write-Host " - $finding" }
-    Write-Host "生成先：$destinationProjectPath、$destinationTestsPath、$destinationSolutionPath"
+    Write-Host "生成先：$destinationProjectPath、$destinationSolutionPath"
     exit 1
 }
 Write-Step "プレースホルダーの残存、参照先、JSONの検査に成功しました。"
 
-# ----- 6. restore・build・test -----
+# ----- 6. restore・build -----
 if ($SkipBuild) {
-    Write-Step "restore・build・testは -SkipBuild の指定により実行していません。"
+    Write-Step "restore・buildは -SkipBuild の指定により実行していません。"
 }
 elseif (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-    Write-Host ".NET SDKが見つからないため、restore・build・testを実行していません。" -ForegroundColor Yellow
+    Write-Host ".NET SDKが見つからないため、restore・buildを実行していません。" -ForegroundColor Yellow
 }
 else {
     foreach ($step in @(
             @{ Label = 'restore'; Arguments = @('restore', $destinationSolutionPath) },
-            @{ Label = 'build'; Arguments = @('build', $destinationSolutionPath, '--no-restore') },
-            @{ Label = 'test'; Arguments = @('test', $destinationSolutionPath, '--no-build') })) {
+            @{ Label = 'build'; Arguments = @('build', $destinationSolutionPath, '--no-restore') })) {
         Write-Step "dotnet $($step.Label) を実行します。"
         & dotnet $step.Arguments
         if ($LASTEXITCODE -ne 0) {
             Write-Host ""
             Write-Host "dotnet $($step.Label) が失敗しました。生成物を完成品として扱わないでください。" -ForegroundColor Red
-            Write-Host "生成先：$destinationProjectPath、$destinationTestsPath、$destinationSolutionPath"
+            Write-Host "生成先：$destinationProjectPath、$destinationSolutionPath"
             exit 1
         }
     }
@@ -447,7 +459,6 @@ Write-Host ""
 Write-Host "ToolId '$toolIdValue' のツールを生成しました。"
 Write-Host "  ソリューション：$destinationSolutionPath"
 Write-Host "  プロジェクト  ：$destinationProjectPath"
-Write-Host "  テスト        ：$destinationTestsPath"
 Write-Host ""
 Write-Host "このスクリプトはソースだけを作成します。DB登録、アップロード条件、IISの設定、環境変数、本番配置は行っていません。"
 Write-Host "生成したプロジェクトのREADMEに沿って、ツールマスタの登録とIISの準備を別途進めてください。"
