@@ -29,10 +29,8 @@ public static class ToolServiceExtensions
         });
         services.AddScoped<IEstimateRecordService, EstimateRecordService>();
         services.AddScoped<IToolStatusService, ToolStatusService>();
-        // 一時保存領域を使うツールのため、未設定を起動時の構成エラーとして検出します。使用しないツールではこの検証を外します。
-        // 単独開発はファイルを扱わず保存領域を持たないため、検証の対象外です。
-        services.AddOptions<StorageOptions>()
-            .Validate<IOptions<CommonOptions>>((x, common) => common.Value.IsStandalone || !string.IsNullOrWhiteSpace(x.TemporaryRoot), "Storage:TemporaryRootが必要です。").ValidateOnStart();
+        // 一時保存領域を使うツールのため、未設定を起動時の構成エラーとして検出します。使用しないツールではこの呼出しを外します。
+        services.RequireTemporaryStorage();
         services.AddScoped<IEstimateService, EstimateService>();
         return services;
     }
