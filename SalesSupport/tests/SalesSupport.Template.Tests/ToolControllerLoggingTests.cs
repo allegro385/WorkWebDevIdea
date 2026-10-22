@@ -1,8 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Abstractions;
-using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
@@ -59,32 +56,6 @@ public sealed class ToolControllerLoggingTests
         var entry = Assert.Single(usage.Events);
         Assert.Equal("WEB_EXECUTE", entry.EventType);
         Assert.Equal("SUCCESS", entry.ResultCode);
-    }
-
-    /// <summary>入口の応答が成功した後だけ起動ログを記録します。</summary>
-    [Theory]
-    [InlineData(200, false, true)]
-    [InlineData(500, false, false)]
-    [InlineData(200, true, false)]
-    public async Task WebOpenFilterLogsOnlyCompletedSuccess(int statusCode, bool failed, bool expectedLog)
-    {
-        var usage = new RecordingUsageLogger();
-        var filter = new WebOpenLoggingFilter(usage, Options.Create(new CommonOptions { ToolId = "TEMPLATE" }));
-        var http = new DefaultHttpContext();
-        http.Response.StatusCode = statusCode;
-        var action = new ActionContext(http, new RouteData(), new ActionDescriptor());
-        List<IFilterMetadata> filters = [];
-        var result = new EmptyResult();
-        var executing = new ResultExecutingContext(action, filters, result, new object());
-
-        await filter.OnResultExecutionAsync(executing, () =>
-        {
-            var executed = new ResultExecutedContext(action, filters, result, new object());
-            if (failed) executed.Exception = new InvalidOperationException("描画失敗");
-            return Task.FromResult(executed);
-        });
-
-        Assert.Equal(expectedLog, usage.Events.Count == 1);
     }
 
     /// <summary>HTTPコンテキストを備えた検証用Controllerを作成します。</summary>

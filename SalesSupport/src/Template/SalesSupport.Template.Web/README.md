@@ -9,7 +9,7 @@
 | 区分 | 内容 |
 | --- | --- |
 | 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration)`による起動モードの確定、共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`）。起動プロファイルは`standalone`（既定）と`portal` |
-| パイプライン | 転送ヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウト（`Program.cs`） |
+| パイプライン | Commonの`UseSalesSupportTool()`が転送ヘッダー、セキュリティヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウトを組み込む（`Program.cs`） |
 | 利用制御 | 共通の既定認可方針による共有Cookieの現行ユーザー・サイト公開状態・ツール状態の確認。ツール側に独自の認証画面を持ちません |
 | 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/`） |
 | 入力例 | 文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択（`Models/EstimateModels.cs`） |
@@ -32,7 +32,7 @@
 | 区分の固定選択肢 | コードマスタを使う場合は`ICodeMasterReader`へ差し替え |
 | `wwwroot/css/site.css` | Commonの`ss-`クラスとBootstrapの読み込み（レイアウトが行います） |
 
-`Controllers/ToolController.cs`のログ記録（`WEB_OPEN`・`WEB_EXECUTE`）と認可の既定方針は、ツールをまたいで同じ運用にするため残してください。
+`Controllers/ToolController.cs`のログ記録（`WEB_OPEN`・`WEB_EXECUTE`）と認可の既定方針は、ツールをまたいで同じ運用にするため残してください。`WEB_OPEN`は入口アクションへCommonの`WebOpenLoggingFilter`を`TypeFilter`で適用して記録します。
 
 ## 複製して新しいツールを作る
 
@@ -77,7 +77,7 @@ SalesSupport\scripts\new-tool.bat T001
 
 連携モードの共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`Standalone`を指定すると起動を拒否します。
 
-Data ProtectionキーはWindows DPAPIで保護するため、起動できるのはWindowsだけです。Linuxではビルドと単体テストのみ実行できます。
+Data ProtectionキーはWindows DPAPIで保護するため、起動できるのはWindowsだけです。Linuxではビルドと単体テストのみ実行できます。連携モードで起動する結合テストはWindows以外ではスキップします。
 
 ## 検証
 
@@ -89,4 +89,4 @@ dotnet test SalesSupport/template.slnx
 dotnet run --project SalesSupport/src/Template/SalesSupport.Template.Web --launch-profile standalone
 ```
 
-単体テストはDB・SMTPへ接続しません。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は`portal`プロファイルで実DBとPortalを併用した環境での確認が必要です。
+テストはDB・SMTP・Portalへ接続しません。`ToolPipelineTests`は実際の`Program.cs`をテストサーバーで起動し、連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になることを確認します。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は`portal`プロファイルで実DBとPortalを併用した環境での確認が必要です。

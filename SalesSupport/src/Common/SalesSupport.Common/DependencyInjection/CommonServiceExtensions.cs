@@ -26,7 +26,7 @@ namespace SalesSupport.Common.DependencyInjection;
 /// <summary>共通基盤をホストへ登録します。</summary>
 public static class CommonServiceExtensions
 {
-    /// <summary>共通データ取得・入力出力を登録します。起動モードを確定してから共通設定ファイルを読み、Identity StoreはPortalが登録します。</summary>
+    /// <summary>共通データ取得・入力出力・MVC・CSRFフィルターを登録します。起動モードを確定してから共通設定ファイルを読み、Identity StoreはPortalが登録します。</summary>
     /// <param name="services">共通基盤を登録するサービスです。</param>
     /// <param name="kind">PortalまたはToolを指定します。</param>
     /// <param name="environment">共通設定ファイルの基準になるコンテンツルートと、単独開発を検証する実行環境です。</param>
@@ -102,6 +102,8 @@ public static class CommonServiceExtensions
             // サイトはHTTPS専用のため、CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         });
+        // 更新要求のCSRF検証を全ホストへ既定で適用します。Portalと各ツールで重複登録せず、個別のControllerで無効化しません。
+        services.AddControllersWithViews(options => options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()));
         services.AddHttpClient();
         services.AddHttpContextAccessor();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();

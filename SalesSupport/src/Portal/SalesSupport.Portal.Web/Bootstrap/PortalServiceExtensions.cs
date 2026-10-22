@@ -1,6 +1,5 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SalesSupport.Common.Configuration;
@@ -40,8 +39,6 @@ public static class PortalServiceExtensions
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);
         AddScreenServices(services);
-
-        services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
         return services;
     }
 

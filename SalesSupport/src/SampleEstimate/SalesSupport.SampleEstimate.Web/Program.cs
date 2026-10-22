@@ -1,6 +1,4 @@
-using SalesSupport.Common.Authentication;
 using SalesSupport.Common.DependencyInjection;
-using SalesSupport.Common.ErrorHandling;
 using SalesSupport.SampleEstimate.Web.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,27 +6,8 @@ builder.Services.AddSalesSupportTool(builder.Environment, builder.Configuration)
 
 var app = builder.Build();
 
-app.UseSalesSupportForwardedHeaders();
-app.UseSalesSupportErrors();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-// 既定の認可方針は保護対象の画面にだけ適用し、共通レイアウトが読み込む資産は匿名で配信します。
-app.MapStaticAssets().AllowAnonymous();
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// ヘッダーのログアウトはCommonの共通処理で共有Cookieを破棄し、Portalへ戻します。
-app.MapSalesSupportLogout();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Tool}/{action=Index}/{id?}")
-    .WithStaticAssets();
+// 転送ヘッダー、セキュリティヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウトと
+// 既定のルートはCommonが順序ごと組み込みます。ツール側へ個別のミドルウェア呼出しを展開しません。
+app.UseSalesSupportTool();
 
 await app.RunAsync();

@@ -14,8 +14,10 @@ namespace SalesSupport.Common.Authentication;
 public static class SharedLogoutExtensions
 {
     /// <summary>認証必須のPOSTとして登録します。サイト公開状態・ツール状態は条件にしません。</summary>
-    public static IEndpointConventionBuilder MapSalesSupportLogout(this IEndpointRouteBuilder endpoints, string pattern = "/account/logout") =>
-        endpoints.MapPost(pattern, HandleAsync)
+    /// <param name="endpoints">登録先のエンドポイントです。</param>
+    /// <returns>登録したエンドポイントです。</returns>
+    internal static IEndpointConventionBuilder MapSalesSupportLogout(this IEndpointRouteBuilder endpoints) =>
+        endpoints.MapPost("/account/logout", HandleAsync)
             .WithMetadata(new NoSlidingRenewalAttribute())
             .RequireAuthorization(new AuthorizationPolicyBuilder(SharedCookieContract.Scheme).RequireAuthenticatedUser().Build());
 

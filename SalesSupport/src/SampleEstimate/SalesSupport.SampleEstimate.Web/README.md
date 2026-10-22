@@ -30,4 +30,4 @@ dotnet test SalesSupport/SampleEstimate.slnx
 dotnet run --project SalesSupport/src/SampleEstimate/SalesSupport.SampleEstimate.Web --launch-profile standalone
 ```
 
-単体テストはDB・SMTPへ接続しません。`portal`プロファイルを使い、実DBのSQL制約、Portalとの共有Cookie往復、IIS配置、公開状態、アップロード条件のDB取得は別途結合検証してください。機能追加の手順は[機能追加ガイド](機能追加ガイド.md)を参照してください。
+テストはDB・SMTP・Portalへ接続しません。`ToolPipelineTests`は実際の`Program.cs`をテストサーバーで起動し、連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になることを確認します。`portal`プロファイルを使い、実DBのSQL制約、Portalとの共有Cookie往復、IIS配置、公開状態、アップロード条件のDB取得は別途結合検証してください。機能追加の手順は[機能追加ガイド](機能追加ガイド.md)を参照してください。
