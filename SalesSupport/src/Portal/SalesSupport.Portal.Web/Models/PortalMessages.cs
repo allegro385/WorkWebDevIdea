@@ -3,12 +3,25 @@ using SalesSupport.Common.UI;
 
 namespace SalesSupport.Portal.Web.Models;
 
-/// <summary>保存後リダイレクトをまたいで画面内メッセージを引き継ぎます。</summary>
+/// <summary>画面間で共通の文言と、保存後リダイレクトをまたぐ画面内メッセージの受け渡しをまとめます。</summary>
 /// <remarks>入力本文・秘密情報は保持せず、画面へ表示する区分と文言だけを扱います。</remarks>
 public static class PortalMessages
 {
     private const string Key = "SalesSupport.Portal.Message";
     private const char Separator = '|';
+
+    /// <summary>同時更新を検出したときに画面へ表示する共通の文言です。画面ごとに書き写しません。</summary>
+    /// <remarks>文言は[画面・機能設計]の管理画面共通の同時編集時の動作に従います。</remarks>
+    public const string ConflictText = "他の操作で更新されています。再読み込みして最新の内容を確認してください。";
+
+    /// <summary>同時更新を検出したときの画面内メッセージです。</summary>
+    public static OperationMessage Conflict { get; } = new(OperationMessageKind.Conflict, ConflictText);
+
+    /// <summary>同時更新を検出したときにAPIが返す表題です。</summary>
+    public const string ApiConflictTitle = "更新が競合しました。";
+
+    /// <summary>同時更新を検出したときにAPIが返す説明です。画面と違い、再読み込みではなく最新の内容の再取得を促します。</summary>
+    public const string ApiConflictDetail = "他の操作で更新されています。最新の内容を取得してからやり直してください。";
 
     /// <summary>次の画面で一度だけ表示するメッセージを設定します。</summary>
     /// <param name="tempData">対象要求のTempDataです。</param>

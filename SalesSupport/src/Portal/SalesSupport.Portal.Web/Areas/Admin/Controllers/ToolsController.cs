@@ -233,14 +233,14 @@ public sealed class ToolsController(IToolAdminService tools, IToolFileAdminServi
     /// <summary>保存できなかった場合の区画内メッセージを作成します。</summary>
     private static OperationMessage MessageFor(ToolAdminResult result, string failureText) => result.Outcome switch
     {
-        ToolAdminOutcome.Conflict => new(OperationMessageKind.Conflict, "他の操作で更新されています。再読み込みして最新の内容を確認してください。"),
+        ToolAdminOutcome.Conflict => PortalMessages.Conflict,
         ToolAdminOutcome.InvalidInput => new(OperationMessageKind.Failure, failureText),
         _ => new(OperationMessageKind.Failure, failureText)
     };
 
     /// <summary>保存できなかった場合の区画内メッセージを判定結果から作成します。</summary>
     private static OperationMessage FailureMessage(ToolAdminOutcome outcome) => outcome == ToolAdminOutcome.Conflict
-        ? new(OperationMessageKind.Conflict, "他の操作で更新されています。再読み込みして最新の内容を確認してください。")
+        ? PortalMessages.Conflict
         : new(OperationMessageKind.Failure, "入力内容を確認してください。");
 
     /// <summary>一覧側のメッセージ区分を判定結果から決定します。</summary>
@@ -255,7 +255,7 @@ public sealed class ToolsController(IToolAdminService tools, IToolFileAdminServi
     private static string MessageOf(ToolAdminResult result, string successText) => result.Outcome switch
     {
         ToolAdminOutcome.Saved => successText,
-        ToolAdminOutcome.Conflict => "他の操作で更新されています。再読み込みして最新の内容を確認してください。",
+        ToolAdminOutcome.Conflict => PortalMessages.ConflictText,
         ToolAdminOutcome.InvalidInput => result.Errors.Errors.FirstOrDefault()?.Message ?? "入力内容を確認してください。",
         _ => "保存できませんでした。"
     };
