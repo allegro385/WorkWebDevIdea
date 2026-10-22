@@ -42,8 +42,9 @@ Portalはコンテンツルートから既定の相対パス`../../config/saless
 | キー | 内容 |
 | --- | --- |
 | `ConnectionStrings:SalesSupport` | SQL Serverの接続文字列 |
-| `Portal:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
-| `SalesSupport:Application:Name` | 画面・メールで使用するシステム名 |
+| `SalesSupport:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
+| `SalesSupport:Site:Name` | 共通ヘッダー・フッターの表示名とメール文面のサイト名 |
+| `SalesSupport:Application:Name` | このアプリ自身の名前。障害ログの`ApplicationName`に使用 |
 | `SalesSupport:Portal:BaseUrl` | httpsで末尾スラッシュ付きのPortal公開URL |
 | `SalesSupport:DataProtection:KeyDirectory` | 各アプリから参照できる実在の鍵共有フォルダー |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | 一時・永続のファイル保存領域。Webルートと配置先の外に置きます |
@@ -75,11 +76,11 @@ Data Protectionの鍵はWindows DPAPIで保護するため、起動できるの�
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web -- add-test-user
 ```
 
-CommonのPortal:EnvironmentCode=DEVELOPMENTとホストDevelopmentの両方を必須とします。ログインID、メールアドレス、表示名、ロールA～D／ADMIN、パスワードと確認を対話入力します。秘密値を引数・ログに出さず、UserManagerでユーザーと通知初期OFFの設定を一括保存します。Identityの開発用パスワード条件は6文字以上で文字種混在を要求しません。連携済みハッシュの検証へ新規作成条件を適用しません。
+CommonのSalesSupport:EnvironmentCode=DEVELOPMENTとホストDevelopmentの両方を必須とします。ログインID、メールアドレス、表示名、ロールA～D／ADMIN、パスワードと確認を対話入力します。秘密値を引数・ログに出さず、UserManagerでユーザーと通知初期OFFの設定を一括保存します。Identityの開発用パスワード条件は6文字以上で文字種混在を要求しません。連携済みハッシュの検証へ新規作成条件を適用しません。
 
 ### TSVで複数の試験ユーザーを追加する
 
-同じ開発環境制限の`import-test-users`を使用します。[ヘッダーだけの雛形](../../../config/test-users.sample.tsv)を`.local/test-users.tsv`等へコピーし、UTF-8（BOMあり・なし可）のTSVを作成してください。1行に1ユーザー、列順は次のとおりです。
+同じ開発環境制限の`import-test-users`を使用します。[ヘッダーだけの雛形](../../../config/test-users.example.tsv)を`.local/test-users.tsv`等へコピーし、UTF-8（BOMあり・なし可）のTSVを作成してください。1行に1ユーザー、列順は次のとおりです。
 
 | 列 | 項目 | 入力条件 |
 | --- | --- | --- |
@@ -130,7 +131,7 @@ dotnet test SalesSupport/SalesSupport.Portal.slnx
 dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https
 ```
 
-起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.sample.json`を同じフォルダーの`salessupport.common.Development.json`（`.gitignore`で除外済み）へコピーし、開発用DBの接続文字列等を設定してから実行してください。`https`起動プロファイルがこのファイルを指定します。鍵・保存領域は既定で`SalesSupport/keys/`と`SalesSupport/storage/`（いずれも除外済み）を使うため、事前に作成します。ビルドと単体テストには不要です。
+起動には共通設定ファイルが必要です。ローカルでは`SalesSupport/config/salessupport.common.Development.example.json`を同じフォルダーの`salessupport.common.Development.json`（`.gitignore`で除外済み）へコピーし、開発用DBの接続文字列等を設定してから実行してください。`https`起動プロファイルがこのファイルを指定します。鍵・保存領域は既定で`SalesSupport/keys/`と`SalesSupport/storage/`（いずれも除外済み）を使うため、事前に作成します。ビルドと単体テストには不要です。
 
 単体テストはDB・SMTPへ接続しません。OTP試験は実際のIdentity・標準TokenProvider・Cookieハンドラーとメモリー内Data Protectionを使い、期限・一回消費・再送・ロック・記憶を確認します。試験専用InterceptorでSQLヒントを除去してInMemoryで評価し、トランザクションは無視します。行ロック、条件付き一意制約、Identityのトランザクション、共有Cookieの複数アプリ往復、実SMTPは使い捨てのSQL Server DBと実環境での検証が必要です。
 

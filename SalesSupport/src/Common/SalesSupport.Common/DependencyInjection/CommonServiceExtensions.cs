@@ -45,12 +45,14 @@ public static class CommonServiceExtensions
         services.AddOptions<CommonOptions>().Configure(options =>
         {
             options.Kind = kind;
-            options.EnvironmentCode = standalone ? "DEVELOPMENT" : configuration["Portal:EnvironmentCode"] ?? "";
+            options.EnvironmentCode = standalone ? "DEVELOPMENT" : configuration["SalesSupport:EnvironmentCode"] ?? "";
+            options.SiteName = configuration["SalesSupport:Site:Name"] ?? "";
             options.ApplicationName = configuration["SalesSupport:Application:Name"] ?? "";
             options.ToolId = configuration["SalesSupport:Application:ToolId"];
             options.PortalBaseUrl = standalone ? "" : configuration["SalesSupport:Portal:BaseUrl"] ?? "";
             options.ExecutionMode = mode;
-        }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "Portal:EnvironmentCodeが不正です。")
+        }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "SalesSupport:EnvironmentCodeが不正です。")
+          .Validate(x => !string.IsNullOrWhiteSpace(x.SiteName) && x.SiteName.Length <= 100, "Site:Nameが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
           // 単独開発はPortalへのリンクを作らないため、Portal URLを要求しません。
@@ -187,7 +189,7 @@ public static class CommonServiceExtensions
     /// <summary>メールを使用するホストだけSMTP設定を要求します。</summary>
     private static void AddMail(IServiceCollection services, IConfiguration configuration, ApplicationKind kind)
     {
-        var isDevelopment = configuration["Portal:EnvironmentCode"] == "DEVELOPMENT";
+        var isDevelopment = configuration["SalesSupport:EnvironmentCode"] == "DEVELOPMENT";
         services.AddOptions<MailTemplateOptions>();
         services.AddOptions<MailOptions>().Bind(configuration.GetSection("SalesSupport:Mail"))
             // 共通設定ファイルや環境変数にEnabledが含まれていても、メール利用可否はアプリ種別で確定します。

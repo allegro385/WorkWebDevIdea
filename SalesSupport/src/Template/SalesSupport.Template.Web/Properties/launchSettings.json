@@ -9,6 +9,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "SalesSupport__Tool__ExecutionMode": "Standalone",
+        "SalesSupport__Site__Name": "営業支援ポータルサイト",
         "SalesSupport__Application__ToolId": "__TOOL_ID__",
         "SalesSupport__Application__Name": "__TOOL_NAME__"
       }

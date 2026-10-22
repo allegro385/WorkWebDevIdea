@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Configuration;
@@ -35,7 +36,7 @@ public interface IAccountService
 /// <summary>Identity APIとユーザー行ロックで認証を直列化し、メール送信を保存処理から分離します。</summary>
 public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
     ISystemSettingsReader settings, IApplicationClock clock, CurrentUserAccessor current, IActivityLogger activity,
-    PortalLoginCookies cookies, IMailSender mail) : IAccountService
+    PortalLoginCookies cookies, IMailSender mail, IOptions<CommonOptions> common) : IAccountService
 {
     /// <summary>ID・パスワードだけでは共有Cookieを発行せず、OTPまたは有効なブラウザー記憶を要求します。</summary>
     public async Task<LoginResult> SignInAsync(string? loginId, string? password, string? returnUrl = null, CancellationToken ct = default)
@@ -183,7 +184,7 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
     /// <summary>ロックを保持せずSMTPへ一度だけ送り、結果不明も認証可能な送信として扱いません。</summary>
     private async Task<LoginResult> DeliverAsync(Guid userId, EmailOtpState sent, string code, CancellationToken ct)
     {
-        var result = await mail.SendAsync(new([sent.Email], [], [], "営業支援ポータル ログイン確認コード",
+        var result = await mail.SendAsync(new([sent.Email], [], [], $"{common.Value.SiteName} ログイン確認コード",
             $"ログイン確認コード：{code}\n有効期限は発行から5分です。\n心当たりがない場合は入力せず、社内のシステム担当へお問い合わせください。"), ct);
         if (result.Outcome != DeliveryOutcome.Succeeded) return new(LoginOutcome.DeliveryFailed);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);

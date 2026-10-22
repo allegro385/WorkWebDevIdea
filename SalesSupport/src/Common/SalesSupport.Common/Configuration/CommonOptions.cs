@@ -7,6 +7,11 @@ public sealed class CommonOptions
 {
     public ApplicationKind Kind { get; set; }
     public string EnvironmentCode { get; set; } = "";
+
+    /// <summary>共通ヘッダー・フッターとメール文面で使うサイト名です。全アプリで同じ値です。</summary>
+    public string SiteName { get; set; } = "";
+
+    /// <summary>このアプリ自身の名前です。Portalはポータル名、各ツールはそのツール名で、サイト名とは別に持ちます。</summary>
     public string ApplicationName { get; set; } = "";
     public string? ToolId { get; set; }
     public string PortalBaseUrl { get; set; } = "";

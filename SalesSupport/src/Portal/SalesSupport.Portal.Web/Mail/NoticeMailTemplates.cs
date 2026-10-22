@@ -23,12 +23,12 @@ public static class NoticeMailTemplates
     public static void AddDefaults(MailTemplateOptions options)
     {
         options.Templates.TryAdd(System, new MailTemplateDefinition(
-            "{システム名}　お知らせ",
-            "{システム名}からのお知らせです。\r\n\r\n{お知らせ}\r\n配信設定は、ポータルの個人設定から変更できます。\r\n",
+            "{サイト名}　お知らせ",
+            "{サイト名}からのお知らせです。\r\n\r\n{お知らせ}\r\n配信設定は、ポータルの個人設定から変更できます。\r\n",
             ["お知らせ"]));
         options.Templates.TryAdd(Tool, new MailTemplateDefinition(
-            "{システム名}　{ツール名}のお知らせ",
-            "{システム名}に登録されている「{ツール名}」のお知らせです。\r\n\r\n{お知らせ}\r\n配信設定は、ポータルの個人設定から変更できます。\r\n",
+            "{サイト名}　{ツール名}のお知らせ",
+            "{サイト名}に登録されている「{ツール名}」のお知らせです。\r\n\r\n{お知らせ}\r\n配信設定は、ポータルの個人設定から変更できます。\r\n",
             ["ツール名", "お知らせ"]));
     }
 }

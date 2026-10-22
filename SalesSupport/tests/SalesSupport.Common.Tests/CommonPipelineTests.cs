@@ -76,9 +76,10 @@ public sealed class CommonPipelineTests : IDisposable
         var settings = new
         {
             ConnectionStrings = new { SalesSupport = "Data Source=verify;" },
-            Portal = new { EnvironmentCode = "DEVELOPMENT" },
             SalesSupport = new
             {
+                EnvironmentCode = "DEVELOPMENT",
+                Site = new { Name = "検証サイト" },
                 Application = new { Name = "検証", ToolId = "T001" },
                 Portal = new { BaseUrl = "https://example.invalid/" },
                 DataProtection = new { KeyDirectory = "../keys" }
