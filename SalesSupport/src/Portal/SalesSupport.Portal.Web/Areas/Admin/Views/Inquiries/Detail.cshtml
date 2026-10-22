@@ -6,7 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<div class="pt-form">
+<div class="ss-form">
     <partial name="_OperationMessage" model="Model.Message" />
     <partial name="_ValidationSummary" />
     <dl class="pt-detail-list">
@@ -24,8 +24,8 @@
 
     <form method="post" asp-area="Admin" asp-controller="Inquiries" asp-action="Update" asp-route-inquiryId="@Model.Detail.InquiryId" data-ss-once>
         <input type="hidden" name="UpdateCount" value="@Model.Input.UpdateCount" />
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="detail-category">カテゴリ</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="detail-category">カテゴリ</label>
             <select class="form-select" id="detail-category" name="CategoryCode">
                 @foreach (var category in Model.Categories)
                 {
@@ -33,8 +33,8 @@
                 }
             </select>
         </div>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="detail-target">対象</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="detail-target">対象</label>
             <select class="form-select" id="detail-target" name="Target">
                 @foreach (var target in Model.Targets)
                 {
@@ -42,8 +42,8 @@
                 }
             </select>
         </div>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="detail-assignee">担当者</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="detail-assignee">担当者</label>
             <select class="form-select" id="detail-assignee" name="AssigneeUserId">
                 <option value="">未割当</option>
                 @foreach (var assignee in Model.Assignees)
@@ -52,8 +52,8 @@
                 }
             </select>
         </div>
-        <div class="pt-field">
-            <label class="form-label pt-field-label" for="detail-status">ステータス</label>
+        <div class="ss-field">
+            <label class="form-label ss-field-label" for="detail-status">ステータス</label>
             <select class="form-select" id="detail-status" name="Status">
                 @foreach (var status in Model.Statuses)
                 {
@@ -61,11 +61,11 @@
                 }
             </select>
         </div>
-        <div class="pt-field pt-field-top">
-            <label class="form-label pt-field-label" for="detail-note">管理者用備考</label>
+        <div class="ss-field ss-field-top">
+            <label class="form-label ss-field-label" for="detail-note">管理者用備考</label>
             <textarea class="form-control" id="detail-note" name="AdminNote" rows="4" maxlength="2000">@Model.Input.AdminNote</textarea>
         </div>
-        <div class="pt-actions">
+        <div class="ss-actions">
             <button type="submit" class="btn btn-primary">保存</button>
             <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Inquiries" asp-action="Index">一覧へ戻る</a>
         </div>

@@ -413,12 +413,15 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | Breadcrumbs | ラベルと検証済みサイト内URLの配列 |
 | IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくずと対象ツール名をCommonが付与 |
 | CodeBadge TagHelper | codeType、codeValue。名称・色取得、HTMLエンコード |
-| ValidationSummary／FieldError | ModelStateのエラー |
+| ValidationSummary | ModelStateのエラー一覧。Commonの`_ValidationSummary`部分ビュー |
+| FieldError | 項目エラー。標準の`asp-validation-for`にCommonの`ss-field-error`を付けて表示 |
+| 入力フォームの配置 | ラベル列と入力列、必須バッジ、操作ボタン列の`ss-*`クラス。PortalとWebツールで共有 |
 | OperationMessage | 保存結果・競合・入力失敗の画面内表示 |
 | CommonError | ErrorPresentation。ErrorId表示、例外・物理パスは非表示 |
 
 - PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?を持つ。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build(title, …)`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。ツール内に中間階層がある場合だけ、そのパンくずを追加で渡す。
 - CSS／JSはRCLの `_content/SalesSupport.Common/` を使用し、各アプリのPathBaseを考慮する。Portalへのリンクとツール内リンクを区別する。
+- 入力フォームの配置は共通テーマの`ss-form`、`ss-panel`、`ss-field`（`ss-field-top`）、`ss-field-label`、`ss-required`、`ss-field-error`、`ss-actions`（`ss-actions-center`／`ss-actions-end`）と、狭い画面でラベルの下へ入力欄を送る指定をCommonが持つ。PortalとWebツールで同じ配置を同じクラス名で使い、アプリ側へ同じ指定を書き写さない。見出しの装飾、注記、カード、結果一覧などアプリ固有の見た目は各アプリの`site.css`に置く。
 - Portalと各ツールはレイアウトを指定し、本文だけ実装する。Bootstrap等をホストとCommonで二重読込みしない。
 - モックの固定ユーザー、固定色・データ、同名関数の重複は移植せず、仕様に対応する部品へ置換する。
 - 管理メニューの非表示だけで認可済みとしない。固定ヘッダー・同幅メニュー・キーボード操作・画面内競合案内は02を維持する。

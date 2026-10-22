@@ -9,7 +9,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<section class="pt-panel">
+<section class="ss-panel">
     <h2 class="pt-panel-title">お知らせ</h2>
     <div class="pt-scroll pt-notice-scroll">
         @if (Model.Notices.Count == 0)
@@ -32,7 +32,7 @@
     </div>
 </section>
 
-<section class="pt-panel">
+<section class="ss-panel">
     <h2 class="pt-panel-title">バージョン更新情報</h2>
     <div class="pt-scroll pt-version-scroll">
         @if (Model.Versions.Count == 0)
@@ -64,7 +64,7 @@
     </div>
 </section>
 
-<section class="pt-panel">
+<section class="ss-panel">
     <h2 class="pt-panel-title">基本情報</h2>
     <div class="pt-tool-summary">
         <div class="pt-tool-summary-head">
@@ -95,7 +95,7 @@
     </div>
 </section>
 
-<section class="pt-panel">
+<section class="ss-panel">
     <h2 class="pt-panel-title">コンテンツ</h2>
     @if (!Model.HasWebLaunch && Model.AppFile is null && Model.References.Count == 0)
     {

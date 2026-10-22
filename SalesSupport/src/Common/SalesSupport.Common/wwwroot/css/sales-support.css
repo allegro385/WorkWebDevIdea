@@ -167,3 +167,73 @@
         overflow-x: auto;
     }
 }
+
+/* ------------------------------------------------------------------
+   入力フォームの共通配置です。PortalとWebツールで同じクラスを使います。
+   見出しの装飾、注記、カード、結果一覧などアプリ固有の見た目は各アプリのCSSに置きます。
+   ------------------------------------------------------------------ */
+
+.ss-form {
+    width: 100%;
+}
+
+.ss-panel {
+    margin-bottom: 1.5rem;
+}
+
+/* PC幅ではラベル列を十分に確保し、ラベルと必須バッジを同じ行に収めます。 */
+.ss-field {
+    display: grid;
+    grid-template-columns: 16rem 1fr;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+/* 複数行入力など、ラベルを入力欄の上端へそろえる項目に使います。 */
+.ss-field-top {
+    align-items: start;
+}
+
+.ss-field-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.ss-required {
+    background-color: #b02a37;
+    color: #ffffff;
+}
+
+.ss-field-error {
+    grid-column: 2;
+    color: #b02a37;
+}
+
+.ss-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.ss-actions-center {
+    justify-content: center;
+}
+
+.ss-actions-end {
+    justify-content: flex-end;
+}
+
+/* 狭い画面ではラベルの下へ入力欄を配置します。 */
+@media (max-width: 48rem) {
+    .ss-field {
+        grid-template-columns: 1fr;
+    }
+
+    .ss-field-error {
+        grid-column: 1;
+    }
+}
