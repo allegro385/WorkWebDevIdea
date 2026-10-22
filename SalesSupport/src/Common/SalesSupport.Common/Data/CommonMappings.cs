@@ -75,10 +75,13 @@ public static class CommonMappings
         toolRoleAccessRecord.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
     }
 
-    /// <summary>監査列をDB生成・同時更新判定用として設定します。</summary>
-    public static void ConfigureAuditColumns<T>(this EntityTypeBuilder<T> entity, string table) where T : AuditedEntity
+    /// <summary>監査列をDB生成・同時更新判定用として設定し、テーブルへ対応付けます。</summary>
+    /// <param name="entity">対応付ける監査列付きEntityです。</param>
+    /// <param name="table">対応付けるテーブル名です。</param>
+    /// <param name="schema">テーブルを置くスキーマです。Portal・Commonの表は既定のportal、ツール固有表は配置先のスキーマを指定します。</param>
+    public static void ConfigureAuditColumns<T>(this EntityTypeBuilder<T> entity, string table, string schema = "portal") where T : AuditedEntity
     {
-        entity.ToTable(table, "portal", options => options.UseSqlOutputClause(false));
+        entity.ToTable(table, schema, options => options.UseSqlOutputClause(false));
         entity.Property(x => x.UpdateCount).IsConcurrencyToken().ValueGeneratedOnAddOrUpdate();
         entity.Property(x => x.CreatedAt).HasColumnType("datetime2(3)").ValueGeneratedOnAddOrUpdate();
         entity.Property(x => x.UpdatedAt).HasColumnType("datetime2(3)").ValueGeneratedOnAddOrUpdate();

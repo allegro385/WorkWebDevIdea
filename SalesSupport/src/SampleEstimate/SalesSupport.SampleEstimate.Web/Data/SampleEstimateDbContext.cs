@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
+using SalesSupport.Common.Data;
 
 namespace SalesSupport.SampleEstimate.Web.Data;
 
@@ -14,7 +14,8 @@ public sealed class SampleEstimateDbContext(DbContextOptions<SampleEstimateDbCon
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var record = modelBuilder.Entity<EstimateRecord>();
-        record.ToTable("SampleEstimateRecords", "dbo", table => table.UseSqlOutputClause(false));
+        // テーブルの指定と共通監査5列（DB生成・同時更新トークン・アプリ入力の無視）はCommonの共通マッピングに任せます。
+        record.ConfigureAuditColumns("SampleEstimateRecords", "dbo");
         record.HasKey(x => x.RecordId);
         record.HasIndex(x => x.SubmissionId).IsUnique();
         record.HasIndex(x => new { x.OwnerUserId, x.AppliedOn });
@@ -23,17 +24,5 @@ public sealed class SampleEstimateDbContext(DbContextOptions<SampleEstimateDbCon
         record.Property(x => x.Subtotal).HasPrecision(18, 0);
         record.Property(x => x.DiscountAmount).HasPrecision(18, 0);
         record.Property(x => x.Total).HasPrecision(18, 0);
-        record.Property(x => x.UpdateCount).IsConcurrencyToken().ValueGeneratedOnAddOrUpdate();
-        record.Property(x => x.CreatedAt).HasColumnType("datetime2(3)").ValueGeneratedOnAddOrUpdate();
-        record.Property(x => x.UpdatedAt).HasColumnType("datetime2(3)").ValueGeneratedOnAddOrUpdate();
-        record.Property(x => x.CreatedBy).HasMaxLength(128).ValueGeneratedOnAddOrUpdate();
-        record.Property(x => x.UpdatedBy).HasMaxLength(128).ValueGeneratedOnAddOrUpdate();
-        // 監査列はDBトリガーが設定します。アプリ入力から値を受け取りません。
-        foreach (var name in new[] { "UpdateCount", "CreatedAt", "CreatedBy", "UpdatedAt", "UpdatedBy" })
-        {
-            var property = record.Property(name).Metadata;
-            property.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
-            property.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-        }
     }
 }

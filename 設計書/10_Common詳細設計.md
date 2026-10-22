@@ -69,7 +69,7 @@ ApplicationUserのマッピングはCommonから提供し、Portalは再定義�
 ### 2.2 マッピング・監査・同時更新
 
 - スキーマ、列名、桁数、NULL、主キー、外部キーのNO ACTIONをDDLと一致させる。IdentityのIdはUserIdへ対応付け、DB生成GUIDを使用する。
-- 共通の `ConfigureAuditColumns` マッピング拡張を提供する。UpdateCountは同時更新トークンかつDB生成値、監査日時・DBユーザーはDB生成値とし、クライアント入力から更新しない。
+- 共通の `ConfigureAuditColumns` マッピング拡張を、テーブル名と配置スキーマ（既定は`portal`）で提供する。UpdateCountは同時更新トークンかつDB生成値、監査日時・DBユーザーはDB生成値とし、クライアント入力から更新しない。`portal`以外へ置くツール固有表もスキーマを指定して同じ拡張を使い、監査列のマッピングを各ツールへ書き写さない。
 - トリガー対象テーブルは `UseSqlOutputClause(false)` を設定する。更新成功後は同じトランザクション内でDB生成の監査列を再取得し、次回更新のOriginalValueへ反映する。
 - 更新要求のUpdateCountをWHERE条件に使用し、0件更新のDbUpdateConcurrencyExceptionは競合として返す。画面の古い値を最新値で置き換えて再保存しない。
 - 一括編集はPortal側で同一トランザクションとし、1件の競合で全変更をロールバックする。
