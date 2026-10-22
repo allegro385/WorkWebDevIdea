@@ -95,8 +95,13 @@ public sealed class ToolPipelineTests : IDisposable
             }
         };
         File.WriteAllText(Path.Combine(root, "config", "salessupport.common.json"), JsonSerializer.Serialize(settings));
-        // 既定の位置（コンテンツルートから../../config/salessupport.common.json）で共通設定ファイルを読ませます。
-        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseContentRoot(contentRoot));
+        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            // 既定の位置（コンテンツルートから../../config/salessupport.common.json）で共通設定ファイルを読ませます。
+            builder.UseContentRoot(contentRoot);
+            // 起動プロファイルportalと同じく連携モードを明示し、実行環境に残った単独開発の環境変数を引き継ぎません。
+            builder.UseSetting("SalesSupport:Tool:ExecutionMode", "Portal");
+        });
     }
 
     /// <summary>起動プロファイル<c>standalone</c>と同じホスト設定でツールを起動します。共通設定ファイル・DB・共有鍵を使いません。</summary>
