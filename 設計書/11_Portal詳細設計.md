@@ -55,7 +55,7 @@ SalesSupport.Portal.Web/
 | --- | --- | --- | --- |
 | P001 ログイン | Account / GET・POST `/account/login` | AccountService | 匿名可、IP制限 |
 | P001 メールOTP | Account / GET・POST `/account/otp`、POST `/account/otp/resend` | AccountService | 匿名可、一時Cookie必須、POSTはIP制限・CSRF |
-| ログアウト | Commonの同一アプリ内POSTハンドラー | Common | 公開状態にかかわらずCSRF検証 |
+| ログアウト | Commonの同一アプリ内POSTハンドラー `/account/logout` | Common | 公開状態にかかわらずCSRF検証 |
 | P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
 | P002 トップ | Home / GET `/` | HomeService | Site |
 | P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites` | ToolQueryService | Site |
@@ -65,15 +65,17 @@ SalesSupport.Portal.Web/
 | お気に入り | Favorites / POST `/tools/{toolId}/favorite`、`/unfavorite` | FavoriteService | 本人・Site、対象状態再検証 |
 | P005 マニュアル・FAQ | Help / GET `/help`、`/help/manual` | HelpService | Site |
 | P006 個人設定 | Preferences / GET・POST `/preferences` | PreferenceService | 本人・Site＋ロール通知許可 |
-| P007 問い合わせ | Inquiries / GET・POST `/inquiries/new` | InquiryService | Site |
+| P007 問い合わせ | Inquiries / GET・POST `/inquiries/new`、GET `/inquiries/completed` | InquiryService | Site |
 | A001 ツール管理 | Admin/Tools / GET `/admin/tools`、GET `/admin/tools/{toolId}` | ToolAdminService | ADMIN・ToolManage |
 | ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
 | A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除 | UserAdminService | ADMIN |
 | A005 問い合わせ管理 | Admin/Inquiries / GET一覧・詳細、POST保存 | InquiryAdminService | ADMIN |
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
-| ツールお知らせ | Admin/Notices / ツールID付きGET・POST | NoticeService | ADMIN・ToolManage |
+| ツールお知らせ | Admin/Notices / POST `/admin/notices/tools/{toolId}/`配下の`save`、`send/confirm`、`send` | NoticeService | ADMIN・ToolManage |
 
 Web起動は登録済みの同一サイト配下のツールURLへの遷移だけを行う。入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
+
+ツールのお知らせの一覧・編集欄はツール編集画面（`/admin/tools/{toolId}`）の中に表示するため、ツールID付きのGET経路は設けない。ツールID付きのPOSTで保存・送信確認・送信だけを受ける。問い合わせの受付完了は`GET /inquiries/completed`で表示し、POSTの再送信で問い合わせIDを再表示させない。
 
 共通APIは`GET /api/users/me`、`GET /api/users/me/preferences`、`PUT /api/users/me/preferences`。DTO・CSRFヘッダー・ツールからの利用制限はCommon詳細設計第12節をそのまま使用する。
 

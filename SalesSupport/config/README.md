@@ -92,12 +92,13 @@ Webツールの通常のデバッグ実行（Visual StudioのF5）は「単独�
 - `Standalone`はホストの`ASPNETCORE_ENVIRONMENT=Development`の場合だけ受け付けます。それ以外の環境とPortalでは起動を拒否します。連携モードで共通設定に不備があっても、単独開発へ自動的に切り替えません。
 - 単独開発では共有Cookie・ログイン・OTPを使わず、認証ユーザーや仮ユーザーを作りません。自端末（`localhost`）からの対象ツールの画面だけを利用でき、他の端末からの要求は拒否します。サイト・ツールの公開状態とロールは確認しません。
 - CSRF検証は有効です。暗号鍵はASP.NET Core標準の保存先（開発者のユーザープロファイル）を使います。
+- 共通設定ファイルを読まないため、`SalesSupport__Site__Name`・`SalesSupport__Application__Name`・`SalesSupport__Application__ToolId`を起動プロファイルの環境変数で与えます。`EnvironmentCode`は`DEVELOPMENT`として扱い、接続文字列・Portal URL・鍵・保存領域・SMTPは要求しません。
 - DBを使いません。業務日付は現在のJST日付で、ログはDBへ保存せず、障害の詳細はコンソールへ出力します。明細ファイルのアップロード、サンプルの案件保存・検索・更新など、DBや認証ユーザーが必要な機能は利用できません。`portal`プロファイルで確認してください。
 - 共通ヘッダーにはPortalへのリンクとログアウトを表示せず、「単独開発」と表示します。パンくずの「トップ」「ツール一覧」もリンクにしません。
 
 連携試験に使う開発用ユーザーは、Portalの[開発限定コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#開発試験用のユーザーを追加する)で登録します。
 
-`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`と画面の対象ツール名がPortal名になります。サイト名`Site:Name`は全アプリで同じ値のため上書きしません。
+`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`と画面の対象ツール名がPortal名になります。サイト名`Site:Name`は全アプリで同じ値のため、連携モードでは上書きしません。共通設定ファイルを読まない[単独開発](#ツールを単独で開発する)だけは、共通ヘッダー・フッターの表示に必要なため起動プロファイルの`SalesSupport__Site__Name`で与えます（テンプレートとサンプルの`standalone`プロファイルに設定済みです）。
 
 共通設定ファイルをWeb公開領域・アプリ配置フォルダーの外へ置くこととアクセス権は、導入時に運用手順で確認します。Commonはファイルの存在と相対パスを検証しますが、配置フォルダーとの包含関係は起動時に検査しません。
 

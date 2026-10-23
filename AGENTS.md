@@ -112,6 +112,8 @@ DB構造を変更する場合は最新の初期構築SQLを更新し、新しい
 - リポジトリルートからCommonをビルド：`dotnet build SalesSupport/SalesSupport.Common.slnx`
 - リポジトリルートからPortalをビルド：`dotnet build SalesSupport/SalesSupport.Portal.slnx`
 - リポジトリルートからテンプレートツールをビルド：`dotnet build SalesSupport/template.slnx`
+- リポジトリルートからサンプルツールをビルド：`dotnet build SalesSupport/SampleEstimate.slnx`
+- 単体テストは各ソリューションで実行：`dotnet test SalesSupport/<対象>.slnx --no-build`（4ソリューションすべてにテストプロジェクトがある）
 - HTTPS起動確認：`dotnet run --project SalesSupport/src/Portal/SalesSupport.Portal.Web --launch-profile https`（`SalesSupport/config/salessupport.common.Development.json`が必要）
 - ツールの単独起動確認：`dotnet run --project SalesSupport/src/Template/SalesSupport.Template.Web --launch-profile standalone`（共通設定・DB不要）
 - テストプロジェクト・補助スクリプトは存在と用途を確認して使用し、追加時は実際の実行手順を更新する。テンプレートの起動成功をログイン検証成功と扱わない。
