@@ -1,6 +1,6 @@
 using SalesSupport.Common.Contracts;
 using SalesSupport.Common.DependencyInjection;
-using SalesSupport.Template.Web.Services;
+using SalesSupport.Template.Web.TemplateExample;
 
 namespace SalesSupport.Template.Web.Bootstrap;
 
@@ -18,7 +18,7 @@ public static class ToolServiceExtensions
         services.AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration);
         // 一時保存領域を使うツールのため、未設定を起動時の構成エラーとして検出します。使用しないツールではこの呼出しを外します。
         services.RequireTemporaryStorage();
-        services.AddScoped<IEstimateService, EstimateService>();
+        services.AddScoped<IExampleService, ExampleService>();
         return services;
     }
 }

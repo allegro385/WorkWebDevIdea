@@ -53,6 +53,9 @@ $toolIdPlaceholder = '__TOOL_ID__'
 $toolNamePlaceholder = '__TOOL_NAME__'
 $templateHttpsPort = '7075'
 $templateHttpPort = '5275'
+# 題材の残存検出です。テンプレート自身は題材を持つことが目的のため無効で、生成したツールでだけ有効にします。
+$templateExampleAllowed = '<TemplateExampleAllowed>true</TemplateExampleAllowed>'
+$generatedExampleAllowed = '<TemplateExampleAllowed>false</TemplateExampleAllowed>'
 
 # 生成対象として扱うテキストファイルです。ほかの拡張子はそのままコピーします。
 $textExtensions = @('.cs', '.cshtml', '.csproj', '.slnx', '.json', '.css', '.js', '.md', '.txt', '.config')
@@ -343,7 +346,8 @@ $replacements = @(
     @{ From = "src/$templateSourceFolder/"; To = "src/$identifier/" },
     @{ From = $templateSolutionName; To = $solutionName },
     @{ From = $toolIdPlaceholder; To = $toolIdValue },
-    @{ From = $toolNamePlaceholder; To = $escapedDisplayName }
+    @{ From = $toolNamePlaceholder; To = $escapedDisplayName },
+    @{ From = $templateExampleAllowed; To = $generatedExampleAllowed }
 )
 if ($HttpsPort -gt 0) { $replacements += @{ From = $templateHttpsPort; To = $HttpsPort.ToString() } }
 if ($HttpPort -gt 0) { $replacements += @{ From = $templateHttpPort; To = $HttpPort.ToString() } }
@@ -361,8 +365,24 @@ $readme = @"
 ToolId ``$toolIdValue`` のWebツールです。テンプレートツールから生成しました。
 共通契約は[Common詳細設計](../../../../設計書/10_Common詳細設計.md)、テンプレートの範囲は[サンプル・テンプレートツール設計方針](../../../../設計書/12_サンプル・テンプレートツール設計方針.md)を正とします。
 
-生成直後は入力・計算・出力がテンプレートの例のままです。``Models``・``Services``・``Views``をこのツールの題材へ差し替えてください。
+生成直後は入力・計算・出力がテンプレートの題材のままです。**題材は差し替えて削除してください。**
 共通の認証・利用制御、``WEB_OPEN``と``WEB_EXECUTE``のログ記録、CSRF、アップロード条件の取得と一時ファイルの削除は変更せずに使用します。
+
+## 題材の差し替え
+
+題材は``TemplateExample``へ隔離してあります。残したまま機能を足すとビルドで検出します。
+
+| 構成 | 題材が残っている場合 |
+| --- | --- |
+| Debug（``standalone``のF5を含む） | 警告。生成直後から動かして確認できます |
+| Release（``dotnet publish -c Release``） | エラー。発行できません |
+
+1. ``TemplateExample/``と``Views/Tool/TemplateExample*.cshtml``を削除する。
+2. 自分の題材の入力モデル・Service・Viewを``Models/``・``Services/``・``Views/Tool/``へ作る。
+3. ``Bootstrap/ToolServiceExtensions.cs``のServiceの登録を差し替える。一時アップロードを使わない場合は``RequireTemporaryStorage()``も外す。
+4. ``Controllers/ToolController.cs``の本体と``ExampleIndexView``のView名を自分の題材へ書き替える。題材を削除するとコンパイルが通らないため、この手順は飛ばせません。
+
+``Controllers/ToolController.cs``のログ記録、``IToolPageShell``の利用、CSRFとモデル検証の作法、認可の既定方針は骨組みとして残します。条件は[題材の隔離と残存の検出](../../../../設計書/12_サンプル・テンプレートツール設計方針.md#題材の隔離と残存の検出)を正とします。
 
 ## 構成
 
@@ -409,12 +429,15 @@ dotnet build SalesSupport/$solutionName
 dotnet run --project SalesSupport/src/$identifier/$projectName --launch-profile standalone
 ``````
 
+題材が残っている間、Debugビルドは「テンプレートの題材が残っています」の警告を出します。差し替えて削除すると警告は消えます。
+
 このツールにテストプロジェクトはありません。要求パイプライン（連携モードで未認証の画面要求がPortalのログインへ誘導されること、単独開発でCSRFトークンのないPOSTが400になること）はCommonが持つ共通の動作であり、テンプレートのソリューションのテストで確認しています。このツール固有の計算・画面を変更したときは、テンプレートとサンプルのテストを参考に検証方法を用意してください。共有Cookieでの入場、サイト・ツール状態による利用制御、アップロード条件の取得、ログ記録は``portal``プロファイルで実DBとPortalを併用した環境で確認してください。
 "@
 [System.IO.File]::WriteAllText((Join-Path $destinationProjectPath 'README.md'), $readme, (New-Object System.Text.UTF8Encoding($false)))
 
 # ----- 5. 生成後の検査 -----
-$tokens = @($templateProjectName, $templateTestsName, "src/$templateSourceFolder/", $templateSolutionName, $toolIdPlaceholder, $toolNamePlaceholder)
+$tokens = @($templateProjectName, $templateTestsName, "src/$templateSourceFolder/", $templateSolutionName, $toolIdPlaceholder, $toolNamePlaceholder,
+    $templateExampleAllowed)
 $leftovers = Test-NoLeftovers -Roots @($destinationProjectPath) -Tokens $tokens
 $solutionText = [System.IO.File]::ReadAllText($destinationSolutionPath)
 foreach ($token in $tokens) {

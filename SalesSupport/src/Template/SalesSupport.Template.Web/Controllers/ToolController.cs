@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
-using SalesSupport.Template.Web.Models;
-using SalesSupport.Template.Web.Services;
+using SalesSupport.Template.Web.TemplateExample;
 
 namespace SalesSupport.Template.Web.Controllers;
 
@@ -11,9 +10,12 @@ namespace SalesSupport.Template.Web.Controllers;
 /// <remarks>利用可否の判定は共通の既定認可方針が行うため、この画面で独自の認証・権限確認は実装しません。</remarks>
 [Route("")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class ToolController(IEstimateService estimates, IToolUsageLogger usage, IBusinessDateProvider businessDate,
+public sealed class ToolController(IExampleService examples, IToolUsageLogger usage, IBusinessDateProvider businessDate,
     IToolPageShell shell) : Controller
 {
+    /// <summary>題材の入力画面のView名です。題材を削除したら自分の画面名へ変更します。</summary>
+    private const string ExampleIndexView = "TemplateExampleIndex";
+
     /// <summary>入力不正のときに画面上部へ表示する案内です。</summary>
     private static readonly OperationMessage InvalidInputMessage =
         new(OperationMessageKind.Warning, "入力内容を確認してください。修正後にもう一度実行できます。");
@@ -25,12 +27,12 @@ public sealed class ToolController(IEstimateService estimates, IToolUsageLogger 
     [TypeFilter(typeof(WebOpenLoggingFilter))]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var input = new EstimateInput
+        var input = new ExampleInput
         {
             AppliedOn = await businessDate.GetTodayAsync(ct),
-            CategoryCode = estimates.GetCategories()[0].Code
+            CategoryCode = examples.GetCategories()[0].Code
         };
-        return View(await BuildViewAsync(input, null, ct));
+        return View(ExampleIndexView, await BuildViewAsync(input, null, ct));
     }
 
     /// <summary>入力を検証して実行し、選択された方法で結果を返します。</summary>
@@ -41,25 +43,25 @@ public sealed class ToolController(IEstimateService estimates, IToolUsageLogger 
     /// <remarks>要求サイズの上限はパイプラインの保護であり、業務上の容量条件はアップロード条件で検証します。</remarks>
     [HttpPost("execute")]
     [RequestSizeLimit(20_000_000)]
-    public async Task<IActionResult> Execute(EstimateInput input, IFormFile? detailFile, CancellationToken ct)
+    public async Task<IActionResult> Execute(ExampleInput input, IFormFile? detailFile, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
 
-        EstimateOutcome outcome;
+        ExampleOutcome outcome;
         IActionResult? preparedResult = null;
         try
         {
             await using var content = detailFile?.OpenReadStream();
-            outcome = await estimates.CalculateAsync(new EstimateRequest(input, content, detailFile?.FileName), ct);
+            outcome = await examples.CalculateAsync(new ExampleRequest(input, content, detailFile?.FileName), ct);
             if (outcome.Result is { } result)
             {
                 // 出力の生成が終わるまで成功ログを記録しません。結果ファイルは保存せず、POSTの応答で返します。
-                if (input.Output == EstimateOutput.Download)
-                    preparedResult = File(await estimates.WriteTsvAsync(result, ct), "text/tab-separated-values", estimates.BuildFileName(result));
+                if (input.Output == ExampleOutput.Download)
+                    preparedResult = File(await examples.WriteTsvAsync(result, ct), "text/tab-separated-values", examples.BuildFileName(result));
                 else
                 {
                     ViewData.SetPageShell(shell.Build("計算結果"));
-                    preparedResult = View("Result", result);
+                    preparedResult = View("TemplateExampleResult", result);
                 }
             }
         }
@@ -83,10 +85,10 @@ public sealed class ToolController(IEstimateService estimates, IToolUsageLogger 
     /// <param name="input">再表示する入力です。</param>
     /// <param name="ct">要求のキャンセルトークンです。</param>
     /// <returns>項目エラーを表示した入力画面です。</returns>
-    private async Task<IActionResult> FailureViewAsync(EstimateInput input, CancellationToken ct)
+    private async Task<IActionResult> FailureViewAsync(ExampleInput input, CancellationToken ct)
     {
         await usage.WriteExecuteAsync(succeeded: false, ct);
-        return View("Index", await BuildViewAsync(input, InvalidInputMessage, ct));
+        return View(ExampleIndexView, await BuildViewAsync(input, InvalidInputMessage, ct));
     }
 
     /// <summary>入力画面の表示情報を組み立てます。ファイル選択は再表示しません。</summary>
@@ -94,15 +96,15 @@ public sealed class ToolController(IEstimateService estimates, IToolUsageLogger 
     /// <param name="message">画面上部へ表示する案内です。表示しない場合はNULLです。</param>
     /// <param name="ct">要求のキャンセルトークンです。</param>
     /// <returns>入力画面の表示情報です。</returns>
-    private async Task<EstimateViewModel> BuildViewAsync(EstimateInput input, OperationMessage? message, CancellationToken ct)
+    private async Task<ExampleViewModel> BuildViewAsync(ExampleInput input, OperationMessage? message, CancellationToken ct)
     {
         // パンくずの上位（Portalのトップ・ツール一覧）と対象ツール名はCommonが付けます。
         ViewData.SetPageShell(shell.Build("入力"));
-        return new EstimateViewModel
+        return new ExampleViewModel
         {
             Input = input,
-            Categories = estimates.GetCategories(),
-            DetailFile = await estimates.GetDetailFileHintAsync(ct),
+            Categories = examples.GetCategories(),
+            DetailFile = await examples.GetDetailFileHintAsync(ct),
             Message = message
         };
     }
