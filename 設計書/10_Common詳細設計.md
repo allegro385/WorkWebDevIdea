@@ -86,7 +86,7 @@ ApplicationUserのマッピングはCommonから提供し、Portalは再定義�
 | CurrentUser | Guid UserId、string DisplayName、string RoleCode。検証済みの要求内情報 |
 | FieldError | Field、Code、Message。入力値そのものを含めない |
 | ValidationResult | IsValid、IReadOnlyList<FieldError> |
-| AccessDecision | Allowed、AccessFailure?。ユーザー・状態の取得失敗を許可へ変換しない |
+| AccessDecision | bool Allowed、int StatusCode（許可は200）、string? FailureReason（拒否理由コード）。ユーザー・状態の取得失敗を許可へ変換しない |
 | ErrorPresentation | Guid ErrorId、string Message、int StatusCode |
 | DeliveryOutcome | Succeeded／Failed／Unknown |
 | LogWriteResult | Written／Failed／Skipped。呼出元の業務結果を変えない |
@@ -138,8 +138,8 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
 - アプリごとに異なる値を共通設定ファイルへ書かない。Webツールの`ToolId`と、このアプリ自身の名前である`Application:Name`は各アプリの環境変数で与える。
-- サイト名`Site:Name`は全アプリで同じ値のため共通設定ファイルへ置く。`Application:Name`（アプリ自身の名前）と区別し、どちらか一方で両方を表さない。
-- ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:Password:*`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は各アプリの設定から取得する。
+- サイト名`Site:Name`は全アプリで同じ値のため共通設定ファイルへ置く。`Application:Name`（アプリ自身の名前）と区別し、どちらか一方で両方を表さない。共通設定ファイルを読まない[単独開発](#ツールの起動モード)だけは、ホスト設定（起動プロファイルの環境変数`SalesSupport__Site__Name`）から取得する。
+- ポータル・各ツール固有の設定（`Portal:SupportContact`、`SalesSupport:RateLimits:*`、`SalesSupport:Manual:*`等）は各アプリの設定から取得する。Identityのパスワード検証条件は設定キーにせず、PortalのIdentity登録処理で与える。
 - 接続文字列の取得口はCommonの`IConnectionStringProvider.SalesSupportDatabase`だけとする。利用側は`IConfiguration`から接続文字列を読み取らない。
 
 ### 外部設定
@@ -174,6 +174,8 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:Tool:ExecutionMode | `Portal` | `Portal`／`Standalone`のみ。`Standalone`はToolかつホスト`Development`だけ。詳細は5節 |
 | SalesSupport:CommonConfigPath | `../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
 
+単独開発では共通設定ファイルを読まないため、上表以外に`Site:Name`、`Application:Name`、`Application:ToolId`もホスト設定から読む。`EnvironmentCode`は`DEVELOPMENT`として扱い、他のキーは要求しない。詳細は5節。
+
 - 共通設定ファイルの後に配置環境変数を適用し、環境変数を優先する。実行中の再読込みは行わず、共通設定ファイルの変更はポータルと全Webツールの再起動で反映する。
 - Cookie名は `.SalesSupport.Auth`、スキームは `Identity.Application`、Data ProtectionのApplicationNameは `SalesSupport` に統一する。いずれもCommonの定数。Cookie Path=/、Domain未指定。別環境は別ホスト・別キー領域で分離し、同一Cookieが混在する配置を行わない。
 - IOptions<T>＋ValidateOnStartを使用し、必要な機能の設定だけ検証する。設定の変更反映はアプリ再起動で行う。
@@ -206,7 +208,7 @@ Webツールは「ポータル連携」と「単独開発」の2つの起動モ�
 - 単独開発では共有Cookieを認証に使わず、認証ユーザー・仮ユーザー・認証チケットを作らない。既定認可は自端末（ループバック）からの要求に限り、設定されたToolIdの`ToolUse`だけを認証なしで許可する。他の接続元は`TOOL_UNAVAILABLE`（404）で拒否する。サイト入場・管理者・他ToolIdへ許可を拡張しない。明示的な`SalesSupportTool`／`SalesSupportAdmin`ポリシーは共有Cookieの実ユーザーを要求するため、単独開発では満たさない。
 - DBを参照・保存しない（ツールマスタ、サイト公開状態、ロール、システム設定、操作・利用・障害ログ）。業務日付は現在のJST日付を使う。`IUploadPolicyProvider`はツール単位の用途（`TOOL_INPUT`・`REFERENCE`・`APP`）を`UploadRejectedException`（`UPLOAD_UNAVAILABLE`）で拒否し、許可ポリシーを固定値で代用しない。ツールはこの例外の文言で案内と入力欄の無効化を行う。認証ユーザーやDBを必要とする機能（サンプルの案件保存等）は連携モードで確認する。
 - CSRF検証は維持する。暗号鍵にはASP.NET Core標準のData Protectionの既定保存先（開発者のユーザープロファイル）を使い、Portalと共有する鍵フォルダーを要求しない。
-- `EnvironmentCode`は`DEVELOPMENT`として扱う。`ToolId`と`Application:Name`はホスト設定（起動プロファイルの環境変数）から取得して検証する。Portal URL・接続文字列・保存領域・SMTPは要求せず、ファイル保存領域は提供しない。
+- `EnvironmentCode`は`DEVELOPMENT`として扱う。`Site:Name`、`Application:Name`、`ToolId`はホスト設定（起動プロファイルの環境変数）から取得して検証する。共通ヘッダー・フッターはサイト名を表示するため、単独開発でも`Site:Name`を要求する。Portal URL・接続文字列・保存領域・SMTPは要求せず、ファイル保存領域は提供しない。
 - 共通ヘッダーはPortalへのリンク・ログイン・ログアウトを表示せず、「単独開発」と表示する。パンくずのPortal向けの項目はリンクにせず文字だけを表示する。
 - 障害は画面にErrorIdを示し、ホストの`ILogger`（コンソール）へ例外の詳細を出力する。開発環境に限定されるため本番では出力しない。
 - ツール固有のDBを単独開発で使うこと（接続文字列の取得元を含む）は対象外とし、[検討事項](06_検討事項.md#tool-database)で扱う。
@@ -421,7 +423,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | OperationMessage | 保存結果・競合・入力失敗の画面内表示 |
 | CommonError | ErrorPresentation。ErrorId表示、例外・物理パスは非表示 |
 
-- PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?を持つ。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build(title, …)`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。ツール内に中間階層がある場合だけ、そのパンくずを追加で渡す。
+- PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?、UseTitleBand、ShowCommonMenusを持つ。UseTitleBandはトップ・一覧の画面タイトルを強調帯で表示するかどうか、ShowCommonMenusは通常機能への共通メニューを表示するかどうかで、ログイン・入場制限案内の画面ではfalseにする。メニューの非表示は表示上の制御であり、認可の代替にしない。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build(title, …)`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。ツール内に中間階層がある場合だけ、そのパンくずを追加で渡す。
 - CSS／JSはRCLの `_content/SalesSupport.Common/` を使用し、各アプリのPathBaseを考慮する。Portalへのリンクとツール内リンクを区別する。
 - 入力フォームの配置は共通テーマの`ss-form`、`ss-panel`、`ss-field`（`ss-field-top`）、`ss-field-label`、`ss-required`、`ss-field-error`、`ss-actions`（`ss-actions-center`／`ss-actions-end`）と、狭い画面でラベルの下へ入力欄を送る指定をCommonが持つ。PortalとWebツールで同じ配置を同じクラス名で使い、アプリ側へ同じ指定を書き写さない。見出しの装飾、注記、カード、結果一覧などアプリ固有の見た目は各アプリの`site.css`に置く。
 - Portalと各ツールはレイアウトを指定し、本文だけ実装する。Bootstrap等をホストとCommonで二重読込みしない。

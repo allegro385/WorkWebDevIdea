@@ -5,7 +5,7 @@ ToolIdからテンプレートツールを複製し、新しいWebツールの�
 | ファイル | 役割 |
 | --- | --- |
 | `new-tool.bat` | 入口。ToolIdを引数または対話入力で受け取り、PowerShellスクリプトを呼び出します |
-| `New-SalesSupportTool.ps1` | 複製、置換、生成前後の検査、`restore`・`build`・`test`を行います |
+| `New-SalesSupportTool.ps1` | 複製、置換、生成前後の検査、`restore`・`build`を行います |
 
 Windows PowerShell 5.1で動作します。実行ポリシーは`-ExecutionPolicy Bypass`をバッチ側で指定します。
 
@@ -30,7 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\New-SalesSupportTool.ps1 -
 | `-ToolName` | ToolIdと同じ | ローカル起動時のアプリ名。障害ログのアプリ名に使用します |
 | `-HttpsPort` / `-HttpPort` | テンプレートと同じ`7075`／`5275` | ローカル起動のポート。複数ツールを同時に起動する場合は重複しない値を指定します |
 | `-SalesSupportRoot` | スクリプトの親フォルダー | `SalesSupport`フォルダーの場所 |
-| `-SkipBuild` | 指定なし | `restore`・`build`・`test`を実行しません |
+| `-SkipBuild` | 指定なし | `restore`・`build`を実行しません |
 
 ## 命名規則
 
