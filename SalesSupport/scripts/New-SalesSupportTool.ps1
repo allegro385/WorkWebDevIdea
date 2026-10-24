@@ -375,7 +375,8 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 | 構成 | 題材が残っている場合 |
 | --- | --- |
 | Debug（``standalone``のF5を含む） | 警告。生成直後から動かして確認できます |
-| Release（``dotnet publish -c Release``） | エラー。発行できません |
+| Release（``dotnet publish -c Release``） | エラー。コンパイル前に止まるため、題材を含むDLLも作られません |
+| Release（``dotnet publish -c Release --no-build``） | エラー。ビルド済みの出力を再発行する経路も塞ぎます |
 
 1. ``TemplateExample/``と``Views/Tool/TemplateExample*.cshtml``を削除する。
 2. 自分の題材の入力モデル・Service・Viewを``Models/``・``Services/``・``Views/Tool/``へ作る。

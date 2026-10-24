@@ -46,6 +46,9 @@
 | --- | --- |
 | Debug（`standalone`のF5を含む） | 警告。生成直後から動かして確認できます |
 | Release（`dotnet publish -c Release`） | エラー。[手動リリース](../../../../設計書/05_導入・運用.md#release)の発行手順で必ず止まります |
+| Release（`dotnet publish -c Release --no-build`） | エラー。ビルド済みの出力を再発行する経路も塞ぎます |
+
+検査はコンパイルの前に動くため、Releaseで止まったときに題材を含むDLLは作られません。
 
 このテンプレート自身は題材を持つことが目的のため、`.csproj`の`TemplateExampleAllowed`を`true`にしてターゲットを無効にしています。生成スクリプトがこの値を`false`へ置き換え、生成したツールでだけ検出が有効になります。
 
