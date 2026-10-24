@@ -8,6 +8,24 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- テンプレート自身は題材を持つことが目的のため検出を無効にします。生成スクリプトがfalseへ置き換え、生成したツールでだけ有効にします。 -->
+    <TemplateExampleAllowed>true</TemplateExampleAllowed>
   </PropertyGroup>
+
+  <!--
+    差し替え前提の題材が残ったまま配置されないよう、Debugは警告、Releaseはエラーにします。
+    コンパイル前に止めて題材を含むDLLを作らせず、ビルドを省略する発行経路も塞ぐため、
+    BeforeCompileとPublishの両方へ接続します。
+  -->
+  <Target Name="CheckTemplateExample" BeforeTargets="BeforeCompile;Publish" Condition="'$(TemplateExampleAllowed)' != 'true'">
+    <ItemGroup>
+      <TemplateExampleFile Include="TemplateExample\**\*" />
+      <TemplateExampleFile Include="Views\Tool\TemplateExample*.cshtml" />
+    </ItemGroup>
+    <Warning Condition="'@(TemplateExampleFile)' != '' and '$(Configuration)' != 'Release'"
+             Text="テンプレートの題材が残っています。自分の題材へ差し替え、TemplateExampleフォルダーとViews/Tool/TemplateExample*.cshtmlを削除してください。残存：@(TemplateExampleFile, '、')" />
+    <Error Condition="'@(TemplateExampleFile)' != '' and '$(Configuration)' == 'Release'"
+           Text="テンプレートの題材が残っているためReleaseビルドを中止します。TemplateExampleフォルダーとViews/Tool/TemplateExample*.cshtmlを削除してください。残存：@(TemplateExampleFile, '、')" />
+  </Target>
 
 </Project>

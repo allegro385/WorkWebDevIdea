@@ -11,9 +11,9 @@
 | 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration)`による起動モードの確定、共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`）。起動プロファイルは`standalone`（既定）と`portal` |
 | パイプライン | Commonの`UseSalesSupportTool()`が転送ヘッダー、セキュリティヘッダー、共通エラー応答、HTTPS、静的資産、認証・認可、共通ログアウトを組み込む（`Program.cs`） |
 | 利用制御 | 共通の既定認可方針による共有Cookieの現行ユーザー・サイト公開状態・ツール状態の確認。ツール側に独自の認証画面を持ちません |
-| 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/`） |
-| 入力例 | 文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択（`Models/EstimateModels.cs`） |
-| 実行 | CSRF付きPOST。ControllerはHTTPと画面遷移、Serviceが検証・計算・出力（`Controllers/ToolController.cs`、`Services/EstimateService.cs`） |
+| 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/TemplateExampleIndex.cshtml`、`TemplateExampleResult.cshtml`） |
+| 入力例 | 文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択（`TemplateExample/ExampleModels.cs`） |
+| 実行 | CSRF付きPOST。ControllerはHTTPと画面遷移、Serviceが検証・計算・出力（`Controllers/ToolController.cs`、`TemplateExample/ExampleService.cs`） |
 | ファイル | `TOOL`＋`TOOL_INPUT`のアップロード条件をCommonから取得して検証し、一時領域だけへ保存。成否にかかわらず削除 |
 | ログ | 入口で`WEB_OPEN`、実行で`WEB_EXECUTE`（成功・失敗）をCommon経由で一度ずつ記録 |
 | 出力 | 画面表示と、同じPOST応答でのTSV直接ダウンロード（Commonの区切りテキスト処理・数式対策） |
@@ -22,17 +22,35 @@
 
 ## 差し替える前提の部分
 
-計算の題材（案件名・数量・単価・区分による概算計算）は、動作と実装例を示すための仮の内容です。生成したツールの業務仕様に応じて、[開発サイクル](../../../../AGENTS.md#開発方針作業サイクル)どおり資料更新→テスト追加→最小実装の順で差し替えてください。実演範囲は[設計方針](../../../../設計書/12_サンプル・テンプレートツール設計方針.md)を参照します。
+計算の題材（案件名・数量・単価・区分による概算計算）は、動作と実装例を示すための仮の内容です。題材は`TemplateExample`へ隔離してあり、**生成したツールでは削除する前提**です。残したまま機能を足すとビルドで検出されます。条件は[題材の隔離と残存の検出](../../../../設計書/12_サンプル・テンプレートツール設計方針.md#題材の隔離と残存の検出)を正とします。
 
-| 差し替える | そのまま使う（共通契約） |
+| 区分 | 対象 |
 | --- | --- |
-| `Models/EstimateModels.cs`の入力項目と結果 | `PageShellModel`・共通レイアウト・検証表示の使い方 |
-| `Services/EstimateService.cs`の検証条件と計算 | アップロード条件の取得、一時ファイルの保存・削除、区切りテキスト出力 |
-| `Views/Tool/`の画面項目と文言 | フォームのCSRF、項目エラーの表示、再実行の案内 |
-| 区分の固定選択肢 | コードマスタを使う場合は`ICodeMasterReader`へ差し替え |
-| `wwwroot/css/site.css` | Commonの`ss-`クラスとBootstrapの読み込み（レイアウトが行います） |
+| 題材（削除する） | `TemplateExample/ExampleModels.cs`、`TemplateExample/ExampleService.cs`、`Views/Tool/TemplateExampleIndex.cshtml`、`Views/Tool/TemplateExampleResult.cshtml`、`wwwroot/css/site.css`の題材向け指定 |
+| 骨組み（そのまま使う） | `Program.cs`、`Bootstrap/ToolServiceExtensions.cs`、`Controllers/ToolController.cs`、`Views/_ViewImports.cshtml`、`Views/_ViewStart.cshtml`、`.csproj`、`Properties/launchSettings.json` |
 
-`Controllers/ToolController.cs`のログ記録（`WEB_OPEN`・`WEB_EXECUTE`）と認可の既定方針は、ツールをまたいで同じ運用にするため残してください。`WEB_OPEN`は入口アクションへCommonの`WebOpenLoggingFilter`を`TypeFilter`で適用して記録します。
+生成したツールでの差し替え手順です。[開発サイクル](../../../../AGENTS.md#開発方針作業サイクル)どおり資料更新→テスト追加→最小実装の順で進めます。
+
+1. `TemplateExample/`と`Views/Tool/TemplateExample*.cshtml`を削除する。
+2. 自分の題材の入力モデル・Service・Viewを`Models/`・`Services/`・`Views/Tool/`へ作る。
+3. `Bootstrap/ToolServiceExtensions.cs`のServiceの登録を自分のServiceへ差し替える。一時アップロードを使わないツールでは`RequireTemporaryStorage()`も外す。
+4. `Controllers/ToolController.cs`の本体と、View名を保持する定数`ExampleIndexView`を自分の題材へ書き替える。題材を削除するとコンパイルが通らないため、この手順を飛ばせません。
+
+`Controllers/ToolController.cs`のログ記録（`WEB_OPEN`・`WEB_EXECUTE`）、`IToolPageShell`の利用、CSRFとモデル検証の作法、認可の既定方針は、ツールをまたいで同じ運用にするため残してください。`WEB_OPEN`は入口アクションへCommonの`WebOpenLoggingFilter`を`TypeFilter`で適用して記録します。区分の選択肢をコードマスタで管理する場合は`ICodeMasterReader`へ差し替えます。
+
+### 題材が残っているときのビルド
+
+`.csproj`の`CheckTemplateExample`ターゲットが`TemplateExample/**/*`と`Views/Tool/TemplateExample*.cshtml`を検出します。
+
+| 構成 | 題材が残っている場合 |
+| --- | --- |
+| Debug（`standalone`のF5を含む） | 警告。生成直後から動かして確認できます |
+| Release（`dotnet publish -c Release`） | エラー。[手動リリース](../../../../設計書/05_導入・運用.md#release)の発行手順で必ず止まります |
+| Release（`dotnet publish -c Release --no-build`） | エラー。ビルド済みの出力を再発行する経路も塞ぎます |
+
+検査はコンパイルの前に動くため、Releaseで止まったときに題材を含むDLLは作られません。
+
+このテンプレート自身は題材を持つことが目的のため、`.csproj`の`TemplateExampleAllowed`を`true`にしてターゲットを無効にしています。生成スクリプトがこの値を`false`へ置き換え、生成したツールでだけ検出が有効になります。
 
 ## 複製して新しいツールを作る
 
@@ -52,6 +70,7 @@ SalesSupport\scripts\new-tool.bat T001
 | テストプロジェクト | `SalesSupport/tests/SalesSupport.Template.Tests` |
 | 起動プロファイル（`standalone`・`portal`）のToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
 | 起動プロファイルのポート | `7075` / `5275` |
+| 題材の残存検出を有効にする`.csproj`のプロパティ | `TemplateExampleAllowed`（テンプレートは`true`、生成後は`false`） |
 
 `ToolId`は配置設定であり、ソースへ書きません。`Properties/launchSettings.json`の`__TOOL_ID__`・`__TOOL_NAME__`はローカル起動用のプレースホルダーで、生成時に実値へ置き換わります。`portal`プロファイルでテンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
 

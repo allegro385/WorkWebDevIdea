@@ -7,8 +7,7 @@ using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
 using SalesSupport.Template.Web.Controllers;
-using SalesSupport.Template.Web.Models;
-using SalesSupport.Template.Web.Services;
+using SalesSupport.Template.Web.TemplateExample;
 using Xunit;
 
 namespace SalesSupport.Template.Tests;
@@ -23,8 +22,8 @@ public sealed class ToolControllerLoggingTests
     public async Task IndexDoesNotLogBeforeViewPreparation()
     {
         var usage = new RecordingUsageLogger();
-        var estimates = new StubEstimateService { FailHint = true };
-        var controller = CreateController(estimates, usage);
+        var examples = new StubExampleService { FailHint = true };
+        var controller = CreateController(examples, usage);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => controller.Index(CancellationToken.None));
         Assert.Empty(usage.Events);
@@ -35,10 +34,10 @@ public sealed class ToolControllerLoggingTests
     public async Task ExecuteLogsFailureWhenDownloadPreparationFails()
     {
         var usage = new RecordingUsageLogger();
-        var estimates = new StubEstimateService { FailExport = true };
-        var controller = CreateController(estimates, usage);
+        var examples = new StubExampleService { FailExport = true };
+        var controller = CreateController(examples, usage);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => controller.Execute(new EstimateInput { Output = EstimateOutput.Download }, null, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => controller.Execute(new ExampleInput { Output = ExampleOutput.Download }, null, CancellationToken.None));
         var entry = Assert.Single(usage.Events);
         Assert.Equal("WEB_EXECUTE", entry.EventType);
         Assert.Equal("FAILURE", entry.ResultCode);
@@ -49,9 +48,9 @@ public sealed class ToolControllerLoggingTests
     public async Task ExecuteLogsSuccessAfterDownloadPreparation()
     {
         var usage = new RecordingUsageLogger();
-        var controller = CreateController(new StubEstimateService(), usage);
+        var controller = CreateController(new StubExampleService(), usage);
 
-        var response = await controller.Execute(new EstimateInput { Output = EstimateOutput.Download }, null, CancellationToken.None);
+        var response = await controller.Execute(new ExampleInput { Output = ExampleOutput.Download }, null, CancellationToken.None);
 
         Assert.IsType<FileContentResult>(response);
         var entry = Assert.Single(usage.Events);
@@ -60,8 +59,8 @@ public sealed class ToolControllerLoggingTests
     }
 
     /// <summary>HTTPコンテキストを備えた検証用Controllerを作成します。</summary>
-    private static ToolController CreateController(IEstimateService estimates, IUsageLogger usage) => new(
-        estimates, new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "TEMPLATE" })), new StubBusinessDateProvider(),
+    private static ToolController CreateController(IExampleService examples, IUsageLogger usage) => new(
+        examples, new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "TEMPLATE" })), new StubBusinessDateProvider(),
         new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "テンプレートツール" })))
     {
         ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
@@ -81,13 +80,13 @@ public sealed class ToolControllerLoggingTests
     }
 
     /// <summary>計算・出力と障害を指定できる検証用サービスです。</summary>
-    private sealed class StubEstimateService : IEstimateService
+    private sealed class StubExampleService : IExampleService
     {
         public bool FailHint { get; init; }
         public bool FailExport { get; init; }
 
         /// <summary>入口画面の固定選択肢を返します。</summary>
-        public IReadOnlyList<EstimateCategory> GetCategories() => [new("STANDARD", "通常", 0)];
+        public IReadOnlyList<ExampleCategory> GetCategories() => [new("STANDARD", "通常", 0)];
 
         /// <summary>必要な場合に画面案内の取得失敗を再現します。</summary>
         public Task<DetailFileHint> GetDetailFileHintAsync(CancellationToken ct = default) => FailHint
@@ -95,17 +94,17 @@ public sealed class ToolControllerLoggingTests
             : Task.FromResult(new DetailFileHint(true, ".tsv"));
 
         /// <summary>固定の計算結果を返します。</summary>
-        public Task<EstimateOutcome> CalculateAsync(EstimateRequest request, CancellationToken ct = default) =>
-            Task.FromResult(new EstimateOutcome(EstimateOutcomeKind.Calculated,
-                new EstimateResult("案件", Today, "通常", 1, 100, 100, 0, 100, null), new ValidationResult([])));
+        public Task<ExampleOutcome> CalculateAsync(ExampleRequest request, CancellationToken ct = default) =>
+            Task.FromResult(new ExampleOutcome(ExampleOutcomeKind.Calculated,
+                new ExampleResult("案件", Today, "通常", 1, 100, 100, 0, 100, null), new ValidationResult([])));
 
         /// <summary>必要な場合にTSV生成失敗を再現します。</summary>
-        public Task<byte[]> WriteTsvAsync(EstimateResult result, CancellationToken ct = default) => FailExport
+        public Task<byte[]> WriteTsvAsync(ExampleResult result, CancellationToken ct = default) => FailExport
             ? Task.FromException<byte[]>(new InvalidOperationException("出力失敗"))
             : Task.FromResult(new byte[] { 1 });
 
         /// <summary>ダウンロード時の固定ファイル名を返します。</summary>
-        public string BuildFileName(EstimateResult result) => "estimate.tsv";
+        public string BuildFileName(ExampleResult result) => "example.tsv";
     }
 
     /// <summary>画面の初期日付を固定する検証用時刻プロバイダーです。</summary>
