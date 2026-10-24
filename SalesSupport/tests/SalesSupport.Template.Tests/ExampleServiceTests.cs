@@ -5,14 +5,13 @@ using SalesSupport.Common.DataExport;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.FileStorage;
 using SalesSupport.Common.Logging;
-using SalesSupport.Template.Web.Models;
-using SalesSupport.Template.Web.Services;
+using SalesSupport.Template.Web.TemplateExample;
 using Xunit;
 
 namespace SalesSupport.Template.Tests;
 
 /// <summary>入力の再検証、計算、明細ファイルの一時保存と削除、TSV出力を確認します。DB・SMTPへは接続しません。</summary>
-public sealed class EstimateServiceTests : IDisposable
+public sealed class ExampleServiceTests : IDisposable
 {
     private const string ToolId = "TEMPLATE";
     private static readonly DateOnly Today = new(2026, 9, 22);
@@ -32,8 +31,8 @@ public sealed class EstimateServiceTests : IDisposable
         var service = CreateService();
         var outcome = await service.CalculateAsync(new(Input(quantity: 3, unitPrice: 1000, categoryCode: "CAMPAIGN"), null, null));
 
-        Assert.Equal(EstimateOutcomeKind.Calculated, outcome.Kind);
-        var result = Assert.IsType<EstimateResult>(outcome.Result);
+        Assert.Equal(ExampleOutcomeKind.Calculated, outcome.Kind);
+        var result = Assert.IsType<ExampleResult>(outcome.Result);
         Assert.Equal(3000m, result.Subtotal);
         Assert.Equal(300m, result.DiscountAmount);
         Assert.Equal(2700m, result.Total);
@@ -50,12 +49,12 @@ public sealed class EstimateServiceTests : IDisposable
 
         var outcome = await service.CalculateAsync(new(input, null, null));
 
-        Assert.Equal(EstimateOutcomeKind.InvalidInput, outcome.Kind);
+        Assert.Equal(ExampleOutcomeKind.InvalidInput, outcome.Kind);
         Assert.Null(outcome.Result);
-        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(EstimateInput.ProjectName));
-        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(EstimateInput.Quantity));
-        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(EstimateInput.UnitPrice));
-        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(EstimateInput.CategoryCode));
+        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(ExampleInput.ProjectName));
+        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(ExampleInput.Quantity));
+        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(ExampleInput.UnitPrice));
+        Assert.Contains(outcome.Errors.Errors, error => error.Field == nameof(ExampleInput.CategoryCode));
     }
 
     /// <summary>適用日を業務日付の前後1年に制限することを確認します。</summary>
@@ -73,7 +72,7 @@ public sealed class EstimateServiceTests : IDisposable
 
         var outcome = await service.CalculateAsync(new(input, null, null));
 
-        Assert.Equal(expected, outcome.Kind == EstimateOutcomeKind.Calculated);
+        Assert.Equal(expected, outcome.Kind == ExampleOutcomeKind.Calculated);
     }
 
     /// <summary>明細ファイルの空行を除いた行数を数え、処理後に一時ファイルを残さないことを確認します。</summary>
@@ -85,7 +84,7 @@ public sealed class EstimateServiceTests : IDisposable
 
         var outcome = await service.CalculateAsync(new(Input(), content, "detail.tsv"));
 
-        Assert.Equal(3, Assert.IsType<EstimateResult>(outcome.Result).DetailRowCount);
+        Assert.Equal(3, Assert.IsType<ExampleResult>(outcome.Result).DetailRowCount);
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 
@@ -98,8 +97,8 @@ public sealed class EstimateServiceTests : IDisposable
 
         var outcome = await service.CalculateAsync(new(Input(), content, "detail.exe"));
 
-        Assert.Equal(EstimateOutcomeKind.InvalidInput, outcome.Kind);
-        Assert.Contains(outcome.Errors.Errors, error => error.Field == EstimateService.DetailFileField);
+        Assert.Equal(ExampleOutcomeKind.InvalidInput, outcome.Kind);
+        Assert.Contains(outcome.Errors.Errors, error => error.Field == ExampleService.DetailFileField);
         Assert.Empty(Directory.GetFiles(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 
@@ -110,7 +109,7 @@ public sealed class EstimateServiceTests : IDisposable
         var service = CreateService();
         var input = Input();
         input.ProjectName = "=1+1";
-        var result = Assert.IsType<EstimateResult>((await service.CalculateAsync(new(input, null, null))).Result);
+        var result = Assert.IsType<ExampleResult>((await service.CalculateAsync(new(input, null, null))).Result);
 
         var text = Encoding.UTF8.GetString(await service.WriteTsvAsync(result));
         var lines = text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
@@ -118,7 +117,7 @@ public sealed class EstimateServiceTests : IDisposable
         Assert.Equal("項目\t値", lines[0].TrimStart('﻿'));
         Assert.Equal("案件名\t'=1+1", lines[1]);
         Assert.Contains("適用日\t2026-09-22", lines);
-        Assert.Equal("estimate-20260922.tsv", service.BuildFileName(result));
+        Assert.Equal("example-20260922.tsv", service.BuildFileName(result));
     }
 
     /// <summary>アップロード条件から画面案内の文言を組み立てることを確認します。</summary>
@@ -144,25 +143,25 @@ public sealed class EstimateServiceTests : IDisposable
 
         await using var content = new MemoryStream(Encoding.UTF8.GetBytes("a\tb\n"));
         var outcome = await service.CalculateAsync(new(Input(quantity: 1, unitPrice: 100, categoryCode: "STANDARD"), content, "detail.tsv"));
-        Assert.Equal(EstimateOutcomeKind.InvalidInput, outcome.Kind);
+        Assert.Equal(ExampleOutcomeKind.InvalidInput, outcome.Kind);
         var error = Assert.Single(outcome.Errors.Errors);
-        Assert.Equal(EstimateService.DetailFileField, error.Field);
+        Assert.Equal(ExampleService.DetailFileField, error.Field);
         Assert.Equal("UPLOAD_UNAVAILABLE", error.Code);
         Assert.Empty(Directory.EnumerateFileSystemEntries(temporaryRoot, "*", SearchOption.AllDirectories));
     }
 
     /// <summary>実際のファイル保存と区切りテキスト出力を使う検証対象を作成します。</summary>
     /// <returns>一時領域を検証用ディレクトリに向けたServiceです。</returns>
-    private IEstimateService CreateService() => CreateService(new StubPolicyProvider());
+    private IExampleService CreateService() => CreateService(new StubPolicyProvider());
 
     /// <summary>指定したアップロード条件の取得元で検証対象を作成します。</summary>
     /// <param name="policies">アップロード条件の取得元です。</param>
     /// <returns>一時領域を検証用ディレクトリに向けたServiceです。</returns>
-    private IEstimateService CreateService(IUploadPolicyProvider policies)
+    private IExampleService CreateService(IUploadPolicyProvider policies)
     {
         var storageOptions = Options.Create(new StorageOptions { TemporaryRoot = temporaryRoot, CleanupTimeoutSeconds = 5 });
         var storage = new FileStorage(storageOptions, policies, new StubErrorLogger());
-        return new EstimateService(storage, policies, new DelimitedTextWriter(), new StubBusinessDateProvider(),
+        return new ExampleService(storage, policies, new DelimitedTextWriter(), new StubBusinessDateProvider(),
             Options.Create(new CommonOptions { ToolId = ToolId, ApplicationName = "テンプレートツール" }));
     }
 
@@ -171,14 +170,14 @@ public sealed class EstimateServiceTests : IDisposable
     /// <param name="unitPrice">単価です。</param>
     /// <param name="categoryCode">区分コードです。</param>
     /// <returns>指定値以外は妥当な入力です。</returns>
-    private static EstimateInput Input(int quantity = 2, int unitPrice = 500, string categoryCode = "STANDARD") => new()
+    private static ExampleInput Input(int quantity = 2, int unitPrice = 500, string categoryCode = "STANDARD") => new()
     {
         ProjectName = "テンプレート案件",
         Quantity = quantity,
         UnitPrice = unitPrice,
         AppliedOn = Today,
         CategoryCode = categoryCode,
-        Output = EstimateOutput.Screen
+        Output = ExampleOutput.Screen
     };
 
     /// <summary>単独開発と同じく、ツール単位のアップロードを項目エラーで拒否します。</summary>

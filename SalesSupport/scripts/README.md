@@ -63,6 +63,9 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 | `__TOOL_ID__` | ToolId |
 | `__TOOL_NAME__` | `-ToolName`の値をJSON文字列としてエスケープしたもの |
 | `7075` / `5275` | `-HttpsPort` / `-HttpPort`の値（指定時のみ） |
+| `.csproj`の`<TemplateExampleAllowed>true</TemplateExampleAllowed>` | `<TemplateExampleAllowed>false</TemplateExampleAllowed>` |
+
+最後の置換で、生成したツールだけ題材の残存検出が有効になります。`TemplateExample/`配下と`Views/Tool/TemplateExample*.cshtml`が残っているとDebugビルドで警告、Releaseビルドでエラーになります。題材を差し替えたら削除してください。条件は[題材の隔離と残存の検出](../../設計書/12_サンプル・テンプレートツール設計方針.md#題材の隔離と残存の検出)を正とします。
 
 テンプレートの`README.md`は複製せず、生成したツール用のREADMEを新しく作成します。テンプレートのテストプロジェクト（`SalesSupport.Template.Tests`）も複製しません。`bin`・`obj`・`.vs`は複製しません。
 
@@ -82,6 +85,7 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 - ソリューションのプロジェクト参照と各プロジェクトの`ProjectReference`が実在すること
 - 生成したJSONが構文として有効で、ローカル起動設定のToolIdとアプリ名が入力値と一致すること（表示名に引用符やバックスラッシュがある場合も確認）
 - `dotnet restore`・`dotnet build`が成功すること（`-SkipBuild`指定時と.NET SDKがない場合は未実行として表示します）。生成したツールはテストプロジェクトを持たないため`dotnet test`は実行しません
+- 確認ビルドはDebugで行います。生成直後は題材が残っているため、Releaseビルドは題材の残存検出で止まります（意図した動作です）
 
 ## スクリプトが行わないこと
 

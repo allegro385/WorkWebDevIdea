@@ -1,10 +1,11 @@
+// このフォルダーは差し替え前提の題材です。生成したツールでは削除し、自分の題材へ置き換えます。
 using System.ComponentModel.DataAnnotations;
 using SalesSupport.Common.UI;
 
-namespace SalesSupport.Template.Web.Models;
+namespace SalesSupport.Template.Web.TemplateExample;
 
 /// <summary>結果の受け取り方です。画面表示と直接ダウンロードの両方をテンプレートで示します。</summary>
-public enum EstimateOutput
+public enum ExampleOutput
 {
     /// <summary>実行応答で結果画面を表示します。</summary>
     Screen,
@@ -17,10 +18,10 @@ public enum EstimateOutput
 /// <param name="Name">画面へ表示する名称です。</param>
 /// <param name="DiscountRate">小計へ適用する割引率です。0.1は10%を表します。</param>
 /// <remarks>テンプレートでは固定値です。コードマスタで管理する値へ変更する場合は`ICodeMasterReader`から取得します。</remarks>
-public sealed record EstimateCategory(string Code, string Name, decimal DiscountRate);
+public sealed record ExampleCategory(string Code, string Name, decimal DiscountRate);
 
 /// <summary>入力画面の項目です。ツールの題材にあわせて差し替える例であり、共通契約ではありません。</summary>
-public sealed class EstimateInput
+public sealed class ExampleInput
 {
     /// <summary>文字列入力の例です。</summary>
     [Display(Name = "案件名")]
@@ -53,17 +54,17 @@ public sealed class EstimateInput
 
     /// <summary>ラジオボタン入力の例です。結果の受け取り方を選びます。</summary>
     [Display(Name = "出力方法")]
-    public EstimateOutput Output { get; set; } = EstimateOutput.Screen;
+    public ExampleOutput Output { get; set; } = ExampleOutput.Screen;
 }
 
 /// <summary>入力画面の表示情報です。再表示でもファイル選択は復元しません。</summary>
-public sealed class EstimateViewModel
+public sealed class ExampleViewModel
 {
     /// <summary>再表示時も維持する入力です。</summary>
-    public EstimateInput Input { get; init; } = new();
+    public ExampleInput Input { get; init; } = new();
 
     /// <summary>区分の選択肢です。</summary>
-    public IReadOnlyList<EstimateCategory> Categories { get; init; } = [];
+    public IReadOnlyList<ExampleCategory> Categories { get; init; } = [];
 
     /// <summary>明細ファイルを選択できるかと、許可拡張子・容量上限または利用できない理由の案内です。</summary>
     public DetailFileHint DetailFile { get; init; } = new(false, "");
@@ -87,5 +88,5 @@ public sealed record DetailFileHint(bool Enabled, string Message);
 /// <param name="DiscountAmount">区分の割引率から求めた割引額です。単位は円です。</param>
 /// <param name="Total">小計から割引額を差し引いた合計です。単位は円です。</param>
 /// <param name="DetailRowCount">明細ファイルの行数です。ファイルを選択しなかった場合はNULLです。</param>
-public sealed record EstimateResult(string ProjectName, DateOnly AppliedOn, string CategoryName, int Quantity, int UnitPrice,
+public sealed record ExampleResult(string ProjectName, DateOnly AppliedOn, string CategoryName, int Quantity, int UnitPrice,
     decimal Subtotal, decimal DiscountAmount, decimal Total, int? DetailRowCount);
