@@ -29,11 +29,16 @@ public sealed class AnonymousModeConvention : IApplicationModelConvention
         typeof(Areas.Admin.Controllers.NoticesController), typeof(Areas.Admin.Controllers.InquiriesController)
     ];
 
-    /// <summary>通知設定APIの対象アクション名です。現在ユーザーを返すアクションは各ツールが使うため残します。</summary>
-    private static readonly HashSet<string> RemovedActions =
-        [nameof(UsersApiController.GetPreferences), nameof(UsersApiController.PutPreferences)];
+    /// <summary>Controllerごと外せないため、アクション単位で除外する対象です。</summary>
+    /// <remarks>ツールのControllerはツール一覧・詳細・Web起動を提供し続けるため、お気に入り一覧だけを外します。
+    /// 通知設定APIも同じControllerにある現在ユーザーのアクションを各ツールが使うため残します。</remarks>
+    private static readonly (Type Controller, string[] Actions)[] RemovedActions =
+    [
+        (typeof(ToolsController), [nameof(ToolsController.Favorites)]),
+        (typeof(UsersApiController), [nameof(UsersApiController.GetPreferences), nameof(UsersApiController.PutPreferences)])
+    ];
 
-    /// <summary>対象のControllerを除外し、通知設定APIはアクション単位で除外します。</summary>
+    /// <summary>対象のControllerを除外し、お気に入り一覧と通知設定APIはアクション単位で除外します。</summary>
     /// <param name="application">要求処理へ登録するControllerとアクションの一覧です。</param>
     public void Apply(ApplicationModel application)
     {
@@ -41,11 +46,14 @@ public sealed class AnonymousModeConvention : IApplicationModelConvention
         {
             application.Controllers.Remove(controller);
         }
-        var api = application.Controllers.SingleOrDefault(x => x.ControllerType.AsType() == typeof(UsersApiController));
-        if (api is null) return;
-        foreach (var action in api.Actions.Where(x => RemovedActions.Contains(x.ActionMethod.Name)).ToList())
+        foreach (var (type, actions) in RemovedActions)
         {
-            api.Actions.Remove(action);
+            var controller = application.Controllers.SingleOrDefault(x => x.ControllerType.AsType() == type);
+            if (controller is null) continue;
+            foreach (var action in controller.Actions.Where(x => actions.Contains(x.ActionMethod.Name)).ToList())
+            {
+                controller.Actions.Remove(action);
+            }
         }
     }
 }

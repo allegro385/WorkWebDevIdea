@@ -58,7 +58,7 @@ SalesSupport.Portal.Web/
 | ログアウト | Commonの同一アプリ内POSTハンドラー `/account/logout` | Common | 公開状態にかかわらずCSRF検証 |
 | P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
 | P002 トップ | Home / GET `/` | SystemNoticeService | Site |
-| P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites` | ToolQueryService・SystemNoticeService | Site |
+| P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites`（お気に入りは匿名モードで登録しない） | ToolQueryService・SystemNoticeService | Site |
 | P004 詳細 | Tools / GET `/tools/{toolId}` | ToolQueryService | Site＋ToolDetail |
 | Web起動 | Tools / GET `/tools/{toolId}/launch` | ToolQueryService | Site＋ToolUse |
 | ファイル取得 | ToolFiles / GET `/tools/{toolId}/files/{fileId}` | ToolFileService | Site＋ToolDownload |
@@ -75,7 +75,7 @@ SalesSupport.Portal.Web/
 
 Web起動は登録済みの同一サイト内のパスへの遷移だけを行う。判定はCommonのローカルパス検証（`/`始まり、スキーム相対URL・`\`・制御文字の拒否）で行い、ホストを含む絶対URLは起動先として扱わない。遷移にはローカル遷移だけを行う結果を使い、入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
 
-匿名モードでは、Account（ログイン・メールOTP）、お気に入り、個人設定、問い合わせ、Admin配下の全画面および`GET`・`PUT /api/users/me/preferences`を要求処理へ登録せず、経路ごと存在しない状態にする。`GET /`はP003 ツール一覧へリダイレクトし、`/private`と`GET /api/users/me`は維持する。ログアウト経路はCommonが組み込まない。
+匿名モードでは、Account（ログイン・メールOTP）、お気に入り（一覧`GET /tools/favorites`と登録・解除のPOST）、個人設定、問い合わせ、Admin配下の全画面および`GET`・`PUT /api/users/me/preferences`を要求処理へ登録せず、経路ごと存在しない状態にする。Controller単位で外せない一覧とAPIはアクション単位で外す。`GET /`はP003 ツール一覧へリダイレクトし、`/private`と`GET /api/users/me`は維持する。ログアウト経路はCommonが組み込まない。
 
 ツールのお知らせの一覧・編集欄はツール編集画面（`/admin/tools/{toolId}`）の中に表示するため、ツールID付きのGET経路は設けない。ツールID付きのPOSTで保存・送信確認・送信だけを受ける。問い合わせの受付完了は`GET /inquiries/completed`で表示し、POSTの再送信で問い合わせIDを再表示させない。
 
@@ -137,7 +137,7 @@ Web起動は登録済みの同一サイト内のパスへの遷移だけを行�
 - お気に入りは本人IDとToolIdの複合キーを使用し、追加済みへの追加・未登録への解除は成功扱いとする。HIDDENの既存登録は消さず一覧から除外する。追加・解除は対象の表示可能状態を再確認する。
 - 個人設定はロールのNoticeMailEnabledをDBで確認し、OFF・未定義は画面GET/POST・API GET/PUTを403で拒否する。本人の2項目とUpdateCountだけを受け取り、1行の競合更新とする。存在しない設定を無条件に通知有効として扱わず、整合性エラーとして検出する。
 - トップと匿名モードのツール一覧は同じSystemNoticeServiceで公開SYSTEMお知らせを取得し、詳細は公開TOOLお知らせを取得する。画面ごとに取得条件・並び順を変えない。ログインするモードの一覧ではお知らせを取得しない。
-- 匿名モードの一覧・詳細では星印とお気に入りタブを表示せず、お気に入りの登録・解除を提供しない。FAQは公開行をカテゴリ順・項目順・ID順で表示する。FAQ編集・カテゴリ編集画面は追加しない。
+- 匿名モードの一覧・詳細では星印とお気に入りタブを表示せず、お気に入りの登録・解除を提供しない。詳細のお気に入り経由の戻り先も使わず、存在しない一覧へのリンクを作らない。FAQは公開行をカテゴリ順・項目順・ID順で表示する。FAQ編集・カテゴリ編集画面は追加しない。
 - マニュアルPDFは管理された相対配置から認可済み経路で取得する。任意パスは受け付けない。
 
 ## 8. ツール・履歴・ファイル管理

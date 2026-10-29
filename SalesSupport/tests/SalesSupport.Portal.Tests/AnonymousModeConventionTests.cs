@@ -57,6 +57,19 @@ public sealed class AnonymousModeConventionTests
         Assert.Contains(typeof(UsersApiController), remaining);
     }
 
+    /// <summary>お気に入り一覧のアクションだけを外し、ツール一覧・詳細・Web起動は残します。</summary>
+    [Fact]
+    public void OnlyFavoritesListActionIsRemovedFromTools()
+    {
+        var application = Application();
+
+        new AnonymousModeConvention().Apply(application);
+
+        var tools = Assert.Single(application.Controllers, x => x.ControllerType.AsType() == typeof(ToolsController));
+        Assert.Equal([nameof(ToolsController.Index), nameof(ToolsController.Detail), nameof(ToolsController.Launch)],
+            tools.Actions.Select(x => x.ActionMethod.Name));
+    }
+
     /// <summary>通知設定APIだけを外し、各ツールが使う現在ユーザーのAPIは残します。</summary>
     [Fact]
     public void OnlyPreferenceApiActionsAreRemoved()
@@ -76,7 +89,7 @@ public sealed class AnonymousModeConventionTests
         var application = new ApplicationModel();
         foreach (var type in new[]
         {
-            typeof(HomeController), typeof(ToolsController), typeof(HelpController), typeof(ToolFilesController),
+            typeof(HomeController), typeof(HelpController), typeof(ToolFilesController),
             typeof(AccountController), typeof(FavoritesController), typeof(PreferencesController), typeof(InquiriesController),
             typeof(Web.Areas.Admin.Controllers.UsersController), typeof(Web.Areas.Admin.Controllers.ToolsController),
             typeof(Web.Areas.Admin.Controllers.NoticesController), typeof(Web.Areas.Admin.Controllers.InquiriesController)
@@ -84,6 +97,16 @@ public sealed class AnonymousModeConventionTests
         {
             application.Controllers.Add(new ControllerModel(type.GetTypeInfo(), []));
         }
+        // お気に入り一覧はアクション単位で外すため、ツールのControllerだけ実際のアクションを持たせます。
+        var tools = new ControllerModel(typeof(ToolsController).GetTypeInfo(), []);
+        foreach (var name in new[]
+        {
+            nameof(ToolsController.Index), nameof(ToolsController.Favorites), nameof(ToolsController.Detail), nameof(ToolsController.Launch)
+        })
+        {
+            tools.Actions.Add(new ActionModel(typeof(ToolsController).GetMethod(name)!, []));
+        }
+        application.Controllers.Add(tools);
         var api = new ControllerModel(typeof(UsersApiController).GetTypeInfo(), []);
         foreach (var name in new[] { nameof(UsersApiController.Me), nameof(UsersApiController.GetPreferences), nameof(UsersApiController.PutPreferences) })
         {

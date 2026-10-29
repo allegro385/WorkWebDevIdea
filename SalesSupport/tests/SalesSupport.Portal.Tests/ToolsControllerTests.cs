@@ -55,6 +55,30 @@ public sealed class ToolsControllerTests
         Assert.Equal(0, notices.Calls);
     }
 
+    /// <summary>匿名モードの詳細では、お気に入り一覧からの遷移として扱わず、存在しない一覧への戻り先を作りません。</summary>
+    [Fact]
+    public async Task AnonymousDetailDoesNotReturnToFavoritesList()
+    {
+        var controller = Create(new StubSystemNoticeService(), anonymous: true);
+
+        var result = await controller.Detail("T001", favorites: true, default);
+
+        var model = Assert.IsType<ToolDetailViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.IsAnonymousMode);
+        Assert.False(model.FromFavorites);
+    }
+
+    /// <summary>ログインするモードの詳細では、お気に入り一覧からの遷移をそのまま戻り先に使います。</summary>
+    [Fact]
+    public async Task LoginModeDetailKeepsFavoritesReturn()
+    {
+        var controller = Create(new StubSystemNoticeService());
+
+        var model = Assert.IsType<ToolDetailViewModel>(Assert.IsType<ViewResult>(await controller.Detail("T001", favorites: true, default)).Model);
+
+        Assert.True(model.FromFavorites);
+    }
+
     /// <summary>表示確認用のお知らせ1件を作成します。</summary>
     /// <param name="noticeId">お知らせの識別子です。</param>
     /// <param name="title">お知らせの表題です。</param>
@@ -104,9 +128,13 @@ public sealed class ToolsControllerTests
         public Task<ToolListViewModel> GetListAsync(Guid userId, string roleCode, bool favoritesOnly, CancellationToken ct = default) =>
             Task.FromResult(new ToolListViewModel(favoritesOnly, 0, 0, []));
 
-        /// <summary>この試験では使用しません。</summary>
+        /// <summary>表示できる最小限の詳細を返します。</summary>
+        /// <param name="toolId">対象ツールです。</param>
+        /// <param name="userId">表示対象の利用者です。</param>
+        /// <param name="ct">要求のキャンセルトークンです。</param>
         public Task<ToolDetailViewModel?> GetDetailAsync(string toolId, Guid userId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+            Task.FromResult<ToolDetailViewModel?>(new(toolId, "検証カテゴリ", "検証ツール", null, null, "WEB", "PUBLIC", "1.0.0",
+                new DateOnly(2026, 10, 30), false, [], [], false, null, []));
 
         /// <summary>この試験では使用しません。</summary>
         public Task<string?> GetWebLaunchUrlAsync(string toolId, CancellationToken ct = default) => throw new NotSupportedException();

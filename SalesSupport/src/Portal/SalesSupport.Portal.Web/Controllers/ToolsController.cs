@@ -22,7 +22,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
 
     /// <summary>ツール詳細を表示します。状態ごとの可否は共通利用制御で判定します。</summary>
     /// <param name="toolId">対象ツールです。</param>
-    /// <param name="favorites">お気に入り一覧から遷移した場合はtrueにし、戻り先を切り替えます。</param>
+    /// <param name="favorites">お気に入り一覧から遷移した場合はtrueにし、戻り先を切り替えます。匿名モードでは一覧を提供しないため無視します。</param>
     /// <param name="ct">要求のキャンセルトークンです。</param>
     [HttpGet("{toolId}")]
     public async Task<IActionResult> Detail(string toolId, bool favorites, CancellationToken ct)
@@ -33,14 +33,17 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
 
         var detail = await tools.GetDetailAsync(toolId, user.UserId, ct);
         if (detail is null) return NotFound();
-        var listPath = favorites ? "tools/favorites" : "tools";
-        var listLabel = favorites ? "お気に入りツール" : "ツール一覧";
+        var anonymous = options.Value.IsAnonymous;
+        // 匿名モードはお気に入り一覧を経路ごと提供しないため、戻り先をツール一覧へ固定します。
+        var fromFavorites = favorites && !anonymous;
+        var listPath = fromFavorites ? "tools/favorites" : "tools";
+        var listLabel = fromFavorites ? "お気に入りツール" : "ツール一覧";
         ViewData.SetPageShell(new PageShellModel
         {
             PageTitle = "ツール詳細",
             Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(listLabel, listPath), new Breadcrumb("ツール詳細")]
         });
-        return View("Detail", detail with { FromFavorites = favorites, IsAnonymousMode = options.Value.IsAnonymous });
+        return View("Detail", detail with { FromFavorites = fromFavorites, IsAnonymousMode = anonymous });
     }
 
     /// <summary>登録済みの同一サイト内のパスへだけ遷移します。利用ログは起動先で記録します。</summary>
