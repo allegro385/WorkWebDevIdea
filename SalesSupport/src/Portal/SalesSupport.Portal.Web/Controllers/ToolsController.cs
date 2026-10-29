@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SalesSupport.Common.Authentication;
+using SalesSupport.Common.Configuration;
 using SalesSupport.Common.UI;
 using SalesSupport.Portal.Web.Services;
 
@@ -7,7 +9,8 @@ namespace SalesSupport.Portal.Web.Controllers;
 
 /// <summary>P003 ツール一覧、P008 お気に入りツールおよびP004 ツール詳細を表示します。</summary>
 [Route("tools")]
-public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccessor current, IAccessEvaluator access) : Controller
+public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccessor current, IAccessEvaluator access, ISystemNoticeService notices,
+    IOptions<CommonOptions> options) : Controller
 {
     /// <summary>全ツールを表示します。</summary>
     [HttpGet("")]
@@ -37,7 +40,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
             PageTitle = "ツール詳細",
             Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(listLabel, listPath), new Breadcrumb("ツール詳細")]
         });
-        return View("Detail", detail with { FromFavorites = favorites });
+        return View("Detail", detail with { FromFavorites = favorites, IsAnonymousMode = options.Value.IsAnonymous });
     }
 
     /// <summary>登録済みの同一サイト配下のURLへだけ遷移します。利用ログは起動先で記録します。</summary>
@@ -55,7 +58,10 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
     private async Task<IActionResult> ListAsync(bool favoritesOnly, CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
+        var anonymous = options.Value.IsAnonymous;
         var model = await tools.GetListAsync(user.UserId, user.RoleCode, favoritesOnly, ct);
+        // 匿名モードはトップ画面を設けないため、この画面でお知らせを表示します。同じPortalDbContextを使うので順に取得します。
+        var published = anonymous ? await notices.GetPublishedAsync(ct) : [];
         var title = favoritesOnly ? "お気に入りツール" : "ツール一覧";
         ViewData.SetPageShell(new PageShellModel
         {
@@ -63,6 +69,6 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
             UseTitleBand = true,
             Breadcrumbs = [new Breadcrumb("トップ", ""), new Breadcrumb(title)]
         });
-        return View("Index", model);
+        return View("Index", model with { Notices = published, IsAnonymousMode = anonymous });
     }
 }

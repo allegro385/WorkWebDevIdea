@@ -6,28 +6,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<section class="ss-panel">
-    <h2 class="pt-panel-title">お知らせ</h2>
-    <div class="pt-scroll pt-notice-scroll">
-        @if (Model.Notices.Count == 0)
-        {
-            <p class="pt-empty">現在、公開中のお知らせはありません。</p>
-        }
-        else
-        {
-            foreach (var notice in Model.Notices)
-            {
-                <article class="pt-notice">
-                    <p class="pt-notice-date">@(notice.ShowDate ? notice.Date.ToString("yyyy/MM/dd") : "")</p>
-                    <div>
-                        <h3 class="pt-notice-title">@notice.Title</h3>
-                        <p class="pt-multiline">@notice.Content</p>
-                    </div>
-                </article>
-            }
-        }
-    </div>
-</section>
+<partial name="_Notices" model="Model.Notices" />
 
 <div class="pt-card-grid">
     <section class="pt-card">

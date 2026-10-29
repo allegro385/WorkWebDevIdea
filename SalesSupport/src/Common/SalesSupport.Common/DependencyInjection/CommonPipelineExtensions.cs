@@ -88,7 +88,8 @@ public static class CommonPipelineExtensions
         app.UseAuthorization();
 
         // ヘッダーのログアウトはCommonの共通処理で共有Cookieを破棄し、Portalへ戻します。
-        app.MapSalesSupportLogout();
+        // 匿名モードは終了させる認証がないため、ログアウト経路を組み込みません。
+        if (!app.Services.GetRequiredService<IOptions<CommonOptions>>().Value.IsAnonymous) app.MapSalesSupportLogout();
 
         app.MapControllerRoute(
             name: "default",

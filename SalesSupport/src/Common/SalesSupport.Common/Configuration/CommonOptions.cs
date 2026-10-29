@@ -19,8 +19,15 @@ public sealed class CommonOptions
     /// <summary>ツールの起動モードです。Portalでは常に<see cref="ToolExecutionMode.Portal"/>です。</summary>
     public ToolExecutionMode ExecutionMode { get; set; }
 
+    /// <summary>共通設定ファイルで選んだサイトの認証モードです。Portalと全ツールで同じ値です。</summary>
+    public SiteAuthenticationMode AuthenticationMode { get; set; }
+
     /// <summary>起動時に検証された、Portal・DB・共通設定ファイルを使わない単独開発のツールかを返します。</summary>
     public bool IsStandalone => Kind == ApplicationKind.Tool && IsDevelopment && ExecutionMode == ToolExecutionMode.Standalone;
+
+    /// <summary>ログインを行わず、固定の共通ユーザーとして利用させる匿名モードかを返します。</summary>
+    /// <remarks>共通設定ファイルを読まない単独開発は対象外です。</remarks>
+    public bool IsAnonymous => !IsStandalone && AuthenticationMode == SiteAuthenticationMode.Anonymous;
 
     /// <summary>開発環境向けの動作を適用するかを判定します。未設定・不正値は開発扱いにしません。</summary>
     public bool IsDevelopment => EnvironmentCode == "DEVELOPMENT";

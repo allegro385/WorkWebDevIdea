@@ -1,0 +1,27 @@
+@model IReadOnlyList<PortalNoticeView>
+@*
+    ポータルトップ、ツール一覧およびツール詳細で共通に使用するお知らせ欄です。
+    タイトルと内容はHTMLとして描画せず、改行を保持したまま表示します。
+*@
+<section class="ss-panel">
+    <h2 class="pt-panel-title">お知らせ</h2>
+    <div class="pt-scroll pt-notice-scroll">
+        @if (Model.Count == 0)
+        {
+            <p class="pt-empty">現在、公開中のお知らせはありません。</p>
+        }
+        else
+        {
+            foreach (var notice in Model)
+            {
+                <article class="pt-notice">
+                    <p class="pt-notice-date">@(notice.ShowDate ? notice.Date.ToString("yyyy/MM/dd") : "")</p>
+                    <div>
+                        <h3 class="pt-notice-title">@notice.Title</h3>
+                        <p class="pt-multiline">@notice.Content</p>
+                    </div>
+                </article>
+            }
+        }
+    </div>
+</section>

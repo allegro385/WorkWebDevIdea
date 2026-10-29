@@ -66,6 +66,7 @@ D:\SalesSupport\
 | `SalesSupport:Mail:Port` / `TlsMode` | `587` / `StartTls` | 一般的な送信用の組合せ。実SMTPに合わせて確認 |
 | `SalesSupport:EnvironmentCode` | `PRODUCTION` | 開発環境では`DEVELOPMENT`へ変更 |
 | `SalesSupport:Site:Name` | `営業支援ポータルサイト` | 共通ヘッダー・フッターの表示名とメール文面の`{サイト名}`。全アプリで同じ値 |
+| `SalesSupport:Site:AuthenticationMode` | `EmailOtp` | 通常はこの値。ログインなしで公開する第1段だけ`Anonymous`へ変更。全アプリで同じ値 |
 | `SalesSupport:Application:Name` | `営業支援ポータル` | このアプリ自身の名前。障害ログの`ApplicationName`とツール画面の対象ツール名 |
 | `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更 |
 | `SalesSupport:DataProtection:KeyDirectory` | `../keys` | 配置に合わせて変更 |
@@ -77,6 +78,23 @@ D:\SalesSupport\
 | `SalesSupport:Proxy:KnownProxies` | `[]` | 既定値。空では転送ヘッダーを採用しません |
 
 開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。PortalとDBを使う検証には、空の接続文字列へ使い捨ての開発用DBを指定してください。
+
+## ログインなしで公開する（段階リリース）
+
+段階リリースの第1段では、`SalesSupport:Site:AuthenticationMode`を`Anonymous`にするとログインなしでサイトを利用できます。Portalと全Webツールが同じこのファイルを読むため、変更は1か所です。変更後はPortalと全Webツールを再起動します。
+
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `EmailOtp`（未設定時の既定） | 通常のサービス提供 | メールOTPと共有Cookieで本人を認証します |
+| `Anonymous` | 第1段（ログインなしの公開） | 固定の共通ユーザー（一般ロール`A`）として利用します |
+
+- 匿名モードでも、サイト・ツールの公開状態とロール`A`へのツール割当てはDBで確認します。割当てのないツールは一覧へ出ず、起動もできません。公開するツールの割当てを先にDBへ登録してください。
+- ログイン、個人設定、問い合わせ、お気に入り、管理画面は提供しません。お知らせ・ツール・ユーザーの更新はDBの直接更新で行います。
+- 利用ログ・操作ログは記録しますが、UserIdは固定値（`00000000-0000-0000-0000-000000000001`）になるため、個人単位の利用集計はできません。
+- 第2段では`EmailOtp`へ戻して再起動します。URLとログは継続します。切替前にユーザー登録とSMTPの設定を完了させてください。
+- 未定義値（大小文字違いを含む）は起動時に構成エラーとして停止します。設定不備で匿名側へ切り替わることはありません。
+
+手順と確認項目は[導入・運用 第10節](../../設計書/05_導入・運用.md#authentication-operation)、境界は[Common詳細設計 第5節](../../設計書/10_Common詳細設計.md#サイトの認証モード)を正とします。
 
 ## ツールを単独で開発する
 
