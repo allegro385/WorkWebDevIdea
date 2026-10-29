@@ -19,7 +19,7 @@ public sealed class AccountController(IAccountService accounts, IConfiguration c
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl)
     {
-        var input = new LoginInput { ReturnUrl = CommonValidation.IsLocalReturnUrl(returnUrl) ? returnUrl : null };
+        var input = new LoginInput { ReturnUrl = CommonValidation.IsLocalPath(returnUrl) ? returnUrl : null };
         return LoginView(input);
     }
 
@@ -80,7 +80,7 @@ public sealed class AccountController(IAccountService accounts, IConfiguration c
     private IActionResult Complete(LoginResult result)
     {
         if (result.RequiresPrivateNotice) return RedirectToAction(nameof(HomeController.Private), "Home");
-        return CommonValidation.IsLocalReturnUrl(result.ReturnUrl) ? LocalRedirect(result.ReturnUrl!) : RedirectToAction(nameof(HomeController.Index), "Home");
+        return CommonValidation.IsLocalPath(result.ReturnUrl) ? LocalRedirect(result.ReturnUrl!) : RedirectToAction(nameof(HomeController.Index), "Home");
     }
 
     /// <summary>内部情報やメールアドレスを含まない利用者向けの案内です。</summary>

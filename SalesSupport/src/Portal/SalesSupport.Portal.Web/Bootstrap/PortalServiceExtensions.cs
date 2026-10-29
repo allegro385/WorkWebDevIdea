@@ -45,7 +45,9 @@ public static class PortalServiceExtensions
     /// <summary>利用者画面と管理画面のサービスを登録します。DbContextを共有するサービスはScopedにします。</summary>
     private static void AddScreenServices(IServiceCollection services)
     {
-        services.AddScoped<IHomeService, HomeService>();
+        // 匿名モードで提供しない画面の除外は、MVCの設定が作られる時点の認証モードで決めます。
+        services.AddSingleton<Microsoft.Extensions.Options.IConfigureOptions<Microsoft.AspNetCore.Mvc.MvcOptions>, AnonymousModeMvcSetup>();
+        services.AddScoped<ISystemNoticeService, SystemNoticeService>();
         services.AddScoped<IToolQueryService, ToolQueryService>();
         services.AddScoped<IToolFileService, ToolFileService>();
         services.AddScoped<IFavoriteService, FavoriteService>();

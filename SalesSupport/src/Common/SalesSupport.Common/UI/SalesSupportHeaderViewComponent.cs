@@ -26,6 +26,14 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
     {
         // 単独開発にはPortal・ログイン利用者がないため、Portalへの導線を出さずにモードだけを示します。
         if (options.Value.IsStandalone) return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, true, null, [], [], null, IsStandalone: true));
+        // 匿名モードには本人向け機能とログアウトがないため、全ツールとマニュアルだけを案内します。
+        if (options.Value.IsAnonymous)
+        {
+            List<HeaderMenu> anonymousMenus = ViewData.GetPageShell().ShowCommonMenus
+                ? [new("ツール一覧", [new("全ツール", links.Portal("tools"))]), new("サポート", [new("利用マニュアル・FAQ", links.Portal("help"))])]
+                : [];
+            return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, options.Value.IsDevelopment, links.Portal(), anonymousMenus, [], null));
+        }
         var user = current.User;
         var isAdmin = user?.RoleCode == "ADMIN";
         // 未検証の利用者と、入場制限案内・認証画面には通常機能への導線を表示しません。

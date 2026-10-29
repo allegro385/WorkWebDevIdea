@@ -46,7 +46,7 @@ public sealed class AccountService(PortalDbContext db, UserManager<ApplicationUs
         var normalized = users.NormalizeName(loginId);
         var userId = await db.Users.AsNoTracking().Where(x => x.NormalizedUserName == normalized).Select(x => x.Id).SingleOrDefaultAsync(ct);
         if (userId == Guid.Empty) return await RejectAsync(ct);
-        returnUrl = CommonValidation.IsLocalReturnUrl(returnUrl) ? returnUrl : null;
+        returnUrl = CommonValidation.IsLocalPath(returnUrl) ? returnUrl : null;
         ApplicationUser? user;
         EmailOtpState state;
         string code;

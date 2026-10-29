@@ -9,28 +9,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<section class="ss-panel">
-    <h2 class="pt-panel-title">お知らせ</h2>
-    <div class="pt-scroll pt-notice-scroll">
-        @if (Model.Notices.Count == 0)
-        {
-            <p class="pt-empty">現在、公開中のお知らせはありません。</p>
-        }
-        else
-        {
-            foreach (var notice in Model.Notices)
-            {
-                <article class="pt-notice">
-                    <p class="pt-notice-date">@(notice.ShowDate ? notice.Date.ToString("yyyy/MM/dd") : "")</p>
-                    <div>
-                        <h3 class="pt-notice-title">@notice.Title</h3>
-                        <p class="pt-multiline">@notice.Content</p>
-                    </div>
-                </article>
-            }
-        }
-    </div>
-</section>
+<partial name="_Notices" model="Model.Notices" />
 
 <section class="ss-panel">
     <h2 class="pt-panel-title">バージョン更新情報</h2>
@@ -68,13 +47,16 @@
     <h2 class="pt-panel-title">基本情報</h2>
     <div class="pt-tool-summary">
         <div class="pt-tool-summary-head">
-            <form method="post" asp-controller="Favorites" asp-action="@(Model.IsFavorite ? "Remove" : "Add")"
-                  asp-route-toolId="@Model.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
-                <button type="submit" class="pt-star @(Model.IsFavorite ? "pt-star-on" : "")">
-                    <span aria-hidden="true">@(Model.IsFavorite ? "★" : "☆")</span>
-                    <span class="visually-hidden">@(Model.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
-                </button>
-            </form>
+            @if (!Model.IsAnonymousMode)
+            {
+                <form method="post" asp-controller="Favorites" asp-action="@(Model.IsFavorite ? "Remove" : "Add")"
+                      asp-route-toolId="@Model.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
+                    <button type="submit" class="pt-star @(Model.IsFavorite ? "pt-star-on" : "")">
+                        <span aria-hidden="true">@(Model.IsFavorite ? "★" : "☆")</span>
+                        <span class="visually-hidden">@(Model.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
+                    </button>
+                </form>
+            }
             <h3>@Model.ToolName</h3>
             <code-badge code-type="TOOL_STATUS" code-value="@Model.Status" />
         </div>

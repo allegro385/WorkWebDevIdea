@@ -1,6 +1,8 @@
 @model ToolListViewModel
 @*
     P003 ツール一覧・P008 お気に入りツールです。表示項目・並び順・操作は両画面で統一します。
+    匿名モードでは、画面上部にトップ画面と同じ共通部分ビューで公開中のシステムお知らせを表示し、
+    お気に入りの星印とタブを表示しません。
     星印はお気に入りの登録・解除だけを行い、詳細画面へは遷移しません。
 *@
 @{
@@ -10,12 +12,19 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-<nav class="pt-tabs" aria-label="表示するツールの種類">
-    <a class="pt-tab @(Model.FavoritesOnly ? "" : "pt-tab-active")" asp-controller="Tools" asp-action="Index"
-       aria-current="@(Model.FavoritesOnly ? null : "page")">全ツール（@Model.AllCount）</a>
-    <a class="pt-tab @(Model.FavoritesOnly ? "pt-tab-active" : "")" asp-controller="Tools" asp-action="Favorites"
-       aria-current="@(Model.FavoritesOnly ? "page" : null)">お気に入りツール（@Model.FavoriteCount）</a>
-</nav>
+@if (Model.IsAnonymousMode)
+{
+    <partial name="_Notices" model="Model.Notices" />
+}
+else
+{
+    <nav class="pt-tabs" aria-label="表示するツールの種類">
+        <a class="pt-tab @(Model.FavoritesOnly ? "" : "pt-tab-active")" asp-controller="Tools" asp-action="Index"
+           aria-current="@(Model.FavoritesOnly ? null : "page")">全ツール（@Model.AllCount）</a>
+        <a class="pt-tab @(Model.FavoritesOnly ? "pt-tab-active" : "")" asp-controller="Tools" asp-action="Favorites"
+           aria-current="@(Model.FavoritesOnly ? "page" : null)">お気に入りツール（@Model.FavoriteCount）</a>
+    </nav>
+}
 
 @if (Model.Tools.Count == 0)
 {
@@ -37,7 +46,10 @@ else
     <table class="table pt-tool-table">
         <thead>
             <tr>
-                <th scope="col" class="pt-col-star"><span class="visually-hidden">お気に入り</span>☆</th>
+                @if (!Model.IsAnonymousMode)
+                {
+                    <th scope="col" class="pt-col-star"><span class="visually-hidden">お気に入り</span>☆</th>
+                }
                 <th scope="col" class="pt-col-category">カテゴリ</th>
                 <th scope="col" class="pt-col-name">ツール名</th>
                 <th scope="col">ツール概要</th>
@@ -51,16 +63,19 @@ else
             @foreach (var tool in Model.Tools)
             {
                 <tr class="@(tool.IsLimited ? "pt-row-limited" : "")">
-                    <td class="pt-col-star">
-                        <form method="post" asp-controller="Favorites" asp-action="@(tool.IsFavorite ? "Remove" : "Add")"
-                              asp-route-toolId="@tool.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
-                            <button type="submit" class="pt-star @(tool.IsFavorite ? "pt-star-on" : "")"
-                                    title="@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")">
-                                <span aria-hidden="true">@(tool.IsFavorite ? "★" : "☆")</span>
-                                <span class="visually-hidden">@tool.ToolName を@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
-                            </button>
-                        </form>
-                    </td>
+                    @if (!Model.IsAnonymousMode)
+                    {
+                        <td class="pt-col-star">
+                            <form method="post" asp-controller="Favorites" asp-action="@(tool.IsFavorite ? "Remove" : "Add")"
+                                  asp-route-toolId="@tool.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>
+                                <button type="submit" class="pt-star @(tool.IsFavorite ? "pt-star-on" : "")"
+                                        title="@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")">
+                                    <span aria-hidden="true">@(tool.IsFavorite ? "★" : "☆")</span>
+                                    <span class="visually-hidden">@tool.ToolName を@(tool.IsFavorite ? "お気に入りから解除" : "お気に入りへ登録")</span>
+                                </button>
+                            </form>
+                        </td>
+                    }
                     <td>@tool.CategoryName</td>
                     <td>
                         @if (tool.CanOpenDetail)

@@ -48,8 +48,8 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
         current.User = null;
-        // 単独開発では共有Cookieを認証に使いません。
-        if (options.Value.IsStandalone) { context.RejectPrincipal(); return; }
+        // 単独開発と匿名モードでは共有Cookieを認証に使いません。
+        if (options.Value.IsStandalone || options.Value.IsAnonymous) { context.RejectPrincipal(); return; }
         var claims = identityOptions.Value.ClaimsIdentity;
         var now = clock.GetUtcNow();
         var valid = Guid.TryParse(context.Principal?.FindFirstValue(claims.UserIdClaimType), out var userId)
@@ -74,7 +74,7 @@ public sealed class SharedCookieEvents(IDbContextFactory<CommonDbContext> factor
     /// <summary>APIは401、HTMLはPortalのログイン画面へ誘導します。Portalのない単独開発は401を返します。</summary>
     public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> context)
     {
-        if (options.Value.IsStandalone || context.Request.Path.StartsWithSegments("/api")) context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        if (options.Value.IsStandalone || options.Value.IsAnonymous || context.Request.Path.StartsWithSegments("/api")) context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         else
         {
             var login = new Uri(new Uri(options.Value.PortalBaseUrl), "account/login");

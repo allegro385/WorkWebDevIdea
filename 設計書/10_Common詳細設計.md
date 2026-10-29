@@ -149,9 +149,11 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | ConnectionStrings:SalesSupport | 共通設定ファイル・実値は配置時 | 未設定拒否。値をエラー本文へ出さない |
 | SalesSupport:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Site:Name | 全アプリ | 1～100文字。共通ヘッダー・フッターの表示名とメール文面の`{サイト名}` |
+| SalesSupport:Site:AuthenticationMode | 全アプリ・未設定は`EmailOtp` | `EmailOtp`／`Anonymous`のみ。未定義値は構成エラー。詳細は5節 |
+| SalesSupport:Site:TransportMode | 全アプリ・未設定は`Https` | `Https`／`Http`のみ。未定義値は構成エラー。詳細は5節 |
 | SalesSupport:Application:Name | 全アプリ・アプリ固有 | 1～100文字。このアプリ自身の名前。障害ログのApplicationNameとツール画面の対象ツール名に使う |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
-| SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
+| SalesSupport:Portal:BaseUrl | 全アプリ | `Site:TransportMode`と同じスキーム（`Https`はhttps、`Http`はhttp）の絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
 | SalesSupport:Storage:PermanentRoot | 永続ファイル利用アプリ | 同上。一時領域と分離 |
@@ -212,6 +214,37 @@ Webツールは「ポータル連携」と「単独開発」の2つの起動モ�
 - 共通ヘッダーはPortalへのリンク・ログイン・ログアウトを表示せず、「単独開発」と表示する。パンくずのPortal向けの項目はリンクにせず文字だけを表示する。
 - 障害は画面にErrorIdを示し、ホストの`ILogger`（コンソール）へ例外の詳細を出力する。開発環境に限定されるため本番では出力しない。
 - ツール固有のDBを単独開発で使うこと（接続文字列の取得元を含む）は対象外とし、[検討事項](06_検討事項.md#tool-database)で扱う。
+
+### サイトの認証モード
+
+サイトは「メールOTP」と「匿名」の2つの認証モードを持つ。モードは共通設定ファイルの`SalesSupport:Site:AuthenticationMode`で選び、Portalと全ツールが同じファイルを読むため1か所の変更で全アプリが切り替わる。アプリごとに異なる値を与えない。未定義値は起動時の構成エラーとし、設定不備を匿名側へ倒さない。[単独開発](#ツールの起動モード)は共通設定ファイルを読まないためこのモードの対象外とする。
+
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `EmailOtp`（未設定時の既定） | 通常のサービス提供 | メールOTPと共有Cookieによる本人認証を行う |
+| `Anonymous` | 段階リリースの第1段 | ログインを行わず、固定の共通ユーザーとして利用させる |
+
+- 匿名モードの既定の認証方式は`SalesSupport.AnonymousSite`とし、固定の共通ユーザー（UserId`00000000-0000-0000-0000-000000000001`、表示名「共通ユーザー」、RoleCode`A`）を検証済み利用者として確定する。この利用者をAspNetUsersへ登録しない。ログの3テーブルは外部キーを持たないため、UserIdは記録時点の識別値としてだけ保持する。
+- サイト公開状態、ツールの状態、ToolRolesの割当て、ロールマスタの存在は通常と同じ順序で要求ごとにDBから確認する。ロール`A`の割当てがないツールは一覧へ出さず、起動・取得も拒否する。取得失敗・未定義コードは拒否側へ倒す。
+- 利用ログ（`WEB_OPEN`・`WEB_EXECUTE`・`DESKTOP_DOWNLOAD`）と操作ログは通常と同じ条件で記録する。UserIdは固定値になるため、利用者個人を特定する集計には使えない。
+- 共有Cookieを発行せず、受理もしない（Cookie検証イベントは匿名モードでプリンシパルを拒否する）。`SalesSupportAdmin`ポリシーは共有Cookieの実ユーザーを要求するため満たさない。`SalesSupportTool`ポリシーは匿名モードの認証方式を使うため、ツール側の明示指定はそのまま動作する（単独開発では共有Cookieのままで満たさない）。
+- ログアウト経路は組み込まない。メールは使用しないため、Portalでも`Mail:Enabled`をfalseへ固定する。
+- 匿名モードは段階リリースの第1段のための設定であり、恒久仕様ではない。第2段で`EmailOtp`へ戻す。切替手順は[導入・運用](05_導入・運用.md#authentication-operation)に従う。
+
+### サイトの通信方式
+
+サイトは「HTTPS」と「HTTP」の2つの通信方式を持つ。方式は共通設定ファイルの`SalesSupport:Site:TransportMode`で選び、Portalと全ツールが同じファイルを読むため1か所の変更で全アプリが切り替わる。アプリごとに異なる値を与えない。未定義値は起動時の構成エラーとし、設定不備をHTTP側へ倒さない。[単独開発](#ツールの起動モード)は共通設定ファイルを読まないため常にHTTPSの扱いとする。
+
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `Https`（未設定時の既定） | 通常のサービス提供 | HSTS（開発環境以外）とHTTPSへの誘導を適用し、CookieへSecureを常に付ける |
+| `Http` | HTTPSのバインドと通信許可が未完了の期間 | HSTSとHTTPSへの誘導を適用せず、CookieのSecureは要求がHTTPSの場合だけ付ける |
+
+- `Http`では`Portal:BaseUrl`をhttpの絶対URLで設定する。`Https`ではhttpsだけを受け付け、スキーム不一致は起動時の構成エラーとする。
+- 共有認証Cookie、CSRFのCookieおよびPortalのOTP用Cookieは、`Http`ではSecurePolicyを`SameAsRequest`とする。HttpOnly・SameSite=Lax・Path=/・Domain未指定と、復号・期限・DB照合の検証は変更しない。
+- Webツールの起動先（`Tools.WebAppUrl`）は同一サイト内のパスで登録するため、通信方式を切り替えても変更しない。
+- リバースプロキシでTLSを終端する配置は`Https`のままとし、`Proxy:KnownProxies`で転送ヘッダーを信頼させる。この場合アプリはHTTPSの要求として扱うため、`Http`へ切り替えない。
+- `Http`は通信を暗号化しないため、ログインID・パスワード・メールOTP・Cookieが経路上で読み取られうる。到達範囲を限定した期間に限って使用し、第2段の本稼働までに`Https`へ戻す。切替手順は[導入・運用](05_導入・運用.md#transport-operation)に従う。
 
 ### 認証・要求処理
 
@@ -429,6 +462,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 - Portalと各ツールはレイアウトを指定し、本文だけ実装する。Bootstrap等をホストとCommonで二重読込みしない。
 - モックの固定ユーザー、固定色・データ、同名関数の重複は移植せず、仕様に対応する部品へ置換する。
 - 管理メニューの非表示だけで認可済みとしない。固定ヘッダー・同幅メニュー・キーボード操作・画面内競合案内は02を維持する。
+- 匿名モードでは利用者メニューとログアウトを表示せず、共通メニューは「全ツール」と「利用マニュアル・FAQ」だけにする。表示の抑止は認可の代替にしない。
 - ログアウトは表示中アプリの認証必須POSTハンドラーへ送信する。各アプリ自身が発行したCSRFトークンを検証し、Commonの処理で共有Cookieを削除する。サイトPRIVATEやツールHIDDENでもログアウトは許可し、完了後はPortalへ戻す。追加の確認画面とGETによる状態変更は設けない。
 
 ### Portal APIの共有契約
@@ -469,11 +503,11 @@ Commonが組み込む順序は次のとおり。
 2. 信頼済みプロキシ設定を適用。
 3. 応答へ共通のセキュリティヘッダーを付与。
 4. CorrelationIdと共通例外処理を開始。
-5. HSTS（開発環境以外）、HTTPS、公開静的資産、ルーティングを適用。
+5. HSTS（開発環境以外）とHTTPSへの誘導を適用（[HTTP運用](#サイトの通信方式)では両方を適用しない）。続けて公開静的資産、ルーティングを適用。
 6. AuthenticationでCookieと現行ユーザーを検証。
 7. Portalだけ接続元単位のレート制限を認証の後、認可の前に適用。
 8. Authorizationでサイト・ツール・管理者ポリシーを適用。
-9. 共通ログアウトと既定のコントローラールート（Portalは`Home`、ツールは`Tool`）を登録。
+9. 共通ログアウトと既定のコントローラールート（Portalは`Home`、ツールは`Tool`）を登録。匿名モードではログアウト経路を登録しない。
 10. MVCのCSRF・入力検証を適用し、Controller→Serviceを実行。
 11. 必要な利用ログ・操作ログを1回記録。Streamと一時ファイルを清掃。
 

@@ -57,8 +57,8 @@ SalesSupport.Portal.Web/
 | P001 メールOTP | Account / GET・POST `/account/otp`、POST `/account/otp/resend` | AccountService | 匿名可、一時Cookie必須、POSTはIP制限・CSRF |
 | ログアウト | Commonの同一アプリ内POSTハンドラー `/account/logout` | Common | 公開状態にかかわらずCSRF検証 |
 | P011 非公開案内 | Home / GET `/private` | ISystemSettingsReader | 匿名可、情報最小限 |
-| P002 トップ | Home / GET `/` | HomeService | Site |
-| P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites` | ToolQueryService | Site |
+| P002 トップ | Home / GET `/` | SystemNoticeService | Site |
+| P003・P008 一覧 | Tools / GET `/tools`、`/tools/favorites`（お気に入りは匿名モードで登録しない） | ToolQueryService・SystemNoticeService | Site |
 | P004 詳細 | Tools / GET `/tools/{toolId}` | ToolQueryService | Site＋ToolDetail |
 | Web起動 | Tools / GET `/tools/{toolId}/launch` | ToolQueryService | Site＋ToolUse |
 | ファイル取得 | ToolFiles / GET `/tools/{toolId}/files/{fileId}` | ToolFileService | Site＋ToolDownload |
@@ -73,7 +73,9 @@ SalesSupport.Portal.Web/
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
 | ツールお知らせ | Admin/Notices / POST `/admin/notices/tools/{toolId}/`配下の`save`、`send/confirm`、`send` | NoticeService | ADMIN・ToolManage |
 
-Web起動は登録済みの同一サイト配下のツールURLへの遷移だけを行う。入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
+Web起動は登録済みの同一サイト内のパスへの遷移だけを行う。判定はCommonのローカルパス検証（`/`始まり、スキーム相対URL・`\`・制御文字の拒否）で行い、ホストを含む絶対URLは起動先として扱わない。遷移にはローカル遷移だけを行う結果を使い、入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
+
+匿名モードでは、Account（ログイン・メールOTP）、お気に入り（一覧`GET /tools/favorites`と登録・解除のPOST）、個人設定、問い合わせ、Admin配下の全画面および`GET`・`PUT /api/users/me/preferences`を要求処理へ登録せず、経路ごと存在しない状態にする。Controller単位で外せない一覧とAPIはアクション単位で外す。`GET /`はP003 ツール一覧へリダイレクトし、`/private`と`GET /api/users/me`は維持する。ログアウト経路はCommonが組み込まない。
 
 ツールのお知らせの一覧・編集欄はツール編集画面（`/admin/tools/{toolId}`）の中に表示するため、ツールID付きのGET経路は設けない。ツールID付きのPOSTで保存・送信確認・送信だけを受ける。問い合わせの受付完了は`GET /inquiries/completed`で表示し、POSTの再送信で問い合わせIDを再表示させない。
 
@@ -109,7 +111,7 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - AspNetUserTokensの用途別JSONで状態を保存する。[物理契約](04_DB設計.md#users)に従い、OTP自体は保存しない。SMTP失敗・結果不明でも送信枠を消費し、自動再送しない。アカウントごとに最新の試行だけを有効にする。別タブ・別ブラウザーで新たに送信した場合は以前の試行を無効化する。
 - 一時Cookieはスキーム`SalesSupport.OtpPending`、名前`.SalesSupport.OtpPending`、非永続・固定15分。本人GUID・試行GUIDと安全な戻り先を保護して保持し、認証完了・ログイン再開始で削除する。通常の認証には使用しない。
 - 記憶Cookieはスキーム`SalesSupport.OtpRemember`、名前`.SalesSupport.OtpRemember`、永続・固定30日・スライド更新なし。本人GUID・SecurityStamp・LoginID・メールを保護し、パスワードの再確認後にDBの最新値と照合する。通常ログアウトでは削除しない。OTP成功と本人の選択がある場合だけ発行する。
-- 両CookieともSecure・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
+- 両CookieともSecure（HTTP運用では要求がHTTPSの場合だけ）・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
 - 共通の認証完了処理が共有Cookieへ`sales_support.login_policy=email_otp_v1`を設定する。Commonは全保護要求でこの印を要求し、欠落・不一致は拒否する。一時Cookie・記憶Cookieだけでは通常機能を許可しない。Portalと全ツールは同じ共有Cookie契約で配備する。
 - 将来のSSO等は方式に固有の本人確認と、内部GUIDへ対応付けた後の共有セッション開始を分離して追加する。リンク元の独自認証とのSSO・独自トークン交換・汎用プロバイダー層は今回追加しない。
 
@@ -134,7 +136,8 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - 現在版なしは表示だけVer.1.0.0、更新日なし。履歴は数値3組比較で現在版以下を表示する。文字列順で比較しない。
 - お気に入りは本人IDとToolIdの複合キーを使用し、追加済みへの追加・未登録への解除は成功扱いとする。HIDDENの既存登録は消さず一覧から除外する。追加・解除は対象の表示可能状態を再確認する。
 - 個人設定はロールのNoticeMailEnabledをDBで確認し、OFF・未定義は画面GET/POST・API GET/PUTを403で拒否する。本人の2項目とUpdateCountだけを受け取り、1行の競合更新とする。存在しない設定を無条件に通知有効として扱わず、整合性エラーとして検出する。
-- トップは公開SYSTEMお知らせ、詳細は公開TOOLお知らせを取得する。FAQは公開行をカテゴリ順・項目順・ID順で表示する。FAQ編集・カテゴリ編集画面は追加しない。
+- トップと匿名モードのツール一覧は同じSystemNoticeServiceで公開SYSTEMお知らせを取得し、詳細は公開TOOLお知らせを取得する。画面ごとに取得条件・並び順を変えない。ログインするモードの一覧ではお知らせを取得しない。
+- 匿名モードの一覧・詳細では星印とお気に入りタブを表示せず、お気に入りの登録・解除を提供しない。詳細のお気に入り経由の戻り先も使わず、存在しない一覧へのリンクを作らない。FAQは公開行をカテゴリ順・項目順・ID順で表示する。FAQ編集・カテゴリ編集画面は追加しない。
 - マニュアルPDFは管理された相対配置から認可済み経路で取得する。任意パスは受け付けない。
 
 ## 8. ツール・履歴・ファイル管理

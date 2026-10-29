@@ -20,7 +20,7 @@ public sealed class ValidationAndExportTests
     [InlineData(null, false)]
     public void VersionChecksExactFormat(string? text, bool expected) => Assert.Equal(expected, CommonValidation.IsVersion(text));
 
-    /// <summary>スキーム相対URLとエンコードされた危険な戻り先を拒否します。</summary>
+    /// <summary>スキーム相対URLとエンコードされた危険なパスを拒否します。</summary>
     [Theory]
     [InlineData("/tools/001?a=1", true)]
     [InlineData("https://example.com", false)]
@@ -28,7 +28,7 @@ public sealed class ValidationAndExportTests
     [InlineData("/%2fexample.com", false)]
     [InlineData("/%5cexample.com", false)]
     [InlineData("/path%0d%0a", false)]
-    public void ReturnUrlIsLocal(string value, bool expected) => Assert.Equal(expected, CommonValidation.IsLocalReturnUrl(value));
+    public void LocalPathRejectsExternalAndEncodedValues(string value, bool expected) => Assert.Equal(expected, CommonValidation.IsLocalPath(value));
 
     /// <summary>サロゲートペアと末尾空白をUTF-16の桁数へ含めます。</summary>
     [Fact]

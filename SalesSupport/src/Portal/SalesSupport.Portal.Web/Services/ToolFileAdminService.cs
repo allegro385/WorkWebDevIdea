@@ -96,8 +96,9 @@ public sealed class ToolFileAdminService(PortalDbContext db, IFileStorage storag
     private async Task<ToolAdminResult> ApplyWebUrlAsync(string toolId, string? webAppUrl, int updateCount, CancellationToken ct)
     {
         var url = CommonValidation.Normalize(webAppUrl);
-        if (url is not null && (url.Length > 2048 || !Uri.TryCreate(url, UriKind.Absolute, out var parsed) || parsed.Scheme != Uri.UriSchemeHttps))
-            return ToolAdminResult.Invalid(new("WebAppUrl", "INVALID_INPUT", "ページURLはhttpsで始まる2,048文字以内のURLを入力してください。"));
+        // 起動先は同一サイト内のパスだけとし、ホストを含むURLへは遷移させません。
+        if (url is not null && (url.Length > 2048 || !CommonValidation.IsLocalPath(url)))
+            return ToolAdminResult.Invalid(new("WebAppUrl", "INVALID_INPUT", "ページURLは「/」で始まるサイト内のパスを2,048文字以内で入力してください。"));
 
         var tool = await db.Tools.SingleOrDefaultAsync(x => x.ToolId == toolId, ct);
         if (tool is null) return ToolAdminResult.From(ToolAdminOutcome.Unavailable);

@@ -39,6 +39,12 @@ public static class CommonServiceExtensions
         // 単独開発は共通設定ファイルを読まず、ToolId・アプリ名はホスト設定（起動プロファイルの環境変数）から取得します。
         var common = standalone ? null : CommonConfiguration.Load(environment.ContentRootPath, hostConfiguration[CommonConfiguration.PathKey]);
         var configuration = common?.Values ?? hostConfiguration;
+        // 認証モードは共通設定ファイルの値で決めます。単独開発はこのファイルを読まないため常にメールOTPのままです。
+        var authenticationMode = standalone ? SiteAuthenticationMode.EmailOtp : SiteAuthenticationModeSettings.Read(configuration);
+        var anonymous = !standalone && authenticationMode == SiteAuthenticationMode.Anonymous;
+        // 通信方式も共通設定ファイルの値で決めます。単独開発はこのファイルを読まないため常にHTTPSの扱いです。
+        var transportMode = standalone ? SiteTransportMode.Https : SiteTransportModeSettings.Read(configuration);
+        var cookieSecurePolicy = transportMode == SiteTransportMode.Http ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。単独開発は接続文字列を持ちません。
         var connections = new ConnectionStringProvider(standalone ? new ConfigurationBuilder().Build() : configuration, requireConnectionString: !standalone);
         services.AddSingleton<IConnectionStringProvider>(connections);
@@ -51,12 +57,15 @@ public static class CommonServiceExtensions
             options.ToolId = configuration["SalesSupport:Application:ToolId"];
             options.PortalBaseUrl = standalone ? "" : configuration["SalesSupport:Portal:BaseUrl"] ?? "";
             options.ExecutionMode = mode;
+            options.AuthenticationMode = authenticationMode;
+            options.TransportMode = transportMode;
         }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "SalesSupport:EnvironmentCodeが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.SiteName) && x.SiteName.Length <= 100, "Site:Nameが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
           // 単独開発はPortalへのリンクを作らないため、Portal URLを要求しません。
-          .Validate(x => x.IsStandalone || Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
+          // スキームはサイトの通信方式に一致させ、HTTP運用の期間だけhttpのURLを受け付けます。
+          .Validate(x => x.IsStandalone || Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == x.UrlScheme && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
           .ValidateOnStart();
         services.AddDbContextFactory<CommonDbContext>(options =>
         {
@@ -72,7 +81,7 @@ public static class CommonServiceExtensions
         services.AddOptions<LoggingOptions>().Bind(configuration.GetSection("SalesSupport:Logging"))
             .Validate(x => x.TimeoutSeconds > 0, "Logging:TimeoutSecondsが不正です。").ValidateOnStart();
         AddStorage(services, common);
-        AddMail(services, configuration, kind);
+        AddMail(services, configuration, kind, anonymous);
         AddHttp(services, configuration);
         services.AddOptions<ProxyOptions>().Bind(configuration.GetSection("SalesSupport:Proxy"))
             .Validate(x => x.KnownProxies.All(address => System.Net.IPAddress.TryParse(address, out _)), "Proxy:KnownProxiesが不正です。").ValidateOnStart();
@@ -104,8 +113,8 @@ public static class CommonServiceExtensions
         services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-CSRF-TOKEN";
-            // サイトはHTTPS専用のため、CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            // CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
+            options.Cookie.SecurePolicy = cookieSecurePolicy;
         });
         // 更新要求のCSRF検証を全ホストへ既定で適用します。Portalと各ツールで重複登録せず、個別のControllerで無効化しません。
         services.AddControllersWithViews(options => options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()));
@@ -114,12 +123,16 @@ public static class CommonServiceExtensions
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, CommonAuthorizationResultHandler>();
         // 単独開発は既定の認証方式でCookieを読まず、自端末からの対象ツール利用だけを既定認可で許可します。
-        var defaultScheme = standalone ? StandaloneToolAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
+        // 匿名モードは既定の認証方式で固定の共通ユーザーを確定し、サイト・ツールの判定は通常どおりDBで行います。
+        var defaultScheme = standalone ? StandaloneToolAuthenticationHandler.SchemeName
+            : anonymous ? AnonymousSiteAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
         services.AddAuthorization(options =>
         {
-            // 明示ポリシーは共有Cookieの実ユーザーだけを対象とし、単独開発では満たしません。
+            // 管理者の明示ポリシーは共有Cookieの実ユーザーだけを対象とし、単独開発・匿名モードでは満たしません。
             options.AddPolicy("SalesSupportAdmin", policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Admin: true)));
-            options.AddPolicy("SalesSupportTool", policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: true)));
+            // ツールの明示ポリシーは匿名モードでも機能させるため、そのモードの認証方式を使います。管理者の明示ポリシーは共有Cookieのままです。
+            var toolScheme = anonymous ? AnonymousSiteAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
+            options.AddPolicy("SalesSupportTool", policy => policy.AddAuthenticationSchemes(toolScheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: true)));
             var fallback = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(defaultScheme);
             if (!standalone) fallback.RequireAuthenticatedUser();
             options.FallbackPolicy = fallback.AddRequirements(new CommonAccessRequirement(Tool: kind == ApplicationKind.Tool)).Build();
@@ -127,12 +140,13 @@ public static class CommonServiceExtensions
         services.AddOptions<Microsoft.AspNetCore.Identity.IdentityOptions>();
         var authentication = services.AddAuthentication(defaultScheme);
         if (standalone) authentication.AddScheme<AuthenticationSchemeOptions, StandaloneToolAuthenticationHandler>(StandaloneToolAuthenticationHandler.SchemeName, _ => { });
+        if (anonymous) authentication.AddScheme<AuthenticationSchemeOptions, AnonymousSiteAuthenticationHandler>(AnonymousSiteAuthenticationHandler.SchemeName, _ => { });
         authentication.AddCookie(SharedCookieContract.Scheme, options =>
         {
             options.Cookie.Name = SharedCookieContract.CookieName;
             options.Cookie.Path = "/";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy = cookieSecurePolicy;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
             options.SlidingExpiration = true;
@@ -186,14 +200,15 @@ public static class CommonServiceExtensions
             .ValidateOnStart();
     }
 
-    /// <summary>メールを使用するホストだけSMTP設定を要求します。</summary>
-    private static void AddMail(IServiceCollection services, IConfiguration configuration, ApplicationKind kind)
+    /// <summary>メールを使用するホストだけSMTP設定を要求します。匿名モードはメールを使わないため無効にします。</summary>
+    private static void AddMail(IServiceCollection services, IConfiguration configuration, ApplicationKind kind, bool anonymous)
     {
         var isDevelopment = configuration["SalesSupport:EnvironmentCode"] == "DEVELOPMENT";
         services.AddOptions<MailTemplateOptions>();
         services.AddOptions<MailOptions>().Bind(configuration.GetSection("SalesSupport:Mail"))
             // 共通設定ファイルや環境変数にEnabledが含まれていても、メール利用可否はアプリ種別で確定します。
-            .PostConfigure(options => options.Enabled = kind == ApplicationKind.Portal)
+            // 匿名モードはログインOTP・通知・問い合わせを提供しないため、Portalでも送信を無効へ固定します。
+            .PostConfigure(options => options.Enabled = kind == ApplicationKind.Portal && !anonymous)
             .Validate(x => !x.Enabled || !string.IsNullOrWhiteSpace(x.Host), "Mail:Hostが必要です。")
             .Validate(x => !x.Enabled || x.Port is > 0 and <= 65535, "Mail:Portが不正です。")
             .Validate(x => !x.Enabled || x.TlsMode is MailTlsMode.StartTls or MailTlsMode.SslOnConnect, "Mail:TlsModeを明示してください。")

@@ -27,8 +27,10 @@ public static partial class CommonValidation
     /// <summary>任意入力の空欄をNULLへそろえます。必須判定には使用しません。</summary>
     public static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
-    /// <summary>外部転送や制御文字を許可しない戻り先を検証します。</summary>
-    public static bool IsLocalReturnUrl(string? value)
+    /// <summary>外部転送や制御文字を許可しない、同一サイト内のパスを検証します。</summary>
+    /// <param name="value">検証する値です。ログイン後の戻り先とWebツールの起動先に使います。</param>
+    /// <returns>同一サイト内のパスとして扱える場合はtrueです。</returns>
+    public static bool IsLocalPath(string? value)
     {
         if (string.IsNullOrEmpty(value) || value[0] != '/' || value.Any(char.IsControl) || value.Contains('\\')) return false;
         if (value.StartsWith("//", StringComparison.Ordinal)) return false;

@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Validation;
 using SalesSupport.Portal.Web.Data;
@@ -21,12 +19,12 @@ public interface IToolQueryService
     /// <summary>詳細画面の表示情報を返します。認可は呼出元が事前に判定します。</summary>
     Task<ToolDetailViewModel?> GetDetailAsync(string toolId, Guid userId, CancellationToken ct = default);
 
-    /// <summary>登録済みで同一サイト配下のWeb起動URLだけを返します。</summary>
+    /// <summary>登録済みで同一サイト内のパスのWeb起動先だけを返します。</summary>
     Task<string?> GetWebLaunchUrlAsync(string toolId, CancellationToken ct = default);
 }
 
 /// <summary>表示できる状態のツールだけを参照し、追跡なしで表示用へ射影します。</summary>
-public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock, IOptions<CommonOptions> options) : IToolQueryService
+public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock) : IToolQueryService
 {
     /// <summary>現在のバージョンが未選択・履歴0件の場合に、画面表示だけを補完する値です。</summary>
     public const string DefaultVersion = "1.0.0";
@@ -76,7 +74,7 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
                 : [];
             return new ToolListItem(row.ToolId, row.CategoryName, row.ToolName, row.ToolSummary,
                 row.Version ?? DefaultVersion, row.Version is null ? null : row.ReleasedAt, row.Status, row.IsFavorite,
-                canOpen, row.Status == "PRIVATE", canOpen && row.ToolType == "WEB" && IsSameSite(row.WebAppUrl), app, references);
+                canOpen, row.Status == "PRIVATE", canOpen && row.ToolType == "WEB" && CommonValidation.IsLocalPath(row.WebAppUrl), app, references);
         }).ToList();
 
         var favorites = items.Where(x => x.IsFavorite).ToList();
@@ -128,7 +126,7 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
         var isFavorite = await db.UserToolFavorites.AsNoTracking().AnyAsync(x => x.UserId == userId && x.ToolId == toolId, ct);
         return new ToolDetailViewModel(tool.ToolId, tool.CategoryName, tool.ToolName, tool.ToolSummary, tool.Remarks,
             tool.ToolType, tool.Status, current?.Version ?? DefaultVersion, current?.ReleasedAt, isFavorite,
-            notices, versions, tool.ToolType == "WEB" && IsSameSite(tool.WebAppUrl), application, references);
+            notices, versions, tool.ToolType == "WEB" && CommonValidation.IsLocalPath(tool.WebAppUrl), application, references);
     }
 
     /// <summary>入力された任意URLへは転送せず、登録済みURLだけを返します。</summary>
@@ -136,17 +134,8 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
     {
         var tool = await db.Tools.AsNoTracking().Where(x => x.ToolId == toolId)
             .Select(x => new { x.ToolType, x.WebAppUrl }).SingleOrDefaultAsync(ct);
-        if (tool is null || tool.ToolType != "WEB" || !IsSameSite(tool.WebAppUrl)) return null;
+        if (tool is null || tool.ToolType != "WEB" || !CommonValidation.IsLocalPath(tool.WebAppUrl)) return null;
         return tool.WebAppUrl;
-    }
-
-    /// <summary>Portalと同じスキーム・ホスト・ポートのURLだけを同一サイト配下として許可します。</summary>
-    private bool IsSameSite(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var target)) return false;
-        if (!Uri.TryCreate(options.Value.PortalBaseUrl, UriKind.Absolute, out var portal)) return false;
-        return target.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(target.UserInfo)
-            && string.Equals(target.Host, portal.Host, StringComparison.OrdinalIgnoreCase) && target.Port == portal.Port;
     }
 
     /// <summary>バージョン番号を数値の組として比較する並べ替え用の比較子です。</summary>
