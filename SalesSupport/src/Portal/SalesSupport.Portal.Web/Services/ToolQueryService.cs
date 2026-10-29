@@ -141,11 +141,12 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
     }
 
     /// <summary>Portalと同じスキーム・ホスト・ポートのURLだけを同一サイト配下として許可します。</summary>
+    /// <remarks>スキームはサイトの通信方式に一致させ、HTTP運用の期間だけhttpの起動URLを許可します。</remarks>
     private bool IsSameSite(string? url)
     {
         if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var target)) return false;
         if (!Uri.TryCreate(options.Value.PortalBaseUrl, UriKind.Absolute, out var portal)) return false;
-        return target.Scheme == Uri.UriSchemeHttps && string.IsNullOrEmpty(target.UserInfo)
+        return target.Scheme == options.Value.UrlScheme && target.Scheme == portal.Scheme && string.IsNullOrEmpty(target.UserInfo)
             && string.Equals(target.Host, portal.Host, StringComparison.OrdinalIgnoreCase) && target.Port == portal.Port;
     }
 

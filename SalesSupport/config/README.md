@@ -67,8 +67,9 @@ D:\SalesSupport\
 | `SalesSupport:EnvironmentCode` | `PRODUCTION` | 開発環境では`DEVELOPMENT`へ変更 |
 | `SalesSupport:Site:Name` | `営業支援ポータルサイト` | 共通ヘッダー・フッターの表示名とメール文面の`{サイト名}`。全アプリで同じ値 |
 | `SalesSupport:Site:AuthenticationMode` | `EmailOtp` | 通常はこの値。ログインなしで公開する第1段だけ`Anonymous`へ変更。全アプリで同じ値 |
+| `SalesSupport:Site:TransportMode` | `Https` | 通常はこの値。HTTPSのバインドがない期間だけ`Http`へ変更。全アプリで同じ値 |
 | `SalesSupport:Application:Name` | `営業支援ポータル` | このアプリ自身の名前。障害ログの`ApplicationName`とツール画面の対象ツール名 |
-| `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更 |
+| `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更。スキームは`Site:TransportMode`に合わせます |
 | `SalesSupport:DataProtection:KeyDirectory` | `../keys` | 配置に合わせて変更 |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | `../storage/temp` / `../storage/files` | 配置に合わせて変更。空にするとその保存領域を提供しません |
 | `SalesSupport:Storage:CleanupTimeoutSeconds` | `5` | 既定値 |
@@ -95,6 +96,24 @@ D:\SalesSupport\
 - 未定義値（大小文字違いを含む）は起動時に構成エラーとして停止します。設定不備で匿名側へ切り替わることはありません。
 
 手順と確認項目は[導入・運用 第10節](../../設計書/05_導入・運用.md#authentication-operation)、境界は[Common詳細設計 第5節](../../設計書/10_Common詳細設計.md#サイトの認証モード)を正とします。
+
+## HTTPで公開する（HTTPSのバインドが未完了の期間）
+
+IISサイトにHTTPSのバインドと443番の通信許可がまだない期間は、`SalesSupport:Site:TransportMode`を`Http`にするとHTTPのままサイトを利用できます。Portalと全Webツールが同じこのファイルを読むため、変更は1か所です。変更後はPortalと全Webツールを再起動します。
+
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `Https`（未設定時の既定） | HTTPSのバインドがある通常の公開 | HSTS（開発環境以外）とHTTPSへの誘導を適用し、CookieへSecureを常に付けます |
+| `Http` | HTTPSのバインド・通信許可の待ち期間 | HSTSとHTTPSへの誘導を適用せず、CookieのSecureはHTTPSの要求のときだけ付けます |
+
+- `Http`では`SalesSupport:Portal:BaseUrl`をhttpの絶対URL（末尾`/`付き）で設定します。スキームが合わない場合は起動時に構成エラーで停止します。
+- Webツールの起動URL（`portal.Tools.WebAppUrl`）もhttpで登録します。Portalと同じスキーム・ホスト・ポート以外のURLは同一サイト配下として扱わず、一覧の起動ボタンを表示しません。
+- `Http`では通信が暗号化されません。ログインID・パスワード・メールOTP・Cookieが経路上で読み取られうるため、到達範囲を限定した期間に限って使用してください。
+- HTTPSのバインドと通信許可が整ったら、`Https`（またはキーを削除）へ戻し、`Portal:BaseUrl`とツールの起動URLをhttpsへ更新して再起動します。
+- 未定義値（大小文字違いを含む）は起動時に構成エラーとして停止します。設定不備でHTTP側へ切り替わることはありません。
+- リバースプロキシでTLSを終端する配置は`Https`のままにし、`SalesSupport:Proxy:KnownProxies`へ信頼するプロキシのIPだけを設定してください。
+
+手順と確認項目は[導入・運用 第10節](../../設計書/05_導入・運用.md#transport-operation)、境界は[Common詳細設計 第5節](../../設計書/10_Common詳細設計.md#サイトの通信方式)を正とします。
 
 ## ツールを単独で開発する
 

@@ -42,6 +42,9 @@ public static class CommonServiceExtensions
         // 認証モードは共通設定ファイルの値で決めます。単独開発はこのファイルを読まないため常にメールOTPのままです。
         var authenticationMode = standalone ? SiteAuthenticationMode.EmailOtp : SiteAuthenticationModeSettings.Read(configuration);
         var anonymous = !standalone && authenticationMode == SiteAuthenticationMode.Anonymous;
+        // 通信方式も共通設定ファイルの値で決めます。単独開発はこのファイルを読まないため常にHTTPSの扱いです。
+        var transportMode = standalone ? SiteTransportMode.Https : SiteTransportModeSettings.Read(configuration);
+        var cookieSecurePolicy = transportMode == SiteTransportMode.Http ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         // 接続文字列はCommonが保持し、Portalと各ツールへはIConnectionStringProviderで渡します。単独開発は接続文字列を持ちません。
         var connections = new ConnectionStringProvider(standalone ? new ConfigurationBuilder().Build() : configuration, requireConnectionString: !standalone);
         services.AddSingleton<IConnectionStringProvider>(connections);
@@ -55,12 +58,14 @@ public static class CommonServiceExtensions
             options.PortalBaseUrl = standalone ? "" : configuration["SalesSupport:Portal:BaseUrl"] ?? "";
             options.ExecutionMode = mode;
             options.AuthenticationMode = authenticationMode;
+            options.TransportMode = transportMode;
         }).Validate(x => x.EnvironmentCode is "DEVELOPMENT" or "PRODUCTION", "SalesSupport:EnvironmentCodeが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.SiteName) && x.SiteName.Length <= 100, "Site:Nameが不正です。")
           .Validate(x => !string.IsNullOrWhiteSpace(x.ApplicationName) && x.ApplicationName.Length <= 100, "Application:Nameが不正です。")
           .Validate(x => kind == ApplicationKind.Portal || !string.IsNullOrWhiteSpace(x.ToolId) && x.ToolId.Length <= 20, "Application:ToolIdが必要です。")
           // 単独開発はPortalへのリンクを作らないため、Portal URLを要求しません。
-          .Validate(x => x.IsStandalone || Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
+          // スキームはサイトの通信方式に一致させ、HTTP運用の期間だけhttpのURLを受け付けます。
+          .Validate(x => x.IsStandalone || Uri.TryCreate(x.PortalBaseUrl, UriKind.Absolute, out var uri) && uri.Scheme == x.UrlScheme && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PortalBaseUrl.EndsWith('/'), "Portal:BaseUrlが不正です。")
           .ValidateOnStart();
         services.AddDbContextFactory<CommonDbContext>(options =>
         {
@@ -108,8 +113,8 @@ public static class CommonServiceExtensions
         services.AddAntiforgery(options =>
         {
             options.HeaderName = "X-CSRF-TOKEN";
-            // サイトはHTTPS専用のため、CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            // CSRFトークンのCookieも認証Cookieと同じ条件で送信します。
+            options.Cookie.SecurePolicy = cookieSecurePolicy;
         });
         // 更新要求のCSRF検証を全ホストへ既定で適用します。Portalと各ツールで重複登録せず、個別のControllerで無効化しません。
         services.AddControllersWithViews(options => options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()));
@@ -141,7 +146,7 @@ public static class CommonServiceExtensions
             options.Cookie.Name = SharedCookieContract.CookieName;
             options.Cookie.Path = "/";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy = cookieSecurePolicy;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
             options.SlidingExpiration = true;

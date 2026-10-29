@@ -6,7 +6,8 @@
     "EnvironmentCode": "PRODUCTION",
     "Site": {
       "Name": "営業支援ポータルサイト",
-      "AuthenticationMode": "EmailOtp"
+      "AuthenticationMode": "EmailOtp",
+      "TransportMode": "Https"
     },
     "Application": {
       "Name": "営業支援ポータル"

@@ -150,9 +150,10 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:EnvironmentCode | 全アプリ | DEVELOPMENT／PRODUCTIONのみ |
 | SalesSupport:Site:Name | 全アプリ | 1～100文字。共通ヘッダー・フッターの表示名とメール文面の`{サイト名}` |
 | SalesSupport:Site:AuthenticationMode | 全アプリ・未設定は`EmailOtp` | `EmailOtp`／`Anonymous`のみ。未定義値は構成エラー。詳細は5節 |
+| SalesSupport:Site:TransportMode | 全アプリ・未設定は`Https` | `Https`／`Http`のみ。未定義値は構成エラー。詳細は5節 |
 | SalesSupport:Application:Name | 全アプリ・アプリ固有 | 1～100文字。このアプリ自身の名前。障害ログのApplicationNameとツール画面の対象ツール名に使う |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
-| SalesSupport:Portal:BaseUrl | 全アプリ | HTTPSの絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
+| SalesSupport:Portal:BaseUrl | 全アプリ | `Site:TransportMode`と同じスキーム（`Https`はhttps、`Http`はhttp）の絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
 | SalesSupport:Storage:TemporaryRoot | ファイル利用アプリ | 共通設定ファイルからの相対パス、公開・配置領域外 |
 | SalesSupport:Storage:PermanentRoot | 永続ファイル利用アプリ | 同上。一時領域と分離 |
@@ -229,6 +230,21 @@ Webツールは「ポータル連携」と「単独開発」の2つの起動モ�
 - 共有Cookieを発行せず、受理もしない（Cookie検証イベントは匿名モードでプリンシパルを拒否する）。`SalesSupportAdmin`ポリシーは共有Cookieの実ユーザーを要求するため満たさない。`SalesSupportTool`ポリシーは匿名モードの認証方式を使うため、ツール側の明示指定はそのまま動作する（単独開発では共有Cookieのままで満たさない）。
 - ログアウト経路は組み込まない。メールは使用しないため、Portalでも`Mail:Enabled`をfalseへ固定する。
 - 匿名モードは段階リリースの第1段のための設定であり、恒久仕様ではない。第2段で`EmailOtp`へ戻す。切替手順は[導入・運用](05_導入・運用.md#authentication-operation)に従う。
+
+### サイトの通信方式
+
+サイトは「HTTPS」と「HTTP」の2つの通信方式を持つ。方式は共通設定ファイルの`SalesSupport:Site:TransportMode`で選び、Portalと全ツールが同じファイルを読むため1か所の変更で全アプリが切り替わる。アプリごとに異なる値を与えない。未定義値は起動時の構成エラーとし、設定不備をHTTP側へ倒さない。[単独開発](#ツールの起動モード)は共通設定ファイルを読まないため常にHTTPSの扱いとする。
+
+| 値 | 用途 | 動作 |
+| --- | --- | --- |
+| `Https`（未設定時の既定） | 通常のサービス提供 | HSTS（開発環境以外）とHTTPSへの誘導を適用し、CookieへSecureを常に付ける |
+| `Http` | HTTPSのバインドと通信許可が未完了の期間 | HSTSとHTTPSへの誘導を適用せず、CookieのSecureは要求がHTTPSの場合だけ付ける |
+
+- `Http`では`Portal:BaseUrl`をhttpの絶対URLで設定する。`Https`ではhttpsだけを受け付け、スキーム不一致は起動時の構成エラーとする。
+- 共有認証Cookie、CSRFのCookieおよびPortalのOTP用Cookieは、`Http`ではSecurePolicyを`SameAsRequest`とする。HttpOnly・SameSite=Lax・Path=/・Domain未指定と、復号・期限・DB照合の検証は変更しない。
+- Webツールの起動URL（`Tools.WebAppUrl`）は`Portal:BaseUrl`と同じスキーム・ホスト・ポートだけを同一サイト配下として扱う。`Http`ではhttpの起動URLを登録する。
+- リバースプロキシでTLSを終端する配置は`Https`のままとし、`Proxy:KnownProxies`で転送ヘッダーを信頼させる。この場合アプリはHTTPSの要求として扱うため、`Http`へ切り替えない。
+- `Http`は通信を暗号化しないため、ログインID・パスワード・メールOTP・Cookieが経路上で読み取られうる。到達範囲を限定した期間に限って使用し、第2段の本稼働までに`Https`へ戻す。切替手順は[導入・運用](05_導入・運用.md#transport-operation)に従う。
 
 ### 認証・要求処理
 
@@ -487,7 +503,7 @@ Commonが組み込む順序は次のとおり。
 2. 信頼済みプロキシ設定を適用。
 3. 応答へ共通のセキュリティヘッダーを付与。
 4. CorrelationIdと共通例外処理を開始。
-5. HSTS（開発環境以外）、HTTPS、公開静的資産、ルーティングを適用。
+5. HSTS（開発環境以外）とHTTPSへの誘導を適用（[HTTP運用](#サイトの通信方式)では両方を適用しない）。続けて公開静的資産、ルーティングを適用。
 6. AuthenticationでCookieと現行ユーザーを検証。
 7. Portalだけ接続元単位のレート制限を認証の後、認可の前に適用。
 8. Authorizationでサイト・ツール・管理者ポリシーを適用。

@@ -73,7 +73,7 @@ SalesSupport.Portal.Web/
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
 | ツールお知らせ | Admin/Notices / POST `/admin/notices/tools/{toolId}/`配下の`save`、`send/confirm`、`send` | NoticeService | ADMIN・ToolManage |
 
-Web起動は登録済みの同一サイト配下のツールURLへの遷移だけを行う。入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
+Web起動は登録済みの同一サイト配下のツールURLへの遷移だけを行う。同一サイト配下の判定は`Portal:BaseUrl`と同じスキーム・ホスト・ポートの一致で行い、[HTTP運用](10_Common詳細設計.md#サイトの通信方式)ではhttpの起動URLを同一サイトとして扱う。入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
 
 匿名モードでは、Account（ログイン・メールOTP）、お気に入り、個人設定、問い合わせ、Admin配下の全画面および`GET`・`PUT /api/users/me/preferences`を要求処理へ登録せず、経路ごと存在しない状態にする。`GET /`はP003 ツール一覧へリダイレクトし、`/private`と`GET /api/users/me`は維持する。ログアウト経路はCommonが組み込まない。
 
@@ -111,7 +111,7 @@ Web起動は登録済みの同一サイト配下のツールURLへの遷移だ�
 - AspNetUserTokensの用途別JSONで状態を保存する。[物理契約](04_DB設計.md#users)に従い、OTP自体は保存しない。SMTP失敗・結果不明でも送信枠を消費し、自動再送しない。アカウントごとに最新の試行だけを有効にする。別タブ・別ブラウザーで新たに送信した場合は以前の試行を無効化する。
 - 一時Cookieはスキーム`SalesSupport.OtpPending`、名前`.SalesSupport.OtpPending`、非永続・固定15分。本人GUID・試行GUIDと安全な戻り先を保護して保持し、認証完了・ログイン再開始で削除する。通常の認証には使用しない。
 - 記憶Cookieはスキーム`SalesSupport.OtpRemember`、名前`.SalesSupport.OtpRemember`、永続・固定30日・スライド更新なし。本人GUID・SecurityStamp・LoginID・メールを保護し、パスワードの再確認後にDBの最新値と照合する。通常ログアウトでは削除しない。OTP成功と本人の選択がある場合だけ発行する。
-- 両CookieともSecure・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
+- 両CookieともSecure（HTTP運用では要求がHTTPSの場合だけ）・HttpOnly・SameSite=Lax・Path=/・Domain未指定で、標準Cookieハンドラーと既存Data Protectionを使用する。通常の共有認証Cookieと用途・スキームを分ける。
 - 共通の認証完了処理が共有Cookieへ`sales_support.login_policy=email_otp_v1`を設定する。Commonは全保護要求でこの印を要求し、欠落・不一致は拒否する。一時Cookie・記憶Cookieだけでは通常機能を許可しない。Portalと全ツールは同じ共有Cookie契約で配備する。
 - 将来のSSO等は方式に固有の本人確認と、内部GUIDへ対応付けた後の共有セッション開始を分離して追加する。リンク元の独自認証とのSSO・独自トークン交換・汎用プロバイダー層は今回追加しない。
 

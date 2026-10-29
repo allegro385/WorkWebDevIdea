@@ -72,12 +72,13 @@ public static class CommonPipelineExtensions
         app.UseSalesSupportSecurityHeaders();
         app.UseSalesSupportErrors();
 
-        if (!app.Environment.IsDevelopment())
+        var common = app.Services.GetRequiredService<IOptions<CommonOptions>>().Value;
+        // HTTP運用ではHTTPSへ誘導せず、HSTSも送りません。HTTPSのバインドがある通常の運用では両方を適用します。
+        if (!common.IsHttpTransport)
         {
-            app.UseHsts();
+            if (!app.Environment.IsDevelopment()) app.UseHsts();
+            app.UseHttpsRedirection();
         }
-
-        app.UseHttpsRedirection();
         // 既定の認可方針は保護対象の画面にだけ適用し、共通レイアウトが読み込む資産は匿名で配信します。
         app.MapStaticAssets().AllowAnonymous();
         // EndpointメタデータをCookie更新判定で参照できるよう、ルーティングを認証より前に配置します。
@@ -89,7 +90,7 @@ public static class CommonPipelineExtensions
 
         // ヘッダーのログアウトはCommonの共通処理で共有Cookieを破棄し、Portalへ戻します。
         // 匿名モードは終了させる認証がないため、ログアウト経路を組み込みません。
-        if (!app.Services.GetRequiredService<IOptions<CommonOptions>>().Value.IsAnonymous) app.MapSalesSupportLogout();
+        if (!common.IsAnonymous) app.MapSalesSupportLogout();
 
         app.MapControllerRoute(
             name: "default",

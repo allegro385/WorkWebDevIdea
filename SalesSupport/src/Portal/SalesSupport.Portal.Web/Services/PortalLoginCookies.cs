@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Options;
+using SalesSupport.Common.Configuration;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Entities.Identity;
 
@@ -13,19 +15,23 @@ public sealed class PortalLoginCookies(IHttpContextAccessor accessor, IApplicati
     public const string RememberScheme = "SalesSupport.OtpRemember";
 
     /// <summary>OTP関係のCookieだけをPortalへ登録し、通常の認証スキームから分離します。</summary>
+    /// <param name="services">登録先のサービスです。</param>
     public static void Register(IServiceCollection services)
     {
         services.AddAuthentication().AddCookie(PendingScheme, options => Configure(options, ".SalesSupport.OtpPending", TimeSpan.FromMinutes(15)))
             .AddCookie(RememberScheme, options => Configure(options, ".SalesSupport.OtpRemember", TimeSpan.FromDays(30)));
+        // Secure属性の条件はCommonが確定した通信方式に合わせるため、共通設定を読めるこの時点以降で適用します。
+        foreach (var scheme in new[] { PendingScheme, RememberScheme })
+            services.AddOptions<CookieAuthenticationOptions>(scheme)
+                .Configure<IOptions<CommonOptions>>((options, common) => options.Cookie.SecurePolicy = common.Value.CookieSecurePolicy);
     }
 
-    /// <summary>更新による期限延長を無効にし、HTTPSでだけ送信します。</summary>
+    /// <summary>更新による期限延長を無効にし、共有Cookieと同じ条件でだけ送信します。</summary>
     private static void Configure(CookieAuthenticationOptions options, string name, TimeSpan lifetime)
     {
         options.Cookie.Name = name;
         options.Cookie.Path = "/";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.ExpireTimeSpan = lifetime;
         options.SlidingExpiration = false;

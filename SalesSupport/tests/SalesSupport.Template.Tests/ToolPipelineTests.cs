@@ -44,6 +44,35 @@ public sealed class ToolPipelineTests : IDisposable
         Assert.True(response.Headers.Contains("Content-Security-Policy"));
     }
 
+    /// <summary>HTTP運用では、HTTPの要求をHTTPSへ誘導せず、Portalのログイン画面（http）へ案内します。</summary>
+    [WindowsFact]
+    public async Task HttpTransportModeKeepsHttpRequests()
+    {
+        const string httpPortal = "http://portal.example.invalid/";
+        await using var factory = CreatePortalModeFactory("Http", httpPortal);
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(httpPortal + "account/login?returnUrl=%2F", response.Headers.Location?.OriginalString);
+    }
+
+    /// <summary>既定のHTTPSでは、HTTPの要求をControllerへ渡さずHTTPSへ誘導します。</summary>
+    [WindowsFact]
+    public async Task HttpsTransportModeRedirectsHttpRequestsToHttps()
+    {
+        await using var factory = CreatePortalModeFactory();
+        // テストサーバーは待ち受けアドレスを持たないため、HTTPSへの誘導先ポートを設定で与えます。
+        await using var configured = factory.WithWebHostBuilder(builder => builder.UseSetting("HTTPS_PORT", "443"));
+        using var client = configured.CreateClient(new() { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.TemporaryRedirect, response.StatusCode);
+        Assert.Equal("https://localhost/", response.Headers.Location?.OriginalString);
+    }
+
     /// <summary>単独開発では、トークンのない更新要求を400で拒否し、画面から受け取ったトークンを付けた同じ要求はControllerまで届きます。</summary>
     [Fact]
     public async Task PostWithoutAntiforgeryTokenIsRejected()
@@ -73,8 +102,10 @@ public sealed class ToolPipelineTests : IDisposable
         factory.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
 
     /// <summary>IISの標準配置（<c>apps/T001</c>と<c>config</c>）を一時フォルダーに作り、連携モードでツールを起動します。</summary>
+    /// <param name="transportMode">共通設定ファイルへ書く通信方式です。NULLでは既定のHTTPSになります。</param>
+    /// <param name="portalBaseUrl">共通設定ファイルへ書くPortalのURLです。NULLでは既定のHTTPSのURLです。</param>
     /// <returns>連携モードで起動するテスト用のホストです。</returns>
-    private WebApplicationFactory<Program> CreatePortalModeFactory()
+    private WebApplicationFactory<Program> CreatePortalModeFactory(string? transportMode = null, string? portalBaseUrl = null)
     {
         var contentRoot = Path.Combine(root, "apps", "T001");
         foreach (var folder in new[] { contentRoot, Path.Combine(root, "config"), Path.Combine(root, "keys"), Path.Combine(root, "storage", "temp") })
@@ -86,10 +117,10 @@ public sealed class ToolPipelineTests : IDisposable
             SalesSupport = new
             {
                 EnvironmentCode = "DEVELOPMENT",
-                Site = new { Name = "結合テストサイト" },
+                Site = new { Name = "結合テストサイト", TransportMode = transportMode },
                 // ToolIdとアプリ名は本来アプリごとの環境変数で与えます。テストではプロセス全体の環境変数を変えないよう共通設定ファイルへ書きます。
                 Application = new { Name = "結合テスト", ToolId = "T001" },
-                Portal = new { BaseUrl = PortalBaseUrl },
+                Portal = new { BaseUrl = portalBaseUrl ?? PortalBaseUrl },
                 DataProtection = new { KeyDirectory = "../keys" },
                 // 保存領域はコンテンツルートとテストの出力フォルダーの外に置く必要があります。
                 Storage = new { TemporaryRoot = "../storage/temp" }
