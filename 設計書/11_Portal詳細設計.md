@@ -73,7 +73,7 @@ SalesSupport.Portal.Web/
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |
 | ツールお知らせ | Admin/Notices / POST `/admin/notices/tools/{toolId}/`配下の`save`、`send/confirm`、`send` | NoticeService | ADMIN・ToolManage |
 
-Web起動は登録済みの同一サイト配下のツールURLへの遷移だけを行う。同一サイト配下の判定は`Portal:BaseUrl`と同じスキーム・ホスト・ポートの一致で行い、[HTTP運用](10_Common詳細設計.md#サイトの通信方式)ではhttpの起動URLを同一サイトとして扱う。入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
+Web起動は登録済みの同一サイト内のパスへの遷移だけを行う。判定はCommonのローカルパス検証（`/`始まり、スキーム相対URL・`\`・制御文字の拒否）で行い、ホストを含む絶対URLは起動先として扱わない。遷移にはローカル遷移だけを行う結果を使い、入力された任意URLへ転送しない。起動先でもCommonによる認証・状態検証を行い、Portalの遷移だけを認可の証拠にしない。WEB_OPENは起動先の正常な入口要求で記録し、Portalでは二重記録しない。
 
 匿名モードでは、Account（ログイン・メールOTP）、お気に入り、個人設定、問い合わせ、Admin配下の全画面および`GET`・`PUT /api/users/me/preferences`を要求処理へ登録せず、経路ごと存在しない状態にする。`GET /`はP003 ツール一覧へリダイレクトし、`/private`と`GET /api/users/me`は維持する。ログアウト経路はCommonが組み込まない。
 

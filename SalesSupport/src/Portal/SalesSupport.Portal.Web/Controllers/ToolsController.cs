@@ -43,7 +43,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
         return View("Detail", detail with { FromFavorites = favorites, IsAnonymousMode = options.Value.IsAnonymous });
     }
 
-    /// <summary>登録済みの同一サイト配下のURLへだけ遷移します。利用ログは起動先で記録します。</summary>
+    /// <summary>登録済みの同一サイト内のパスへだけ遷移します。利用ログは起動先で記録します。</summary>
     [HttpGet("{toolId}/launch")]
     public async Task<IActionResult> Launch(string toolId, CancellationToken ct)
     {
@@ -51,7 +51,7 @@ public sealed class ToolsController(IToolQueryService tools, ICurrentUserAccesso
         if (!decision.Allowed) return StatusCode(decision.StatusCode);
 
         var url = await tools.GetWebLaunchUrlAsync(toolId, ct);
-        return url is null ? NotFound() : Redirect(url);
+        return url is null ? NotFound() : LocalRedirect(url);
     }
 
     /// <summary>全ツールとお気に入りで同じ表示項目・並び順・操作を使用します。</summary>

@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.FileStorage;
 using SalesSupport.Common.Logging;
@@ -39,7 +37,7 @@ public interface IToolFileAdminService
 
 /// <summary>新ファイルの保存、DB確定、旧ファイル削除の順で更新します。</summary>
 public sealed class ToolFileAdminService(PortalDbContext db, IFileStorage storage, IUploadPolicyProvider policies,
-    IApplicationClock clock, IActivityLogger activity, ISystemErrorLogger errors, IOptions<CommonOptions> options) : IToolFileAdminService
+    IApplicationClock clock, IActivityLogger activity, ISystemErrorLogger errors) : IToolFileAdminService
 {
     /// <summary>提供種別に応じて表示する入力欄と案内を切り替えます。</summary>
     public async Task<ToolContentSectionViewModel?> GetContentAsync(string toolId, ToolReferenceInput? editor, CancellationToken ct = default)
@@ -98,10 +96,9 @@ public sealed class ToolFileAdminService(PortalDbContext db, IFileStorage storag
     private async Task<ToolAdminResult> ApplyWebUrlAsync(string toolId, string? webAppUrl, int updateCount, CancellationToken ct)
     {
         var url = CommonValidation.Normalize(webAppUrl);
-        // 受け付けるスキームはサイトの通信方式に合わせ、HTTP運用の期間だけhttpのURLを登録できます。
-        var scheme = options.Value.UrlScheme;
-        if (url is not null && (url.Length > 2048 || !Uri.TryCreate(url, UriKind.Absolute, out var parsed) || parsed.Scheme != scheme))
-            return ToolAdminResult.Invalid(new("WebAppUrl", "INVALID_INPUT", $"ページURLは{scheme}で始まる2,048文字以内のURLを入力してください。"));
+        // 起動先は同一サイト内のパスだけとし、ホストを含むURLへは遷移させません。
+        if (url is not null && (url.Length > 2048 || !CommonValidation.IsLocalPath(url)))
+            return ToolAdminResult.Invalid(new("WebAppUrl", "INVALID_INPUT", "ページURLは「/」で始まるサイト内のパスを2,048文字以内で入力してください。"));
 
         var tool = await db.Tools.SingleOrDefaultAsync(x => x.ToolId == toolId, ct);
         if (tool is null) return ToolAdminResult.From(ToolAdminOutcome.Unavailable);

@@ -25,6 +25,6 @@ public sealed class FavoritesController(IFavoriteService favorites, ICurrentUser
         if (current.User is not { } user) return Unauthorized();
         var outcome = add ? await favorites.AddAsync(user.UserId, toolId, ct) : await favorites.RemoveAsync(user.UserId, toolId, ct);
         if (outcome == FavoriteOutcome.Unavailable) return NotFound();
-        return CommonValidation.IsLocalReturnUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction(nameof(ToolsController.Index), "Tools");
+        return CommonValidation.IsLocalPath(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction(nameof(ToolsController.Index), "Tools");
     }
 }

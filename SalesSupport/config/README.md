@@ -107,9 +107,9 @@ IISサイトにHTTPSのバインドと443番の通信許可がまだない期間
 | `Http` | HTTPSのバインド・通信許可の待ち期間 | HSTSとHTTPSへの誘導を適用せず、CookieのSecureはHTTPSの要求のときだけ付けます |
 
 - `Http`では`SalesSupport:Portal:BaseUrl`をhttpの絶対URL（末尾`/`付き）で設定します。スキームが合わない場合は起動時に構成エラーで停止します。
-- Webツールの起動URL（`portal.Tools.WebAppUrl`）もhttpで登録します。Portalと同じスキーム・ホスト・ポート以外のURLは同一サイト配下として扱わず、一覧の起動ボタンを表示しません。
+- Webツールの起動先（`portal.Tools.WebAppUrl`）は同一サイト内のパス（例`/tools/T001/app`）で登録するため、通信方式を切り替えても変更は不要です。ホストを含む絶対URLは同一サイト内として扱わず、一覧の起動ボタンを表示しません。
 - `Http`では通信が暗号化されません。ログインID・パスワード・メールOTP・Cookieが経路上で読み取られうるため、到達範囲を限定した期間に限って使用してください。
-- HTTPSのバインドと通信許可が整ったら、`Https`（またはキーを削除）へ戻し、`Portal:BaseUrl`とツールの起動URLをhttpsへ更新して再起動します。
+- HTTPSのバインドと通信許可が整ったら、`Https`（またはキーを削除）へ戻し、`Portal:BaseUrl`をhttpsへ更新して再起動します。
 - 未定義値（大小文字違いを含む）は起動時に構成エラーとして停止します。設定不備でHTTP側へ切り替わることはありません。
 - リバースプロキシでTLSを終端する配置は`Https`のままにし、`SalesSupport:Proxy:KnownProxies`へ信頼するプロキシのIPだけを設定してください。
 

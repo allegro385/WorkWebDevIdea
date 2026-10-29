@@ -242,7 +242,7 @@ Webツールは「ポータル連携」と「単独開発」の2つの起動モ�
 
 - `Http`では`Portal:BaseUrl`をhttpの絶対URLで設定する。`Https`ではhttpsだけを受け付け、スキーム不一致は起動時の構成エラーとする。
 - 共有認証Cookie、CSRFのCookieおよびPortalのOTP用Cookieは、`Http`ではSecurePolicyを`SameAsRequest`とする。HttpOnly・SameSite=Lax・Path=/・Domain未指定と、復号・期限・DB照合の検証は変更しない。
-- Webツールの起動URL（`Tools.WebAppUrl`）は`Portal:BaseUrl`と同じスキーム・ホスト・ポートだけを同一サイト配下として扱う。`Http`ではhttpの起動URLを登録する。
+- Webツールの起動先（`Tools.WebAppUrl`）は同一サイト内のパスで登録するため、通信方式を切り替えても変更しない。
 - リバースプロキシでTLSを終端する配置は`Https`のままとし、`Proxy:KnownProxies`で転送ヘッダーを信頼させる。この場合アプリはHTTPSの要求として扱うため、`Http`へ切り替えない。
 - `Http`は通信を暗号化しないため、ログインID・パスワード・メールOTP・Cookieが経路上で読み取られうる。到達範囲を限定した期間に限って使用し、第2段の本稼働までに`Https`へ戻す。切替手順は[導入・運用](05_導入・運用.md#transport-operation)に従う。
 

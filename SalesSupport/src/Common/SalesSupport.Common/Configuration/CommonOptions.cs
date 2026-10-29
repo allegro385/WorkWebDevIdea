@@ -40,7 +40,7 @@ public sealed class CommonOptions
     /// <summary>Cookieへ付けるSecure属性の条件です。HTTP運用だけ、要求がHTTPSの場合に付けます。</summary>
     public CookieSecurePolicy CookieSecurePolicy => IsHttpTransport ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
-    /// <summary>この通信方式で受け付けるURLのスキームです。PortalのURLとツールの起動URLの検証に使います。</summary>
+    /// <summary>この通信方式で受け付けるURLのスキームです。PortalのURLの検証に使います。</summary>
     public string UrlScheme => IsHttpTransport ? Uri.UriSchemeHttp : Uri.UriSchemeHttps;
 
     /// <summary>開発環境向けの動作を適用するかを判定します。未設定・不正値は開発扱いにしません。</summary>
