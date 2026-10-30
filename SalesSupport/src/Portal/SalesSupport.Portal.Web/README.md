@@ -39,18 +39,20 @@ Identity標準EmailTokenProviderとAspNetUserTokensを利用します。Portal�
 
 接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
 
-Portalはコンテンツルートから既定の相対パス`../../config/salessupport.common.json`で共通設定ファイルを読みます。IISの標準配置（`<ルート>\apps\portal\`と`<ルート>\config\`）ではパス指定は不要です。配置が異なる場合だけ環境変数`SalesSupport__CommonConfigPath`へコンテンツルートからの相対パスを設定します。ローカルの`https`起動プロファイルは`../../../config/salessupport.common.Development.json`を指定済みです。絶対パス・不在・書式不正は構成エラーで、解決後のパスと理由を表示します。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
+モード別の条件と切替手順は[共通設定ファイルのREADME](../../../config/README.md)を参照してください。Portalはコンテンツルートから既定の相対パス`../../config/salessupport.common.json`で共通設定ファイルを読みます。IISの標準配置（`<ルート>\apps\portal\`と`<ルート>\config\`）ではパス指定は不要です。配置が異なる場合だけ環境変数`SalesSupport__CommonConfigPath`へコンテンツルートからの相対パスを設定します。ローカルの`https`起動プロファイルは`../../../config/salessupport.common.Development.json`を指定済みです。絶対パス・不在・書式不正は構成エラーで、解決後のパスと理由を表示します。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
 
 | キー | 内容 |
 | --- | --- |
 | `ConnectionStrings:SalesSupport` | SQL Serverの接続文字列 |
 | `SalesSupport:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
 | `SalesSupport:Site:Name` | 共通ヘッダー・フッターの表示名とメール文面のサイト名 |
+| `SalesSupport:Site:AuthenticationMode` | `EmailOtp`（未設定時の既定）または`Anonymous`。第1段のログインなし公開だけ`Anonymous` |
+| `SalesSupport:Site:TransportMode` | `Https`（未設定時の既定）または`Http`。HTTPSのバインドがない期間だけ`Http` |
 | `SalesSupport:Application:Name` | このアプリ自身の名前。障害ログの`ApplicationName`に使用 |
-| `SalesSupport:Portal:BaseUrl` | httpsで末尾スラッシュ付きのPortal公開URL |
+| `SalesSupport:Portal:BaseUrl` | 末尾スラッシュ付きのPortal公開URL。スキームは`Site:TransportMode`に合わせます（`Https`はhttps、`Http`はhttp） |
 | `SalesSupport:DataProtection:KeyDirectory` | 各アプリから参照できる実在の鍵共有フォルダー |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | 一時・永続のファイル保存領域。Webルートと配置先の外に置きます |
-| `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です |
+| `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です。`Anonymous`ではPortalもメールを使わないため、Commonが送信を無効へ固定し、これらの検証を行いません |
 | `SalesSupport:Proxy:KnownProxies` | 転送ヘッダーを信頼するプロキシのIP。未設定では転送ヘッダーを採用しません |
 | `SalesSupport:Http:TimeoutSeconds` / `SalesSupport:Logging:TimeoutSeconds` | 外部HTTPとログ処理の制限時間（既定30秒・3秒） |
 

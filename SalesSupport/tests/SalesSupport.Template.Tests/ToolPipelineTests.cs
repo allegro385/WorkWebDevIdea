@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using SalesSupport.Common.DateTime;
 using Xunit;
 
 namespace SalesSupport.Template.Tests;
@@ -95,6 +96,30 @@ public sealed class ToolPipelineTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, withToken.StatusCode);
     }
 
+    /// <summary>画面要求で例外が起きた場合は、JSONではなく共通エラー画面を返し、問い合わせ番号だけを示します。</summary>
+    [Fact]
+    public async Task UnhandledScreenErrorRendersCommonErrorView()
+    {
+        await using var factory = CreateStandaloneFactory(services => services.AddScoped<IBusinessDateProvider, ThrowingBusinessDateProvider>());
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("お問い合わせ番号", html);
+        // 例外の詳細は画面へ出しません。
+        Assert.DoesNotContain("ThrowingBusinessDateProvider", html);
+    }
+
+    /// <summary>共通エラー画面の確認で、入口画面の準備を失敗させる代替です。</summary>
+    private sealed class ThrowingBusinessDateProvider : IBusinessDateProvider
+    {
+        /// <summary>業務日付の取得で例外を発生させます。</summary>
+        public Task<DateOnly> GetTodayAsync(CancellationToken ct = default) => throw new InvalidOperationException("検証用の障害です。");
+    }
+
     /// <summary>リダイレクトを自動で追わないHTTPSのクライアントを作成します。CSRFのCookieはSecure属性のため、HTTPSの要求でだけ送られます。</summary>
     /// <param name="factory">要求を送るテスト用のホストです。</param>
     /// <returns>Cookieを保持するクライアントです。</returns>
@@ -137,8 +162,9 @@ public sealed class ToolPipelineTests : IDisposable
     }
 
     /// <summary>起動プロファイル<c>standalone</c>と同じホスト設定でツールを起動します。共通設定ファイル・DB・共有鍵を使いません。</summary>
+    /// <param name="configure">検証用に差し替えるサービスです。差替えが不要な場合はNULLにします。</param>
     /// <returns>単独開発で起動するテスト用のホストです。</returns>
-    private static WebApplicationFactory<Program> CreateStandaloneFactory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private static WebApplicationFactory<Program> CreateStandaloneFactory(Action<IServiceCollection>? configure = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
         // 単独開発はホストのDevelopmentだけで受け付けます。
         builder.UseEnvironment("Development");
@@ -152,6 +178,7 @@ public sealed class ToolPipelineTests : IDisposable
             services.AddSingleton<IStartupFilter, LocalClientStartupFilter>();
             // ユーザープロファイルへ鍵を保存しないよう、CSRFトークンの保護にはメモリー上の鍵を使います。
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
+            configure?.Invoke(services);
         });
     });
 

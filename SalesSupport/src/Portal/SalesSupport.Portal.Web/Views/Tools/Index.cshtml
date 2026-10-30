@@ -95,7 +95,8 @@ else
                     <td>
                         @if (tool.HasWebLaunch)
                         {
-                            <a asp-controller="Tools" asp-action="Launch" asp-route-toolId="@tool.ToolId">Webツールを開く</a>
+                            @* 詳細画面と同じく別タブで開き、一覧の表示とスクロール位置を残します。 *@
+                            <a asp-controller="Tools" asp-action="Launch" asp-route-toolId="@tool.ToolId" target="_blank" rel="noopener">Webツールを開く</a>
                         }
                         @if (tool.AppFile is { } app)
                         {
