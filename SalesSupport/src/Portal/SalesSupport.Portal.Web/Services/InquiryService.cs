@@ -63,7 +63,7 @@ public interface IInquiryService
 
 /// <summary>採番を保存トランザクションの外で行い、送信失敗時に受付を残さない受付処理です。</summary>
 public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, IFileStorage storage, IUploadPolicyProvider policies,
-    IMailSender mail, IMailTemplateRenderer templates, IBusinessDateProvider businessDate, IInquiryIdAllocator allocator,
+    IMailSender mail, IMailTemplateRenderer templates, IApplicationClock clock, IInquiryIdAllocator allocator,
     IActivityLogger activity) : IInquiryService
 {
     /// <summary>添付ファイルの入力項目名です。項目エラーの表示先に使用します。</summary>
@@ -142,7 +142,9 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
             var targetLabel = await DescribeTargetAsync(targetType!, toolId, ct);
 
             // 採番は保存トランザクションの外側で行い、失敗しても確保した番号を戻しません。
-            var inquiryId = await allocator.AllocateAsync(await businessDate.GetTodayAsync(ct), ct);
+            // 受付日は開発用の業務日付ではなく、実際のUTC時刻から求めたJST日付を使います。
+            var receivedOn = DateOnly.FromDateTime(clock.ToJst(clock.GetUtcNow()).DateTime);
+            var inquiryId = await allocator.AllocateAsync(receivedOn, ct);
             var inquiry = new Inquiry
             {
                 InquiryId = inquiryId,

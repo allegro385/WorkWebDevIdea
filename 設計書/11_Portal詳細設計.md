@@ -15,6 +15,7 @@ SalesSupport.Portal.Web/
 ├─ Services/              画面・業務単位の処理
 ├─ Entities/              Portal業務Entity
 ├─ Data/                  PortalDbContext、EntityConfigurations
+├─ Mail/                  お知らせメールの既定文面
 ├─ Models/                入力モデル、表示モデル、応答DTO
 ├─ Views/                 利用者画面のRazor
 ├─ Bootstrap/             開発限定の試験用ユーザー作成
@@ -67,7 +68,7 @@ SalesSupport.Portal.Web/
 | P006 個人設定 | Preferences / GET・POST `/preferences` | PreferenceService | 本人・Site＋ロール通知許可 |
 | P007 問い合わせ | Inquiries / GET・POST `/inquiries/new`、GET `/inquiries/completed` | InquiryService | Site |
 | A001 ツール管理 | Admin/Tools / GET `/admin/tools`、GET `/admin/tools/{toolId}` | ToolAdminService | ADMIN・ToolManage |
-| ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
+| ツール各保存 | Admin/Tools / POST 配下の`basic`、`order`、`versions/*`、`content/url`、`files/*` | ToolAdminService / ToolFileAdminService | ADMIN・ToolManage |
 | A002 ユーザー管理 | Admin/Users / GET一覧・編集、POST更新・解除 | UserAdminService | ADMIN |
 | A005 問い合わせ管理 | Admin/Inquiries / GET一覧・詳細、POST保存 | InquiryAdminService | ADMIN |
 | A006 サイト管理 | Admin/Notices / GET一覧、POST作成・編集・送信 | NoticeService | ADMIN |

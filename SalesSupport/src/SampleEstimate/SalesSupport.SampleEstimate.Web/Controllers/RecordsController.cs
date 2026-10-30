@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
+using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
 using SalesSupport.SampleEstimate.Web.Models;
@@ -12,14 +15,22 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 [Authorize(Policy = "SalesSupportTool")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IToolUsageLogger usage,
-    IToolPageShell shell) : Controller
+    IToolPageShell shell, IOptions<CommonOptions> options) : Controller
 {
     /// <summary>ツール内の上位階層です。パンくずの上位（Portalのトップ・ツール一覧）はCommonが付けます。</summary>
     private static readonly Breadcrumb ToolTop = new("見積試算", "", LinkTarget.Local);
 
+    /// <summary>本人を特定できない構成（単独開発・匿名モード）では、この画面の全要求を対象なしとして拒否します。</summary>
+    /// <param name="context">実行しようとしているアクションの情報です。</param>
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        if (!options.Value.HasIdentifiedUser) context.Result = NotFound();
+        base.OnActionExecuting(context);
+    }
+
     /// <summary>条件に一致する案件を一覧と合計で表示します。</summary>
+    /// <remarks>ツール起動の記録は入口画面（ToolController）だけで行い、ツール内の画面遷移では記録しません。</remarks>
     [HttpGet("")]
-    [TypeFilter(typeof(WebOpenLoggingFilter))]
     public async Task<IActionResult> Index(DateOnly? from, DateOnly? to, string? categoryCode, CancellationToken ct)
     {
         var categories = estimates.GetCategories();

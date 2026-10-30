@@ -229,6 +229,7 @@ Webツールは「ポータル連携」と「単独開発」の2つの起動モ�
 - 利用ログ（`WEB_OPEN`・`WEB_EXECUTE`・`DESKTOP_DOWNLOAD`）と操作ログは通常と同じ条件で記録する。UserIdは固定値になるため、利用者個人を特定する集計には使えない。
 - 共有Cookieを発行せず、受理もしない（Cookie検証イベントは匿名モードでプリンシパルを拒否する）。`SalesSupportAdmin`ポリシーは共有Cookieの実ユーザーを要求するため満たさない。`SalesSupportTool`ポリシーは匿名モードの認証方式を使うため、ツール側の明示指定はそのまま動作する（単独開発では共有Cookieのままで満たさない）。
 - ログアウト経路は組み込まない。メールは使用しないため、Portalでも`Mail:Enabled`をfalseへ固定する。
+- 固定の共通ユーザーをAspNetUsersへ登録しないため、このUserIdを本人向けデータの所有者・外部キーに使わない。本人を特定して保存・参照する機能を持つツールは、匿名モードと[単独開発](#ツールの起動モード)で当該画面・保存処理を提供しない。判定には`CommonOptions.HasIdentifiedUser`（単独開発でも匿名モードでもない）を使い、ツールごとに条件を書き写さない。
 - 匿名モードは段階リリースの第1段のための設定であり、恒久仕様ではない。第2段で`EmailOtp`へ戻す。切替手順は[導入・運用](05_導入・運用.md#authentication-operation)に従う。
 
 ### サイトの通信方式
@@ -351,6 +352,8 @@ FailureReasonはINVALID_CREDENTIALS、ACCOUNT_LOCKED、UNAUTHENTICATED、INACTIV
 2. ErrorCodesを取得し、未登録・取得失敗は固定の一般エラー文言へ代替する。
 3. 文言と安全な関連情報からログを1回だけ試行する。ツールの単独開発（5節）では、ホストの`ILogger`へも例外の詳細を出力する。
 4. 画面には表示文言とErrorIdのみ返す。APIには安全なProblemDetailsを返す。
+
+共通例外処理は、`/api`で始まる要求をAPIとしてProblemDetailsで返し、それ以外のHTML要求は共通エラー画面（`CommonError`）を`ErrorPresentation`で描画する。描画自体に失敗した場合はProblemDetailsへ退避し、応答を二重に作らない。障害時にDBを再参照しないよう、共通エラー画面では共通メニューを表示しない。
 
 ErrorHandling→Loggingの一方向とする。LoggingはErrorHandlingを呼ばない。Mail内で記録済みの失敗はErrorId／記録済み情報を結果へ付け、呼出元が再記録しない。入力エラーは400、競合409、予期しないエラー500、依存先障害503を基本とし、認証応答は5節に従う。
 
@@ -502,7 +505,7 @@ Commonが組み込む順序は次のとおり。
 1. 設定読込み、AddSalesSupportCommon（MVC・CSRFフィルター・認可を含む）、ホストDbContext・Identity（Portalのみ）を登録。
 2. 信頼済みプロキシ設定を適用。
 3. 応答へ共通のセキュリティヘッダーを付与。
-4. CorrelationIdと共通例外処理を開始。
+4. CorrelationIdと共通例外処理を開始。例外はHTML要求で共通エラー画面、`/api`要求でProblemDetailsへ変換する。
 5. HSTS（開発環境以外）とHTTPSへの誘導を適用（[HTTP運用](#サイトの通信方式)では両方を適用しない）。続けて公開静的資産、ルーティングを適用。
 6. AuthenticationでCookieと現行ユーザーを検証。
 7. Portalだけ接続元単位のレート制限を認証の後、認可の前に適用。
