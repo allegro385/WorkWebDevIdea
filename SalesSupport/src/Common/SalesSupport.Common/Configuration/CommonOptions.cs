@@ -33,6 +33,10 @@ public sealed class CommonOptions
     /// <remarks>共通設定ファイルを読まない単独開発は対象外です。</remarks>
     public bool IsAnonymous => !IsStandalone && AuthenticationMode == SiteAuthenticationMode.Anonymous;
 
+    /// <summary>本人を特定できる利用者がいるかを返します。本人向けデータの所有者を決められるかの判定に使います。</summary>
+    /// <remarks>単独開発には認証ユーザーがなく、匿名モードの固定共通ユーザーはAspNetUsersに存在しないため、どちらもfalseです。</remarks>
+    public bool HasIdentifiedUser => !IsStandalone && !IsAnonymous;
+
     /// <summary>HTTPSのバインドが未完了の期間に使う、HTTPで公開するモードかを返します。</summary>
     /// <remarks>共通設定ファイルを読まない単独開発は対象外です。</remarks>
     public bool IsHttpTransport => !IsStandalone && TransportMode == SiteTransportMode.Http;

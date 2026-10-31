@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -56,6 +57,57 @@ public sealed class CommonErrorHandler(IDbContextFactory<CommonDbContext> factor
     }
 
 }
+
+/// <summary>共通エラーの応答を、画面要求とAPI要求へ書き分けます。</summary>
+public static class CommonErrorResponse
+{
+    /// <summary>共通エラー画面のView名です。CommonのViews/Sharedが提供します。</summary>
+    public const string ViewName = "CommonError";
+
+    /// <summary>ProblemDetailsで返すAPI要求かどうかを判定します。</summary>
+    /// <param name="request">判定する要求です。</param>
+    /// <returns>`/api`で始まる要求ならtrueです。</returns>
+    public static bool IsApiRequest(HttpRequest request) => request.Path.StartsWithSegments("/api");
+
+    /// <summary>画面要求は共通エラー画面、API要求はProblemDetailsで応答します。</summary>
+    /// <param name="context">応答を書き込む要求です。</param>
+    /// <param name="error">表示する文言と問い合わせ番号です。</param>
+    public static async Task WriteAsync(HttpContext context, ErrorPresentation error)
+    {
+        context.Response.StatusCode = error.StatusCode;
+        if (!IsApiRequest(context.Request))
+        {
+            // 画面を描画できない場合も応答を二重に作らず、ProblemDetailsへ退避します。
+            try
+            {
+                await RenderViewAsync(context, error);
+                return;
+            }
+            catch (Exception) when (!context.Response.HasStarted) { }
+        }
+        await context.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = error.StatusCode, Title = error.Message, Extensions = { ["errorId"] = error.ErrorId }
+        });
+    }
+
+    /// <summary>共通レイアウトを使う共通エラー画面を描画します。</summary>
+    /// <param name="context">応答を書き込む要求です。</param>
+    /// <param name="error">Viewへ渡す表示情報です。</param>
+    private static Task RenderViewAsync(HttpContext context, ErrorPresentation error)
+    {
+        var services = context.RequestServices;
+        var viewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<ErrorPresentation>(
+            services.GetRequiredService<Microsoft.AspNetCore.Mvc.ModelBinding.IModelMetadataProvider>(),
+            new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary()) { Model = error };
+        var result = new Microsoft.AspNetCore.Mvc.ViewResult { ViewName = ViewName, ViewData = viewData, StatusCode = error.StatusCode };
+        var actionContext = new Microsoft.AspNetCore.Mvc.ActionContext(context, context.GetRouteData(),
+            new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
+        return services.GetRequiredService<Microsoft.AspNetCore.Mvc.Infrastructure.IActionResultExecutor<Microsoft.AspNetCore.Mvc.ViewResult>>()
+            .ExecuteAsync(actionContext, result);
+    }
+}
+
 /// <summary>認証より前に例外境界を配置するホスト用拡張です。</summary>
 public static class CommonErrorExtensions
 {
@@ -71,11 +123,7 @@ public static class CommonErrorExtensions
             var error = await context.RequestServices.GetRequiredService<IErrorHandler>().HandleAsync(new(Exception: exception, StatusCode: dependency ? 503 : 500));
             if (context.Response.HasStarted) { context.Abort(); return; }
             context.Response.Clear();
-            context.Response.StatusCode = error.StatusCode;
-            await context.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
-            {
-                Status = error.StatusCode, Title = error.Message, Extensions = { ["errorId"] = error.ErrorId }
-            });
+            await CommonErrorResponse.WriteAsync(context, error);
         }
     });
 }

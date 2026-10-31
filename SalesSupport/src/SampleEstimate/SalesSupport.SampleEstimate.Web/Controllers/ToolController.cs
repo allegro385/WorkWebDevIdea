@@ -47,10 +47,10 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     public async Task<IActionResult> Execute(EstimateInput input, IFormFile? detailFile, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
-        // 単独開発にはログイン利用者とDBがなく、案件の所有者として登録できないため保存を拒否します。
-        if (options.Value.IsStandalone && input.Output == EstimateOutput.Save)
+        // 本人を特定できない構成（単独開発・匿名モード）では案件の所有者を決められないため保存を拒否します。
+        if (!options.Value.HasIdentifiedUser && input.Output == EstimateOutput.Save)
         {
-            ModelState.AddModelError("Input.Output", "案件の保存にはPortalでログインしてください（単独開発では保存できません。portal起動プロファイルを使います）。");
+            ModelState.AddModelError("Input.Output", "案件の保存にはPortalでログインしてください（単独開発とログインなしの公開では保存できません）。");
             return await FailureViewAsync(input, ct);
         }
         if (input.Output == EstimateOutput.Save && input.SubmissionId == Guid.Empty)
