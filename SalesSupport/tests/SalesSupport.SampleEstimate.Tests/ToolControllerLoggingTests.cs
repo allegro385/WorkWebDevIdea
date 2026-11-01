@@ -96,7 +96,7 @@ public sealed class ToolControllerLoggingTests
         Assert.Equal("FAILURE", Assert.Single(usage.Events).ResultCode);
     }
 
-    /// <summary>Serviceの項目エラーを入力欄の`Input.`付きキーへ結び付けます。</summary>
+    /// <summary>Serviceの項目エラーを入力欄の`Input.`付きキーへ、明細ファイルのエラーはファイル欄のキーへ結び付けます。</summary>
     [Fact]
     public async Task ExecuteDisplaysServiceErrorsAtInputFields()
     {
@@ -107,6 +107,7 @@ public sealed class ToolControllerLoggingTests
 
         Assert.IsType<ViewResult>(response);
         Assert.True(controller.ModelState.ContainsKey("Input.Quantity"));
+        Assert.True(controller.ModelState.ContainsKey(EstimateService.DetailFileField));
         Assert.Equal("FAILURE", Assert.Single(usage.Events).ResultCode);
     }
 
@@ -178,11 +179,12 @@ public sealed class ToolControllerLoggingTests
             ? Task.FromException<DetailFileHint>(new InvalidOperationException("条件取得失敗"))
             : Task.FromResult(new DetailFileHint(true, ".tsv"));
 
-        /// <summary>固定の計算結果を返します。</summary>
+        /// <summary>固定の計算結果、または入力項目と明細ファイルの項目エラーを返します。</summary>
         public Task<EstimateOutcome> CalculateAsync(EstimateRequest request, CancellationToken ct = default) =>
             Task.FromResult(InvalidResult
-                ? new EstimateOutcome(EstimateOutcomeKind.InvalidInput, null,
-                    new ValidationResult([new FieldError(nameof(EstimateInput.Quantity), "OUT_OF_RANGE", "数量が不正です。")]))
+                ? new EstimateOutcome(EstimateOutcomeKind.InvalidInput, null, new ValidationResult([
+                    new FieldError(nameof(EstimateInput.Quantity), "OUT_OF_RANGE", "数量が不正です。"),
+                    new FieldError(EstimateService.DetailFileField, "INVALID_FILE", "明細ファイルが不正です。")]))
                 : new EstimateOutcome(EstimateOutcomeKind.Calculated,
                     new EstimateResult("案件", Today, "通常", 1, 100, 100, 0, 100, null), new ValidationResult([])));
 

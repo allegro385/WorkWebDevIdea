@@ -90,8 +90,8 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
 
         if (outcome.Result is null)
         {
-            foreach (var error in outcome.Errors.Errors)
-                ModelState.AddModelError(error.Field == EstimateService.DetailFileField ? error.Field : "Input." + error.Field, error.Message);
+            // 入力項目は画面の`Input.項目名`へ、別引数で受け取る明細ファイルはファイル欄の名前へ結び付けます。
+            ModelState.AddValidationResult(outcome.Errors, nameof(EstimateViewModel.Input), EstimateService.DetailFileField);
             return await FailureViewAsync(input, ct);
         }
 

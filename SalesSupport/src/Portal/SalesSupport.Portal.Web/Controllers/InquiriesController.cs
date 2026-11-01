@@ -46,7 +46,7 @@ public sealed class InquiriesController(IInquiryService inquiries, ICurrentUserA
                 TempData[CompletedKey] = inquiryId;
                 return RedirectToAction(nameof(Completed));
             case InquiryOutcome.InvalidInput:
-                ModelState.AddValidationResult(acceptance.Errors);
+                ModelState.AddValidationResult(acceptance.Errors, nameof(InquiryViewModel.Input), InquiryService.AttachmentField);
                 return await NewViewAsync(input, null, ct);
             default:
                 return await NewViewAsync(input, new OperationMessage(OperationMessageKind.Failure,
