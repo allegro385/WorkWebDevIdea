@@ -73,7 +73,8 @@ public sealed class ToolController(IExampleService examples, IToolUsageLogger us
 
         if (outcome.Result is null)
         {
-            ModelState.AddValidationResult(outcome.Errors);
+            // 入力項目は画面の`Input.項目名`へ、別引数で受け取る明細ファイルはファイル欄の名前へ結び付けます。
+            ModelState.AddValidationResult(outcome.Errors, nameof(ExampleViewModel.Input), ExampleService.DetailFileField);
             return await FailureViewAsync(input, ct);
         }
 

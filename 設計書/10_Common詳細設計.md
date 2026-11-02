@@ -440,7 +440,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 - DB列の上限に合わせUTF-16単位で文字数を計測する。任意文字列の空欄はnull、必須の空白だけの値はエラー。
 - パスワードはPortalのIdentity検証へ渡し、Trim・文字置換・切り詰めをしない。
 - バージョンは半角数字3組、各組0～99、複数桁の先頭ゼロ禁止。完全一致の正規表現 `\A(?:0|[1-9][0-9]?)\.(?:0|[1-9][0-9]?)\.(?:0|[1-9][0-9]?)\z` で検証し、数値比較する。
-- サーバー側検証を正とし、Razorの入力検証は同じ条件と文言へ対応させる。FieldErrorをModelStateへ追加するヘルパーを提供する。
+- サーバー側検証を正とし、Razorの入力検証は同じ条件と文言へ対応させる。FieldErrorをModelStateへ追加するヘルパー`AddValidationResult`を提供する。Serviceは`FieldError.Field`へ入力モデルのプロパティ名（例：`Quantity`）だけを入れ、画面の束縛形を知らない。画面が入力モデルを`Input`のようなプロパティ経由で束縛する場合、Controllerは接頭辞（`nameof(ViewModel.Input)`）を渡し、ModelStateのキーを`asp-validation-for`と同じ`Input.Quantity`にする。ファイル選択などアクションの別引数で受け取る項目は、除外する項目名として渡し、接頭辞を付けない。
 
 ## 12. 共通UIとHTTP DTO
 
@@ -454,7 +454,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくずと対象ツール名をCommonが付与 |
 | CodeBadge TagHelper | codeType、codeValue。名称・色取得、HTMLエンコード |
 | ValidationSummary | ModelStateのエラー一覧。Commonの`_ValidationSummary`部分ビュー |
-| FieldError | 項目エラー。標準の`asp-validation-for`にCommonの`ss-field-error`を付けて表示 |
+| FieldError | 項目エラー。標準の`asp-validation-for`にCommonの`ss-field-error`を付けて表示。Serviceの結果は`AddValidationResult`で入力欄と同じキーへ追加する（[Validation](#validation)） |
 | 入力フォームの配置 | ラベル列と入力列、必須バッジ、操作ボタン列の`ss-*`クラス。PortalとWebツールで共有 |
 | OperationMessage | 保存結果・競合・入力失敗の画面内表示 |
 | CommonError | ErrorPresentation。ErrorId表示、例外・物理パスは非表示 |

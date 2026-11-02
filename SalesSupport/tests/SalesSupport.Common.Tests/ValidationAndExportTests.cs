@@ -1,6 +1,9 @@
 using System.Text;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using SalesSupport.Common.Contracts;
 using SalesSupport.Common.DataExport;
 using SalesSupport.Common.FileStorage;
+using SalesSupport.Common.UI;
 using SalesSupport.Common.Validation;
 using Xunit;
 
@@ -37,6 +40,29 @@ public sealed class ValidationAndExportTests
         Assert.NotNull(CommonValidation.ValidateText("Body", "😀 ", 2, true));
         Assert.Null(CommonValidation.ValidateText("Body", "😀", 2, true));
         Assert.True(CommonValidation.CompareVersions("1.10.0", "1.9.99") > 0);
+    }
+
+    /// <summary>入力モデルの項目へ接頭辞を付け、別引数で受け取る項目は項目名のまま追加します。</summary>
+    [Fact]
+    public void ValidationResultUsesInputFieldKeys()
+    {
+        var modelState = new ModelStateDictionary();
+        var result = new ValidationResult([new FieldError("Quantity", "OUT_OF_RANGE", "数量が不正です。"), new FieldError("DetailFile", "INVALID_FILE", "ファイルが不正です。")]);
+
+        modelState.AddValidationResult(result, "Input", "DetailFile");
+
+        Assert.Equal(["DetailFile", "Input.Quantity"], modelState.Keys.Order());
+    }
+
+    /// <summary>接頭辞を指定しない場合は項目名のまま追加します。</summary>
+    [Fact]
+    public void ValidationResultKeepsFieldNamesWithoutPrefix()
+    {
+        var modelState = new ModelStateDictionary();
+
+        modelState.AddValidationResult(new ValidationResult([new FieldError("ToolName", "REQUIRED", "ツール名を入力してください。")]));
+
+        Assert.Equal("ToolName", Assert.Single(modelState.Keys));
     }
 
     /// <summary>文字列数式だけを無効化し、BOMと改行・引用符を確認します。</summary>

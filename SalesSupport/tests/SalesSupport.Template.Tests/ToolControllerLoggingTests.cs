@@ -58,6 +58,21 @@ public sealed class ToolControllerLoggingTests
         Assert.Equal("SUCCESS", entry.ResultCode);
     }
 
+    /// <summary>Serviceの項目エラーを入力欄の`Input.`付きキーへ、明細ファイルのエラーはファイル欄のキーへ結び付けます。</summary>
+    [Fact]
+    public async Task ExecuteDisplaysServiceErrorsAtInputFields()
+    {
+        var usage = new RecordingUsageLogger();
+        var controller = CreateController(new StubExampleService { InvalidResult = true }, usage);
+
+        var response = await controller.Execute(new ExampleInput(), null, CancellationToken.None);
+
+        Assert.IsType<ViewResult>(response);
+        Assert.True(controller.ModelState.ContainsKey("Input.Quantity"));
+        Assert.True(controller.ModelState.ContainsKey(ExampleService.DetailFileField));
+        Assert.Equal("FAILURE", Assert.Single(usage.Events).ResultCode);
+    }
+
     /// <summary>HTTPコンテキストを備えた検証用Controllerを作成します。</summary>
     private static ToolController CreateController(IExampleService examples, IUsageLogger usage) => new(
         examples, new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "TEMPLATE" })), new StubBusinessDateProvider(),
@@ -84,6 +99,7 @@ public sealed class ToolControllerLoggingTests
     {
         public bool FailHint { get; init; }
         public bool FailExport { get; init; }
+        public bool InvalidResult { get; init; }
 
         /// <summary>入口画面の固定選択肢を返します。</summary>
         public IReadOnlyList<ExampleCategory> GetCategories() => [new("STANDARD", "通常", 0)];
@@ -93,10 +109,14 @@ public sealed class ToolControllerLoggingTests
             ? Task.FromException<DetailFileHint>(new InvalidOperationException("条件取得失敗"))
             : Task.FromResult(new DetailFileHint(true, ".tsv"));
 
-        /// <summary>固定の計算結果を返します。</summary>
+        /// <summary>固定の計算結果、または入力項目と明細ファイルの項目エラーを返します。</summary>
         public Task<ExampleOutcome> CalculateAsync(ExampleRequest request, CancellationToken ct = default) =>
-            Task.FromResult(new ExampleOutcome(ExampleOutcomeKind.Calculated,
-                new ExampleResult("案件", Today, "通常", 1, 100, 100, 0, 100, null), new ValidationResult([])));
+            Task.FromResult(InvalidResult
+                ? new ExampleOutcome(ExampleOutcomeKind.InvalidInput, null, new ValidationResult([
+                    new FieldError(nameof(ExampleInput.Quantity), "OUT_OF_RANGE", "数量が不正です。"),
+                    new FieldError(ExampleService.DetailFileField, "INVALID_FILE", "明細ファイルが不正です。")]))
+                : new ExampleOutcome(ExampleOutcomeKind.Calculated,
+                    new ExampleResult("案件", Today, "通常", 1, 100, 100, 0, 100, null), new ValidationResult([])));
 
         /// <summary>必要な場合にTSV生成失敗を再現します。</summary>
         public Task<byte[]> WriteTsvAsync(ExampleResult result, CancellationToken ct = default) => FailExport
