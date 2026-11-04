@@ -133,7 +133,7 @@ public sealed class ToolsControllerTests
         /// <param name="userId">表示対象の利用者です。</param>
         /// <param name="ct">要求のキャンセルトークンです。</param>
         public Task<ToolDetailViewModel?> GetDetailAsync(string toolId, Guid userId, CancellationToken ct = default) =>
-            Task.FromResult<ToolDetailViewModel?>(new(toolId, "検証カテゴリ", "検証ツール", null, null, "WEB", "PUBLIC", "1.0.0",
+            Task.FromResult<ToolDetailViewModel?>(new(toolId, "検証ツール", null, null, "WEB", "PUBLIC", "1.0.0",
                 new DateOnly(2026, 10, 30), false, [], [], false, null, []));
 
         /// <summary>この試験では使用しません。</summary>

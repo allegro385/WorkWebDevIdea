@@ -16,7 +16,7 @@ public sealed class PortalDbContextTests
         using var context = CreateContext();
         var expected = new[]
         {
-            (typeof(ApplicationUser), "AspNetUsers"), (typeof(Tool), "Tools"), (typeof(ToolCategory), "ToolCategories"),
+            (typeof(ApplicationUser), "AspNetUsers"), (typeof(Tool), "Tools"),
             (typeof(Role), "Roles"), (typeof(ToolRole), "ToolRoles"),
             (typeof(UserPreference), "UserPreferences"), (typeof(UserToolFavorite), "UserToolFavorites"),
             (typeof(ToolVersionHistory), "ToolVersionHistories"), (typeof(ToolFile), "ToolFiles"),
@@ -63,7 +63,7 @@ public sealed class PortalDbContextTests
         Assert.Contains(user.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Role));
         Assert.Contains(toolRole.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Role));
         Assert.Contains(toolRole.GetForeignKeys(), x => x.PrincipalEntityType.ClrType == typeof(Tool));
-        Assert.Null(context.Model.FindEntityType(typeof(ToolCategory))!.FindProperty("SortOrder"));
+        Assert.Null(context.Model.FindEntityType(typeof(Tool))!.FindProperty("CategoryId"));
         Assert.Equal(2, toolRole.FindPrimaryKey()!.Properties.Count);
     }
 

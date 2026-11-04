@@ -8,33 +8,38 @@ namespace SalesSupport.Common.Tests;
 /// <summary>ツール内画面の共通レイアウト情報を、Portal側のパンくずごとCommonが組み立てることを確認します。</summary>
 public sealed class ToolPageShellTests
 {
-    /// <summary>中間階層のない画面では、Portalのトップ・ツール一覧に続けて画面名だけを並べます。</summary>
+    /// <summary>画面名を省略すると、見出しとパンくずの末尾がツール名になり、Portalと同じタイトル帯で表示します。</summary>
     [Fact]
-    public void BuildsPortalBreadcrumbsAndToolName()
+    public void UsesToolNameWhenScreenNameIsOmitted()
     {
         var shell = new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "見積試算" }));
 
-        var model = shell.Build("入力");
+        var model = shell.Build();
 
-        Assert.Equal("入力", model.PageTitle);
-        Assert.Equal("見積試算", model.CurrentToolName);
+        Assert.Equal("見積試算", model.PageTitle);
+        Assert.Null(model.DocumentTitle);
+        Assert.Null(model.CurrentToolName);
+        Assert.True(model.UseTitleBand);
         Breadcrumb[] expected =
         [
             new("トップ", "", LinkTarget.Portal),
             new("ツール一覧", "tools", LinkTarget.Portal),
-            new("入力")
+            new("見積試算")
         ];
         Assert.Equal(expected, model.Breadcrumbs);
     }
 
-    /// <summary>ツール内に中間階層がある画面では、Portal側の項目の後ろへ渡された順で差し込みます。</summary>
+    /// <summary>下層画面でも見出しはツール名のままとし、ツール名を入口へのリンクにして画面名を続けます。</summary>
     [Fact]
-    public void InsertsBreadcrumbsWithinTool()
+    public void KeepsToolNameHeadingOnScreenWithinTool()
     {
         var shell = new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "見積試算" }));
 
-        var model = shell.Build("案件の編集", new Breadcrumb("見積試算", "", LinkTarget.Local));
+        var model = shell.Build("案件の編集");
 
+        Assert.Equal("見積試算", model.PageTitle);
+        Assert.Equal("案件の編集 - 見積試算", model.DocumentTitle);
+        Assert.True(model.UseTitleBand);
         Breadcrumb[] expected =
         [
             new("トップ", "", LinkTarget.Portal),

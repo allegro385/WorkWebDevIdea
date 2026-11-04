@@ -177,7 +177,6 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
     public async Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(CancellationToken ct = default)
     {
         var tools = await (from tool in db.Tools.AsNoTracking()
-                           join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                            orderby tool.SortOrder, tool.ToolName, tool.ToolId
                            select new { tool.ToolId, tool.ToolName }).ToListAsync(ct);
         List<InquiryTargetOption> targets = [new("PORTAL", "ポータルサイト")];

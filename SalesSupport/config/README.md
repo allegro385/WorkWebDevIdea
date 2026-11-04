@@ -2,7 +2,7 @@
 
 Commonが読み込む共通設定ファイルの雛形です。接続文字列を含むCommonの設定は、Portalと各ツールの`appsettings.json`ではなく配置環境ごとに1ファイルで管理し、Portalと各ツールはCommonのDIサービス（`IConnectionStringProvider`）から接続文字列を受け取ります。本番向けは`salessupport.common.example.json`、開発向けは`salessupport.common.Development.example.json`です。いずれも実値は含みません。
 
-開発用ユーザーのTSV雛形は[test-users.example.tsv](test-users.example.tsv)です。4列ヘッダーだけを含み、Commonの設定ファイルとしては使用しません。[開発限定の取込コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#tsvで複数の試験ユーザーを追加する)の手順で利用してください。
+ユーザー登録のTSV雛形は[users.example.tsv](users.example.tsv)です。見出しだけを含み、Commonの設定ファイルとしては使用しません。[管理コマンド`import-users`](../src/Portal/SalesSupport.Portal.Web/README.md#ユーザーを一括登録する)の手順で利用してください。
 
 ## 配置
 
@@ -68,7 +68,7 @@ D:\SalesSupport\
 | `SalesSupport:Site:Name` | `営業支援ポータルサイト` | 共通ヘッダー・フッターの表示名とメール文面の`{サイト名}`。全アプリで同じ値 |
 | `SalesSupport:Site:AuthenticationMode` | `EmailOtp` | 通常はこの値。ログインなしで公開する第1段だけ`Anonymous`へ変更。全アプリで同じ値 |
 | `SalesSupport:Site:TransportMode` | `Https` | 通常はこの値。HTTPSのバインドがない期間だけ`Http`へ変更。全アプリで同じ値 |
-| `SalesSupport:Application:Name` | `営業支援ポータル` | このアプリ自身の名前。障害ログの`ApplicationName`とツール画面の対象ツール名 |
+| `SalesSupport:Application:Name` | `営業支援ポータル` | このアプリ自身の名前。障害ログの`ApplicationName`と、ツール画面のタイトル帯・パンくずのツール名 |
 | `SalesSupport:Portal:BaseUrl` | `https://sales-support/` | 実URLに合わせて変更。スキームは`Site:TransportMode`に合わせます |
 | `SalesSupport:DataProtection:KeyDirectory` | `../keys` | 配置に合わせて変更 |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | `../storage/temp` / `../storage/files` | 配置に合わせて変更。空にするとその保存領域を提供しません |
@@ -78,7 +78,9 @@ D:\SalesSupport\
 | `SalesSupport:Logging:TimeoutSeconds` | `3` | 既定値 |
 | `SalesSupport:Proxy:KnownProxies` | `[]` | 既定値。空では転送ヘッダーを採用しません |
 
-開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。PortalとDBを使う検証には、空の接続文字列へ使い捨ての開発用DBを指定してください。
+開発向け雛形は`EnvironmentCode=DEVELOPMENT`、PortalのURLを`https://localhost:7065/`、SMTPを`127.0.0.1:2525`にした例です。SMTPサーバーを別途用意しない限りメールは送れません。PortalとDBを使う検証には、空の接続文字列へ使い捨ての開発用DBを指定してください。SQL Serverが自己署名の証明書を使う開発環境では、接続文字列へ`TrustServerCertificate=True`を付けます。証明書を検証しない指定のため、本番では使いません。
+
+雛形の`//`のコメントはCommonの読込みで無視されるため、コピーしたファイルに残しても動作します。
 
 ## ログインなしで公開する（段階リリース）
 
@@ -129,14 +131,15 @@ Webツールの通常のデバッグ実行（Visual StudioのF5）は「単独�
 - `portal`プロファイルは`Portal`を明示し、親プロセスの環境変数やアプリ設定に残った`Standalone`を上書きします。
 - `Standalone`はホストの`ASPNETCORE_ENVIRONMENT=Development`の場合だけ受け付けます。それ以外の環境とPortalでは起動を拒否します。連携モードで共通設定に不備があっても、単独開発へ自動的に切り替えません。
 - 単独開発では共有Cookie・ログイン・OTPを使わず、認証ユーザーや仮ユーザーを作りません。自端末（`localhost`）からの対象ツールの画面だけを利用でき、他の端末からの要求は拒否します。サイト・ツールの公開状態とロールは確認しません。
+- 単独開発はHTTPS専用です。`TransportMode`を読まないため、HTTPでは画面を表示できません。クライアントの端末からの確認は連携モードで行います。
 - CSRF検証は有効です。暗号鍵はASP.NET Core標準の保存先（開発者のユーザープロファイル）を使います。
 - 共通設定ファイルを読まないため、`SalesSupport__Site__Name`・`SalesSupport__Application__Name`・`SalesSupport__Application__ToolId`を起動プロファイルの環境変数で与えます。`EnvironmentCode`は`DEVELOPMENT`として扱い、接続文字列・Portal URL・鍵・保存領域・SMTPは要求しません。
 - DBを使いません。業務日付は現在のJST日付で、ログはDBへ保存せず、障害の詳細はコンソールへ出力します。明細ファイルのアップロード、サンプルの案件保存・検索・更新など、DBや認証ユーザーが必要な機能は利用できません。`portal`プロファイルで確認してください。
 - 共通ヘッダーにはPortalへのリンクとログアウトを表示せず、「単独開発」と表示します。パンくずの「トップ」「ツール一覧」もリンクにしません。
 
-連携試験に使う開発用ユーザーは、Portalの[開発限定コマンド](../src/Portal/SalesSupport.Portal.Web/README.md#開発試験用のユーザーを追加する)で登録します。
+連携試験に使うユーザーは、Portalの[管理コマンド`import-users`](../src/Portal/SalesSupport.Portal.Web/README.md#ユーザーを一括登録する)で登録します。
 
-`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`と画面の対象ツール名がPortal名になります。サイト名`Site:Name`は全アプリで同じ値のため、連携モードでは上書きしません。共通設定ファイルを読まない[単独開発](#ツールを単独で開発する)だけは、共通ヘッダー・フッターの表示に必要なため起動プロファイルの`SalesSupport__Site__Name`で与えます（テンプレートとサンプルの`standalone`プロファイルに設定済みです）。
+`SalesSupport:Mail:Enabled`と`SalesSupport:Application:ToolId`は雛形へ含めていません。`Enabled`は設定読み込み後、CommonがPortalで有効・ツールで無効に固定します。各ツールはメールを使用せず、共通設定ファイルや環境変数で`Enabled`を指定しても変更できません。`ToolId`はツールごとに異なるため環境変数で与えます。雛形の`Application:Name`はPortal用です。各ツールでは`SalesSupport__Application__Name`をそのツール名に上書きしてください。これを省くと障害ログの`ApplicationName`とツール画面のツール名がPortal名になります。サイト名`Site:Name`は全アプリで同じ値のため、連携モードでは上書きしません。共通設定ファイルを読まない[単独開発](#ツールを単独で開発する)だけは、共通ヘッダー・フッターの表示に必要なため起動プロファイルの`SalesSupport__Site__Name`で与えます（テンプレートとサンプルの`standalone`プロファイルに設定済みです）。
 
 共通設定ファイルをWeb公開領域・アプリ配置フォルダーの外へ置くこととアクセス権は、導入時に運用手順で確認します。Commonはファイルの存在と相対パスを検証しますが、配置フォルダーとの包含関係は起動時に検査しません。
 

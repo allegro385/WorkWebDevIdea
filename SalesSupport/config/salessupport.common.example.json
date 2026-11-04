@@ -6,13 +6,16 @@
     "EnvironmentCode": "PRODUCTION",
     "Site": {
       "Name": "営業支援ポータルサイト",
+      // 認証モードです。EmailOtp（通常）またはAnonymous（ログインなしの公開）を指定します。SalesSupportの直下ではなくSiteの下へ書きます。
       "AuthenticationMode": "EmailOtp",
+      // 通信方式です。Https（通常）またはHttp（HTTPSのバインドがない期間）を指定します。Siteの下へ書き、Portal:BaseUrlのスキームと一致させます。
       "TransportMode": "Https"
     },
     "Application": {
       "Name": "営業支援ポータル"
     },
     "Portal": {
+      // スキームはSite:TransportModeと一致させ、末尾は/にします。
       "BaseUrl": "https://sales-support/"
     },
     "DataProtection": {

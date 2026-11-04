@@ -90,22 +90,9 @@ CREATE TABLE portal.AspNetUserTokens
     CONSTRAINT FK_AspNetUserTokens_AspNetUsers FOREIGN KEY (UserId) REFERENCES portal.AspNetUsers (UserId) ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
-CREATE TABLE portal.ToolCategories
-(
-    CategoryId int IDENTITY(1,1) NOT NULL CONSTRAINT PK_ToolCategories PRIMARY KEY,
-    CategoryName nvarchar(100) NOT NULL,
-    UpdateCount int NOT NULL CONSTRAINT DF_ToolCategories_UpdateCount DEFAULT (0),
-    CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolCategories_CreatedAt DEFAULT SYSUTCDATETIME(),
-    CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolCategories_CreatedBy DEFAULT USER_NAME(),
-    UpdatedAt datetime2(3) NOT NULL CONSTRAINT DF_ToolCategories_UpdatedAt DEFAULT SYSUTCDATETIME(),
-    UpdatedBy nvarchar(128) NOT NULL CONSTRAINT DF_ToolCategories_UpdatedBy DEFAULT USER_NAME(),
-    CONSTRAINT CK_ToolCategories_CategoryName_NotBlank CHECK (LEN(LTRIM(RTRIM(CategoryName))) > 0)
-);
-
 CREATE TABLE portal.Tools
 (
     ToolId varchar(20) NOT NULL,
-    CategoryId int NOT NULL,
     ToolName nvarchar(200) NOT NULL,
     ToolSummary nvarchar(1000) NULL,
     Remarks nvarchar(2000) NULL,
@@ -120,7 +107,6 @@ CREATE TABLE portal.Tools
     UpdatedAt datetime2(3) NOT NULL CONSTRAINT DF_Tools_UpdatedAt DEFAULT SYSUTCDATETIME(),
     UpdatedBy nvarchar(128) NOT NULL CONSTRAINT DF_Tools_UpdatedBy DEFAULT USER_NAME(),
     CONSTRAINT PK_Tools PRIMARY KEY (ToolId),
-    CONSTRAINT FK_Tools_ToolCategories FOREIGN KEY (CategoryId) REFERENCES portal.ToolCategories (CategoryId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT FK_Tools_AspNetUsers_Owner FOREIGN KEY (OwnerUserId) REFERENCES portal.AspNetUsers (UserId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT CK_Tools_ToolId CHECK (LEN(LTRIM(RTRIM(ToolId))) > 0 AND ToolId <> 'SYSTEM'),
     CONSTRAINT CK_Tools_ToolName_NotBlank CHECK (LEN(LTRIM(RTRIM(ToolName))) > 0),
@@ -190,17 +176,7 @@ CREATE TABLE portal.ToolVersionHistories
     CONSTRAINT FK_ToolVersionHistories_Tools FOREIGN KEY (ToolId) REFERENCES portal.Tools (ToolId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT FK_ToolVersionHistories_AspNetUsers FOREIGN KEY (ModifiedByUserId) REFERENCES portal.AspNetUsers (UserId) ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT UQ_ToolVersionHistories_Tool_Version UNIQUE (ToolId, Version),
-    CONSTRAINT CK_ToolVersionHistories_Version CHECK (
-        Version COLLATE Latin1_General_100_BIN2 NOT LIKE N'%[^0-9.]%'
-        AND DATALENGTH(Version) BETWEEN 10 AND 16
-        AND LEN(Version) - LEN(REPLACE(Version, N'.', N'')) = 2
-        AND PARSENAME(Version, 3) IS NOT NULL AND PARSENAME(Version, 2) IS NOT NULL AND PARSENAME(Version, 1) IS NOT NULL
-        AND TRY_CONVERT(int, PARSENAME(Version, 3)) BETWEEN 0 AND 99
-        AND TRY_CONVERT(int, PARSENAME(Version, 2)) BETWEEN 0 AND 99
-        AND TRY_CONVERT(int, PARSENAME(Version, 1)) BETWEEN 0 AND 99
-        AND (LEN(PARSENAME(Version, 3)) = 1 OR LEFT(PARSENAME(Version, 3), 1) <> N'0')
-        AND (LEN(PARSENAME(Version, 2)) = 1 OR LEFT(PARSENAME(Version, 2), 1) <> N'0')
-        AND (LEN(PARSENAME(Version, 1)) = 1 OR LEFT(PARSENAME(Version, 1), 1) <> N'0')),
+    CONSTRAINT CK_ToolVersionHistories_Version CHECK (LEN(LTRIM(RTRIM(Version))) > 0),
     CONSTRAINT CK_ToolVersionHistories_Description CHECK (LEN(LTRIM(RTRIM(ChangeDescription))) > 0)
 );
 CREATE UNIQUE INDEX UX_ToolVersionHistories_Current ON portal.ToolVersionHistories (ToolId) WHERE IsCurrent = 1;
@@ -534,7 +510,7 @@ GO
 /* 共通監査列対象テーブルへ、更新回数・更新日時・DBユーザーを自動設定するトリガーを生成する。 */
 DECLARE @AuditedTables TABLE (SchemaName sysname NOT NULL, TableName sysname NOT NULL);
 INSERT @AuditedTables (SchemaName, TableName) VALUES
-('portal','Roles'), ('portal','ToolCategories'), ('portal','Tools'), ('portal','ToolRoles'), ('portal','UserPreferences'), ('portal','UserToolFavorites'),
+('portal','Roles'), ('portal','Tools'), ('portal','ToolRoles'), ('portal','UserPreferences'), ('portal','UserToolFavorites'),
 ('portal','ToolVersionHistories'), ('portal','ToolFiles'), ('portal','Notices'), ('portal','FaqCategories'),
 ('portal','FaqItems'), ('portal','Inquiries'), ('portal','CodeMaster'), ('portal','SystemSettings'),
 ('portal','ErrorCodes'), ('portal','FileUploadPolicies'), ('portal','FileUploadPolicyExtensions'),

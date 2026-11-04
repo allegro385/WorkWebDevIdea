@@ -2,13 +2,6 @@ using SalesSupport.Common.Entities;
 
 namespace SalesSupport.Portal.Web.Entities;
 
-/// <summary>ポータル上でツールを分類する表示カテゴリです。</summary>
-public sealed class ToolCategory : AuditedEntity
-{
-    public int CategoryId { get; set; }
-    public string CategoryName { get; set; } = "";
-}
-
 /// <summary>DBで管理する利用者ロールの名称を保持します。</summary>
 public sealed class Role : AuditedEntity
 {
@@ -29,7 +22,6 @@ public sealed class ToolRole : AuditedEntity
 public sealed class Tool : AuditedEntity
 {
     public string ToolId { get; set; } = "";
-    public int CategoryId { get; set; }
     public string ToolName { get; set; } = "";
     public string? ToolSummary { get; set; }
     public string? Remarks { get; set; }

@@ -60,7 +60,7 @@ public sealed class ToolController(IExampleService examples, IToolUsageLogger us
                     preparedResult = File(await examples.WriteTsvAsync(result, ct), "text/tab-separated-values", examples.BuildFileName(result));
                 else
                 {
-                    ViewData.SetPageShell(shell.Build("計算結果"));
+                    ViewData.SetPageShell(shell.Build());
                     preparedResult = View("TemplateExampleResult", result);
                 }
             }
@@ -99,8 +99,8 @@ public sealed class ToolController(IExampleService examples, IToolUsageLogger us
     /// <returns>入力画面の表示情報です。</returns>
     private async Task<ExampleViewModel> BuildViewAsync(ExampleInput input, OperationMessage? message, CancellationToken ct)
     {
-        // パンくずの上位（Portalのトップ・ツール一覧）と対象ツール名はCommonが付けます。
-        ViewData.SetPageShell(shell.Build("入力"));
+        // タイトル帯のツール名とパンくずはCommonが付けます。画面名は本文の見出しで表示します。
+        ViewData.SetPageShell(shell.Build());
         return new ExampleViewModel
         {
             Input = input,

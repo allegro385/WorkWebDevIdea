@@ -17,9 +17,6 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IToolUsageLogger usage,
     IToolPageShell shell, IOptions<CommonOptions> options) : Controller
 {
-    /// <summary>ツール内の上位階層です。パンくずの上位（Portalのトップ・ツール一覧）はCommonが付けます。</summary>
-    private static readonly Breadcrumb ToolTop = new("見積試算", "", LinkTarget.Local);
-
     /// <summary>本人を特定できない構成（単独開発・匿名モード）では、この画面の全要求を対象なしとして拒否します。</summary>
     /// <param name="context">実行しようとしているアクションの情報です。</param>
     public override void OnActionExecuting(ActionExecutingContext context)
@@ -38,7 +35,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
         if (!string.IsNullOrWhiteSpace(categoryCode) && !categories.Any(x => x.Code == categoryCode))
             ModelState.AddModelError("CategoryCode", "区分を選択してください。");
         var result = ModelState.IsValid ? await records.ListAsync(from, to, categoryCode, ct) : new EstimateRecordList([], 0, 0);
-        ViewData.SetPageShell(shell.Build("案件一覧・集計", ToolTop));
+        ViewData.SetPageShell(shell.Build("案件一覧・集計"));
         return View(new RecordListViewModel { From = from, To = to, CategoryCode = categoryCode, Categories = categories, Result = result });
     }
 
@@ -48,7 +45,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
     {
         var record = await records.GetAsync(id, ct);
         if (record is null) return NotFound();
-        ViewData.SetPageShell(shell.Build("保存した案件", ToolTop));
+        ViewData.SetPageShell(shell.Build("保存した案件"));
         return View(record);
     }
 
@@ -58,7 +55,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
     {
         var record = await records.GetAsync(id, ct);
         if (record is null) return NotFound();
-        ViewData.SetPageShell(shell.Build("案件の編集", ToolTop));
+        ViewData.SetPageShell(shell.Build("案件の編集"));
         return View(RecordEditViewModel.FromRecord(record, estimates.GetCategories()));
     }
 
@@ -104,7 +101,7 @@ public sealed class RecordsController(IEstimateRecordService records, IEstimateS
             throw;
         }
         await usage.WriteExecuteAsync(succeeded: false, ct);
-        ViewData.SetPageShell(shell.Build("案件の編集", ToolTop));
+        ViewData.SetPageShell(shell.Build("案件の編集"));
         return View(model);
     }
 }

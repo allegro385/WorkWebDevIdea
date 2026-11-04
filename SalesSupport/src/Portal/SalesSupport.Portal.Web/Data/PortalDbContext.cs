@@ -9,7 +9,6 @@ namespace SalesSupport.Portal.Web.Data;
 /// <summary>Identityの4テーブルとPortal業務テーブルを同じ保存単位で扱います。</summary>
 public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) : IdentityUserContext<ApplicationUser, Guid>(options)
 {
-    public DbSet<ToolCategory> ToolCategories => Set<ToolCategory>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<ToolRole> ToolRoles => Set<ToolRole>();
     public DbSet<Tool> Tools => Set<Tool>();
@@ -35,12 +34,6 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
     /// <summary>ツール、履歴および提供ファイルの列と参照関係を構成します。</summary>
     private static void ConfigureToolModels(ModelBuilder model)
     {
-        var category = model.Entity<ToolCategory>();
-        category.HasKey(x => x.CategoryId);
-        category.Property(x => x.CategoryId).ValueGeneratedOnAdd();
-        category.Property(x => x.CategoryName).HasMaxLength(100).IsRequired();
-        category.ConfigureAuditColumns("ToolCategories");
-
         var role = model.Entity<Role>();
         role.HasKey(x => x.RoleCode);
         role.Property(x => x.RoleCode).HasMaxLength(20).IsUnicode(false);
@@ -58,7 +51,6 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         tool.Property(x => x.ToolType).HasMaxLength(20).IsUnicode(false);
         tool.Property(x => x.WebAppUrl).HasMaxLength(2048);
         tool.Property(x => x.Status).HasMaxLength(20).IsUnicode(false);
-        tool.HasOne<ToolCategory>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.NoAction);
         tool.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.NoAction);
         tool.ConfigureAuditColumns("Tools");
 

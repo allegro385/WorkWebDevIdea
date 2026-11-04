@@ -21,11 +21,13 @@ public sealed class PageShellModel
 {
     /// <summary>ブラウザーのタイトルと画面見出しに使用します。</summary>
     public string PageTitle { get; init; } = "";
+    /// <summary>見出しと異なる題名をブラウザーのタブへ表示する場合だけ指定します。NULLならPageTitleを使います。</summary>
+    public string? DocumentTitle { get; init; }
     /// <summary>ヘッダー直下へ表示する階層です。</summary>
     public IReadOnlyList<Breadcrumb> Breadcrumbs { get; init; } = [];
-    /// <summary>ツール内画面で表示する対象ツール名です。</summary>
+    /// <summary>Portalの管理画面で、編集対象のツール名を見出しの上へ表示する場合に指定します。</summary>
     public string? CurrentToolName { get; init; }
-    /// <summary>トップや一覧の画面タイトルをモック準拠の強調帯で表示する場合はtrueにします。</summary>
+    /// <summary>トップ・一覧・ツール画面のタイトルをモック準拠の強調帯で表示する場合はtrueにします。</summary>
     public bool UseTitleBand { get; init; }
     /// <summary>通常機能への共通メニューを表示するかです。認証・入場制限案内の画面ではfalseにします。</summary>
     public bool ShowCommonMenus { get; init; } = true;
