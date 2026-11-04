@@ -19,8 +19,6 @@ IF OBJECT_ID(N'dbo.SampleEstimateRecords', N'U') IS NOT NULL
     THROW 51904, N'サンプルの表が既にあります。再実行しないでください。', 1;
 IF EXISTS (SELECT 1 FROM portal.Tools WHERE ToolId = 'SAMPLE-ESTIMATE')
     THROW 51905, N'同じToolIdが既にあります。上書きしません。', 1;
-IF EXISTS (SELECT 1 FROM portal.ToolCategories WHERE CategoryName = N'[SAMPLE] 見積試算')
-    THROW 51906, N'サンプル分類が既にあります。上書きしません。', 1;
 
 DECLARE @OwnerUserId uniqueidentifier =
     (SELECT TOP (1) UserId FROM portal.AspNetUsers WHERE RoleCode = 'ADMIN' AND IsActive = 1 ORDER BY UserId);
@@ -74,10 +72,8 @@ BEGIN TRY
           LEFT JOIN deleted deletedRow ON target.RecordId = deletedRow.RecordId;
     END;');
 
-    INSERT portal.ToolCategories(CategoryName) VALUES (N'[SAMPLE] 見積試算');
-    DECLARE @CategoryId int = SCOPE_IDENTITY();
-    INSERT portal.Tools(ToolId, CategoryId, ToolName, ToolSummary, Remarks, OwnerUserId, ToolType, WebAppUrl, Status, SortOrder)
-    VALUES ('SAMPLE-ESTIMATE', @CategoryId, N'[SAMPLE] 見積試算・案件記録', N'計算と本人の案件保存・検索・更新を学ぶ開発専用ツールです。',
+    INSERT portal.Tools(ToolId, ToolName, ToolSummary, Remarks, OwnerUserId, ToolType, WebAppUrl, Status, SortOrder)
+    VALUES ('SAMPLE-ESTIMATE', N'[SAMPLE] 見積試算・案件記録', N'計算と本人の案件保存・検索・更新を学ぶ開発専用ツールです。',
             N'開発専用。実業務データを入力しないでください。', @OwnerUserId, 'WEB', N'/tools/SAMPLE-ESTIMATE/app', 'PRIVATE', 900);
     INSERT portal.ToolRoles(ToolId, RoleCode) VALUES ('SAMPLE-ESTIMATE', 'A');
     INSERT portal.FileUploadPolicies(ScopeType, ToolId, PurposeCode, MaxFileSizeBytes)

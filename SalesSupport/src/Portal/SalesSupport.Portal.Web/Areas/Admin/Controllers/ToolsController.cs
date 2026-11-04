@@ -28,7 +28,6 @@ public sealed class ToolsController(IToolAdminService tools, IToolFileAdminServi
         {
             Filter = filter,
             Tools = await tools.GetSelectionAsync(filter, ct),
-            Categories = await tools.GetCategoriesAsync(ct),
             Owners = await tools.GetOwnersAsync(ct),
             Statuses = await codes.GetOptionsAsync("TOOL_STATUS", ct),
             Message = PortalMessages.Take(TempData)

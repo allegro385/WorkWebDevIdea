@@ -6,6 +6,7 @@ ToolIdからテンプレートツールを複製し、新しいWebツールの�
 | --- | --- |
 | `new-tool.bat` | 入口。ToolIdを引数または対話入力で受け取り、PowerShellスクリプトを呼び出します |
 | `New-SalesSupportTool.ps1` | 複製、置換、生成前後の検査、`restore`・`build`を行います |
+| `Initialize-SalesSupportFolders.ps1` | 配置先の標準フォルダーの作成と、アプリケーションプールへの権限付与を行います（[後述](#配置先のフォルダーを準備する)） |
 
 Windows PowerShell 5.1で動作します。実行ポリシーは`-ExecutionPolicy Bypass`をバッチ側で指定します。
 
@@ -49,7 +50,7 @@ ToolIdはハイフンと下線で区切り、各語の先頭だけを大文字�
 | ルート名前空間 | `SalesSupport.<名称>.Web` |
 | Portalからの起動URL例 | `/tools/<ToolId>/app` |
 
-ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル起動用環境変数と生成したREADMEにだけ記載します。
+ToolIdはC#のソースへ書かず、`Properties/launchSettings.json`のローカル起動用環境変数、`web.config`の環境変数、生成したREADMEにだけ記載します。
 
 ## 置換対象
 
@@ -61,7 +62,7 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 | `src/Template/` | `src/<名称>/` |
 | `template.slnx` | `<名称>.slnx` |
 | `__TOOL_ID__` | ToolId |
-| `__TOOL_NAME__` | `-ToolName`の値をJSON文字列としてエスケープしたもの |
+| `__TOOL_NAME__` | `-ToolName`の値。`web.config`ではXMLとして、それ以外ではJSON文字列としてエスケープしたもの |
 | `7075` / `5275` | `-HttpsPort` / `-HttpPort`の値（指定時のみ） |
 | `.csproj`の`<TemplateExampleAllowed>true</TemplateExampleAllowed>` | `<TemplateExampleAllowed>false</TemplateExampleAllowed>` |
 
@@ -84,9 +85,20 @@ ToolIdはソースへ書かず、`Properties/launchSettings.json`のローカル
 - プレースホルダーと旧テンプレート名が残っていないこと（ファイル名を含む）
 - ソリューションのプロジェクト参照と各プロジェクトの`ProjectReference`が実在すること
 - 生成したJSONが構文として有効で、ローカル起動設定のToolIdとアプリ名が入力値と一致すること（表示名に引用符やバックスラッシュがある場合も確認）
+- 生成した`web.config`がXMLとして有効で、ToolIdとアプリ名が入力値と一致し、単独モードの設定が有効になっていないこと
 - `dotnet restore`・`dotnet build`が成功すること（`-SkipBuild`指定時と.NET SDKがない場合は未実行として表示します）。生成したツールはテストプロジェクトを持たないため`dotnet test`は実行しません
 - 確認ビルドはDebugで行います。生成直後は題材が残っているため、Releaseビルドは題材の残存検出で止まります（意図した動作です）
 
 ## スクリプトが行わないこと
 
-DB登録、SQL適用、アップロード条件の登録、IISのアプリケーション・アプリケーションプール作成、環境変数の設定、証明書、本番配置は行いません。生成後の作業は[導入・運用](../../設計書/05_導入・運用.md#deployment)と、生成したツールのREADMEに従ってください。
+DB登録、SQL適用、アップロード条件の登録、IISのアプリケーション・アプリケーションプール作成、証明書、本番配置は行いません。配置環境の環境変数は`web.config`の既定値までを用意します。生成後の作業は[導入・運用](../../設計書/05_導入・運用.md#deployment)と、生成したツールのREADMEに従ってください。
+
+## 配置先のフォルダーを準備する
+
+`Initialize-SalesSupportFolders.ps1`は、サーバーで`apps`・`config`・`keys`・`storage\temp`・`storage\files`を作成し、指定したアプリケーションプールへ権限を追加します。既にあるフォルダーと既存の権限は変更しません。IISのアプリケーションプールは先に作成してください。
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Initialize-SalesSupportFolders.ps1 -RootPath D:\SalesSupport -AppPoolName SalesSupportPortal, SalesSupportT001 -WhatIf
+```
+
+`-WhatIf`で内容を確認してから、外して実行します。付与する権限は`apps`・`config`が読取りと実行、`keys`・`storage\temp`・`storage\files`が変更です。管理者権限のPowerShellで実行します。共通設定ファイルの配置、IISの設定、不要な権限の削除は行いません。

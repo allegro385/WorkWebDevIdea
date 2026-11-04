@@ -148,6 +148,43 @@ public sealed class CommonBoundaryTests
         Assert.True(result.Failed);
     }
 
+    /// <summary>保存領域がないときは、設定キーと理由と対処を示し、物理パスは出しません。</summary>
+    [Fact]
+    public void StorageExplainsMissingFolderWithoutPath()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), "ss-missing-" + Guid.NewGuid().ToString("N"));
+        var environment = new StubEnvironment { ContentRootPath = AppContext.BaseDirectory };
+
+        var result = new StoragePathValidation(environment).Validate(null, new StorageOptions { PermanentRoot = missing });
+
+        Assert.True(result.Failed);
+        Assert.Contains("Storage:PermanentRoot", result.FailureMessage);
+        Assert.Contains("フォルダーがありません", result.FailureMessage);
+        Assert.Contains("Initialize-SalesSupportFolders.ps1", result.FailureMessage);
+        Assert.DoesNotContain(missing, result.FailureMessage);
+    }
+
+    /// <summary>設定された領域ごとに理由を示し、問題のない領域は報告しません。</summary>
+    [Fact]
+    public void StorageReportsOnlyFailedRoot()
+    {
+        var folder = Directory.CreateTempSubdirectory("ss-storage-");
+        try
+        {
+            var environment = new StubEnvironment { ContentRootPath = AppContext.BaseDirectory };
+
+            var result = new StoragePathValidation(environment).Validate(null, new StorageOptions
+            {
+                TemporaryRoot = folder.FullName, PermanentRoot = AppContext.BaseDirectory
+            });
+
+            Assert.True(result.Failed);
+            Assert.DoesNotContain("Storage:TemporaryRoot", result.FailureMessage);
+            Assert.Contains("Storage:PermanentRoot", result.FailureMessage);
+        }
+        finally { folder.Delete(); }
+    }
+
     /// <summary>一時用途を永続領域へ誤保存することを拒否します。</summary>
     [Fact]
     public async Task TemporaryPurposeCannotBeSavedPermanently()

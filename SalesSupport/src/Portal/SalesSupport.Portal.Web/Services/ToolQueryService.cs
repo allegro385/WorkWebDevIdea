@@ -36,14 +36,12 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
         if (!await db.Roles.AsNoTracking().AnyAsync(x => x.RoleCode == roleCode, ct))
             return new ToolListViewModel(favoritesOnly, 0, 0, []);
         var rows = await (from tool in db.Tools.AsNoTracking()
-                          join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                           where (tool.Status == "PUBLIC" || tool.Status == "PRIVATE")
                               && (isAdmin || db.ToolRoles.Any(x => x.ToolId == tool.ToolId && x.RoleCode == roleCode))
                           orderby tool.SortOrder, tool.ToolName, tool.ToolId
                           select new
                           {
                               tool.ToolId,
-                              category.CategoryName,
                               tool.ToolName,
                               tool.ToolSummary,
                               tool.Status,
@@ -72,7 +70,7 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
                 ? toolFiles.Where(x => x.FileCategory == "REFERENCE")
                     .Select(x => new ToolFileLink(x.FileId, x.DisplayName, x.OriginalFileName, x.FileSizeBytes)).ToList()
                 : [];
-            return new ToolListItem(row.ToolId, row.CategoryName, row.ToolName, row.ToolSummary,
+            return new ToolListItem(row.ToolId, row.ToolName, row.ToolSummary,
                 row.Version ?? DefaultVersion, row.Version is null ? null : row.ReleasedAt, row.Status, row.IsFavorite,
                 canOpen, row.Status == "PRIVATE", canOpen && row.ToolType == "WEB" && CommonValidation.IsLocalPath(row.WebAppUrl), app, references);
         }).ToList();
@@ -84,35 +82,17 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
     /// <summary>お知らせ・履歴・提供内容をまとめて取得します。物理パスは表示情報へ含めません。</summary>
     public async Task<ToolDetailViewModel?> GetDetailAsync(string toolId, Guid userId, CancellationToken ct = default)
     {
-        var tool = await (from row in db.Tools.AsNoTracking()
-                          join category in db.ToolCategories.AsNoTracking() on row.CategoryId equals category.CategoryId
-                          where row.ToolId == toolId
-                          select new
-                          {
-                              row.ToolId,
-                              category.CategoryName,
-                              row.ToolName,
-                              row.ToolSummary,
-                              row.Remarks,
-                              row.ToolType,
-                              row.Status,
-                              row.WebAppUrl
-                          }).SingleOrDefaultAsync(ct);
+        var tool = await db.Tools.AsNoTracking().Where(x => x.ToolId == toolId)
+            .Select(x => new { x.ToolId, x.ToolName, x.ToolSummary, x.Remarks, x.ToolType, x.Status, x.WebAppUrl }).SingleOrDefaultAsync(ct);
         if (tool is null) return null;
 
         var histories = await db.ToolVersionHistories.AsNoTracking().Where(x => x.ToolId == toolId)
+            .OrderByDescending(x => x.ReleasedAt).ThenByDescending(x => x.ToolHistoryId)
             .Select(x => new { x.Version, x.ReleasedAt, x.ChangeDescription, x.IsCurrent }).ToListAsync(ct);
         var current = histories.SingleOrDefault(x => x.IsCurrent);
-        List<ToolVersionView> versions = [];
-        // 現在のバージョン以下だけを、文字列順ではなく数値3組の比較で降順に並べます。
-        if (current is not null && CommonValidation.IsVersion(current.Version))
-        {
-            var currentVersion = current.Version;
-            versions = histories
-                .Where(x => CommonValidation.IsVersion(x.Version) && CommonValidation.CompareVersions(x.Version, currentVersion) <= 0)
-                .OrderByDescending(x => x.Version, VersionComparer.Instance)
-                .Select(x => new ToolVersionView(x.Version, x.ReleasedAt, x.ChangeDescription, x.IsCurrent)).ToList();
-        }
+        // 新しい順の一覧から、現在のバージョンより新しい行を除きます。未選択なら履歴は表示しません。
+        var versions = histories.SkipWhile(x => !x.IsCurrent)
+            .Select(x => new ToolVersionView(x.Version, x.ReleasedAt, x.ChangeDescription, x.IsCurrent)).ToList();
 
         var files = await db.ToolFiles.AsNoTracking().Where(x => x.ToolId == toolId)
             .OrderBy(x => x.SortOrder).ThenBy(x => x.FileId)
@@ -124,7 +104,7 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
 
         var notices = await NoticeQuery.ReadPublishedAsync(db, clock, "TOOL", toolId, ct);
         var isFavorite = await db.UserToolFavorites.AsNoTracking().AnyAsync(x => x.UserId == userId && x.ToolId == toolId, ct);
-        return new ToolDetailViewModel(tool.ToolId, tool.CategoryName, tool.ToolName, tool.ToolSummary, tool.Remarks,
+        return new ToolDetailViewModel(tool.ToolId, tool.ToolName, tool.ToolSummary, tool.Remarks,
             tool.ToolType, tool.Status, current?.Version ?? DefaultVersion, current?.ReleasedAt, isFavorite,
             notices, versions, tool.ToolType == "WEB" && CommonValidation.IsLocalPath(tool.WebAppUrl), application, references);
     }
@@ -136,15 +116,5 @@ public sealed class ToolQueryService(PortalDbContext db, IApplicationClock clock
             .Select(x => new { x.ToolType, x.WebAppUrl }).SingleOrDefaultAsync(ct);
         if (tool is null || tool.ToolType != "WEB" || !CommonValidation.IsLocalPath(tool.WebAppUrl)) return null;
         return tool.WebAppUrl;
-    }
-
-    /// <summary>バージョン番号を数値の組として比較する並べ替え用の比較子です。</summary>
-    private sealed class VersionComparer : IComparer<string>
-    {
-        /// <summary>共有できる比較子の実体です。</summary>
-        public static readonly VersionComparer Instance = new();
-
-        /// <summary>検証済みのバージョン同士を数値の大小で比較します。</summary>
-        public int Compare(string? x, string? y) => CommonValidation.CompareVersions(x ?? "", y ?? "");
     }
 }

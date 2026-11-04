@@ -31,11 +31,9 @@ public static class PortalServiceExtensions
         services.AddScoped<PortalLoginCookies>();
         services.Configure<MailTemplateOptions>(NoticeMailTemplates.AddDefaults);
         services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<ILocalTestUserProvisioner, LocalTestUserProvisioner>();
-        services.AddScoped<LocalTestUserCommand>();
-        services.AddScoped<LocalTestUserTsvReader>();
-        services.AddScoped<LocalTestUserImportCommand>();
-        services.AddSingleton<ILocalTestUserConsole, LocalTestUserConsole>();
+        services.AddScoped<UserImportTsvReader>();
+        services.AddScoped<UserImportService>();
+        services.AddScoped<UserImportCommand>();
         AddRequestLimits(services, configuration);
         AddManual(services, configuration);
         AddScreenServices(services);
@@ -89,7 +87,7 @@ public static class PortalServiceExtensions
             options.SignIn.RequireConfirmedEmail = false;
             // ログインIDの業務上の文字規則は外部連携の設計時に決定します。
             options.User.AllowedUserNameCharacters = string.Empty;
-            // 以下は開発用ユーザー作成の条件です。連携済みハッシュの照合に新規設定条件を適用しません。
+            // 以下はimport-usersで登録するパスワードの条件です。連携済みハッシュの照合に新規設定条件を適用しません。
             options.Password.RequiredLength = 6;
             options.Password.RequiredUniqueChars = 1;
             options.Password.RequireDigit = false;

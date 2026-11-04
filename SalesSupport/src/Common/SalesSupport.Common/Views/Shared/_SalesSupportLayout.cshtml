@@ -12,7 +12,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@shell.PageTitle</title>
+    <title>@(shell.DocumentTitle ?? shell.PageTitle)</title>
     <link rel="stylesheet" href="~/_content/SalesSupport.Common/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/_content/SalesSupport.Common/css/sales-support.css" />
     @await RenderSectionAsync("Head", required: false)

@@ -50,7 +50,7 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
     RequestCorrelation correlation, IOptions<CommonOptions> application, IOptions<LoggingOptions> settings,
     IHttpContextAccessor http) : IUsageLogger, IActivityLogger, ISystemErrorLogger
 {
-    private static readonly HashSet<string> ActivityTypes = new("LOGIN LOGOUT ACCOUNT_LOCK ACCESS_DENIED USER_CREATE USER_UPDATE USER_UNLOCK TOOL_UPDATE TOOL_ORDER_UPDATE NOTICE_CREATE NOTICE_UPDATE VERSION_CREATE VERSION_UPDATE VERSION_DELETE VERSION_SELECT FILE_CREATE FILE_REPLACE FILE_UPDATE FILE_DELETE FILE_ORDER_UPDATE INQUIRY_CREATE INQUIRY_UPDATE INQUIRY_CLASSIFICATION_UPDATE PREFERENCE_UPDATE FAVORITE_ADD FAVORITE_REMOVE MAIL_SEND".Split(' '), StringComparer.Ordinal);
+    private static readonly HashSet<string> ActivityTypes = new("LOGIN LOGOUT ACCOUNT_LOCK ACCESS_DENIED USER_CREATE USER_UPDATE USER_UNLOCK USER_IMPORT TOOL_UPDATE TOOL_ORDER_UPDATE NOTICE_CREATE NOTICE_UPDATE VERSION_CREATE VERSION_UPDATE VERSION_DELETE VERSION_SELECT FILE_CREATE FILE_REPLACE FILE_UPDATE FILE_DELETE FILE_ORDER_UPDATE INQUIRY_CREATE INQUIRY_UPDATE INQUIRY_CLASSIFICATION_UPDATE PREFERENCE_UPDATE FAVORITE_ADD FAVORITE_REMOVE MAIL_SEND".Split(' '), StringComparer.Ordinal);
     private static readonly HashSet<string> FailureReasons = new("INVALID_CREDENTIALS ACCOUNT_LOCKED UNAUTHENTICATED INACTIVE_USER STAMP_MISMATCH ROLE_DENIED SITE_PRIVATE TOOL_UNAVAILABLE INVALID_INPUT CONFLICT DEPENDENCY_UNAVAILABLE SEND_FAILED SEND_UNKNOWN NO_RECIPIENTS CANCELLED".Split(' '), StringComparer.Ordinal);
 
     /// <summary>未認証の利用記録を拒否し、ツールホストでは設定IDを使います。</summary>
@@ -115,6 +115,10 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
         "CategoryCode" => code is null or "QUESTION" or "REQUEST" or "OPINION" or "PROBLEM" or "OTHER",
         "TargetType" => code is null or "PORTAL" or "TOOL" or "OTHER",
         "ToolId" => code is null || IsCode(code, 20),
+        // 管理コマンドの一括登録では、実行者・ファイル名・件数だけを記録します。
+        "Operator" => code is null || (code.Length is > 0 and <= 128 && !code.Any(char.IsControl)),
+        "FileName" => code is null || (code.Length is > 0 and <= 255 && !code.Any(char.IsControl)),
+        "Added" or "Updated" or "Skipped" => code is null || code.All(char.IsAsciiDigit),
         _ => false
     };
 

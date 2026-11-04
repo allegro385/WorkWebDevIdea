@@ -194,8 +194,6 @@ public static class CommonServiceExtensions
                 options.PermanentRoot = common.ResolvePath(options.PermanentRoot, "Storage:PermanentRoot");
             })
             .Validate(x => x.CleanupTimeoutSeconds > 0, "Storage:CleanupTimeoutSecondsが不正です。")
-            .Validate(x => IsUsableRoot(x.TemporaryRoot), "Storage:TemporaryRootが不正です。")
-            .Validate(x => IsUsableRoot(x.PermanentRoot), "Storage:PermanentRootが不正です。")
             .Validate(x => IsSeparated(x.TemporaryRoot, x.PermanentRoot), "Storage:TemporaryRootとPermanentRootを分離してください。")
             .ValidateOnStart();
     }
@@ -227,9 +225,6 @@ public static class CommonServiceExtensions
         services.AddOptions<HttpOptions>().Bind(configuration.GetSection("SalesSupport:Http"))
             .Validate(x => x.TimeoutSeconds > 0, "Http:TimeoutSecondsが不正です。").ValidateOnStart();
     }
-
-    /// <summary>未設定は利用しない意味とし、設定済みなら実在する絶対パスを求めます。</summary>
-    private static bool IsUsableRoot(string? root) => string.IsNullOrWhiteSpace(root) || Path.IsPathFullyQualified(root) && Directory.Exists(root);
 
     /// <summary>一方が他方の配下にある保存領域を拒否します。</summary>
     private static bool IsSeparated(string? first, string? second)

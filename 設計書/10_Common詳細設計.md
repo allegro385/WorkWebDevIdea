@@ -48,7 +48,7 @@ SalesSupport.Common/
 | Common.Entities.Configuration | CodeMasterEntry、SystemSetting、UploadPolicy、UploadPolicyExtension、ErrorCodeEntry | Commonは読取り。登録・変更は所定SQL |
 | Common.Entities.Authentication | UserAccessRecord、ToolAccessRecord、RoleAccessRecord、ToolRoleAccessRecord | 認証・公開状態検証用の必要列だけを読取り |
 | Common.Entities.Logging | ToolUsageLog、UserActivityLog、SystemErrorLog | 専用Contextから追記 |
-| Portal.Entities | Tool、ToolCategory、Role、ToolRole、Notice、Inquiry、FaqItem、FaqCategory、UserPreference、UserToolFavorite、ToolVersionHistory、ToolFile | Portalの業務処理 |
+| Portal.Entities | Tool、Role、ToolRole、Notice、Inquiry、FaqItem、FaqCategory、UserPreference、UserToolFavorite、ToolVersionHistory、ToolFile | Portalの業務処理 |
 | 各ツール.Entities | 商品・見積等の業務Entity | 各ツールの責務に応じて参照・更新 |
 
 ApplicationUserのマッピングはCommonから提供し、Portalは再定義せず利用する。UserAccessRecordはAspNetUsersのUserId、DisplayName、RoleCode、IsActive、SecurityStampだけを持つ。ToolAccessRecordはToolsのToolId、ToolName、ToolType、Statusだけを持つ。CommonDbContextはRolesとToolRolesを参照用にマッピングし、ツール認可時に現在のロールと割当てを確認する。部分Entityを使ってユーザー・ツール管理の更新は行わない。
@@ -151,7 +151,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | SalesSupport:Site:Name | 全アプリ | 1～100文字。共通ヘッダー・フッターの表示名とメール文面の`{サイト名}` |
 | SalesSupport:Site:AuthenticationMode | 全アプリ・未設定は`EmailOtp` | `EmailOtp`／`Anonymous`のみ。未定義値は構成エラー。詳細は5節 |
 | SalesSupport:Site:TransportMode | 全アプリ・未設定は`Https` | `Https`／`Http`のみ。未定義値は構成エラー。詳細は5節 |
-| SalesSupport:Application:Name | 全アプリ・アプリ固有 | 1～100文字。このアプリ自身の名前。障害ログのApplicationNameとツール画面の対象ツール名に使う |
+| SalesSupport:Application:Name | 全アプリ・アプリ固有 | 1～100文字。このアプリ自身の名前。障害ログのApplicationNameと、ツール画面のタイトル帯・パンくずのツール名に使う |
 | SalesSupport:Application:ToolId | Toolだけ必須・アプリ固有 | 1～20文字。DB上のWEBツールと実行時照合。各アプリの環境変数で与える |
 | SalesSupport:Portal:BaseUrl | 全アプリ | `Site:TransportMode`と同じスキーム（`Https`はhttps、`Http`はhttp）の絶対URL、末尾スラッシュ。許可したPortalへのリンク生成用 |
 | SalesSupport:DataProtection:KeyDirectory | 全アプリ | 共通設定ファイルからの相対パス。配置領域・Web公開領域の外。実行アカウントのアクセス権が必要 |
@@ -334,6 +334,7 @@ UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが�
 | --- | --- |
 | LOGIN、LOGOUT、ACCOUNT_LOCK、ACCESS_DENIED | 認証・認可 |
 | USER_CREATE、USER_UPDATE、USER_UNLOCK | ユーザー管理 |
+| USER_IMPORT | 管理コマンド`import-users`の適用結果。実行者・ファイル名・件数を記録する |
 | TOOL_UPDATE、TOOL_ORDER_UPDATE | ツール基本情報・順序 |
 | NOTICE_CREATE、NOTICE_UPDATE | お知らせ操作 |
 | VERSION_CREATE、VERSION_UPDATE、VERSION_DELETE、VERSION_SELECT | 履歴管理 |
@@ -439,7 +440,6 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 - 共通の必須文字列、文字数、コード、メール形式、ローカル戻り先、拡張子、バージョンの形式検証を提供する。業務固有の公開条件・担当者権限はServiceで検証する。
 - DB列の上限に合わせUTF-16単位で文字数を計測する。任意文字列の空欄はnull、必須の空白だけの値はエラー。
 - パスワードはPortalのIdentity検証へ渡し、Trim・文字置換・切り詰めをしない。
-- バージョンは半角数字3組、各組0～99、複数桁の先頭ゼロ禁止。完全一致の正規表現 `\A(?:0|[1-9][0-9]?)\.(?:0|[1-9][0-9]?)\.(?:0|[1-9][0-9]?)\z` で検証し、数値比較する。
 - サーバー側検証を正とし、Razorの入力検証は同じ条件と文言へ対応させる。FieldErrorをModelStateへ追加するヘルパー`AddValidationResult`を提供する。Serviceは`FieldError.Field`へ入力モデルのプロパティ名（例：`Quantity`）だけを入れ、画面の束縛形を知らない。画面が入力モデルを`Input`のようなプロパティ経由で束縛する場合、Controllerは接頭辞（`nameof(ViewModel.Input)`）を渡し、ModelStateのキーを`asp-validation-for`と同じ`Input.Quantity`にする。ファイル選択などアクションの別引数で受け取る項目は、除外する項目名として渡し、接頭辞を付けない。
 
 ## 12. 共通UIとHTTP DTO
@@ -451,7 +451,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | _SalesSupportLayout.cshtml | PageShellModel、RenderBody、画面固有Scripts |
 | SalesSupportHeader ViewComponent | 検証済みユーザー、環境帯、Portalの固定リンク、設定のサイト名 |
 | Breadcrumbs | ラベルと検証済みサイト内URLの配列 |
-| IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくずと対象ツール名をCommonが付与 |
+| IToolPageShell | ツール内画面のPageShellModel生成。Portal側のトップ・ツール一覧のパンくず、ツール名のタイトル帯をCommonが付与 |
 | CodeBadge TagHelper | codeType、codeValue。名称・色取得、HTMLエンコード |
 | ValidationSummary | ModelStateのエラー一覧。Commonの`_ValidationSummary`部分ビュー |
 | FieldError | 項目エラー。標準の`asp-validation-for`にCommonの`ss-field-error`を付けて表示。Serviceの結果は`AddValidationResult`で入力欄と同じキーへ追加する（[Validation](#validation)） |
@@ -459,7 +459,7 @@ MailRequestはTo／Cc／Bccの宛先、Subject、プレーンテキスト本文�
 | OperationMessage | 保存結果・競合・入力失敗の画面内表示 |
 | CommonError | ErrorPresentation。ErrorId表示、例外・物理パスは非表示 |
 
-- PageShellModelはPageTitle、Breadcrumbs、CurrentToolName?、UseTitleBand、ShowCommonMenusを持つ。UseTitleBandはトップ・一覧の画面タイトルを強調帯で表示するかどうか、ShowCommonMenusは通常機能への共通メニューを表示するかどうかで、ログイン・入場制限案内の画面ではfalseにする。メニューの非表示は表示上の制御であり、認可の代替にしない。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build(title, …)`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。ツール内に中間階層がある場合だけ、そのパンくずを追加で渡す。
+- PageShellModelはPageTitle、DocumentTitle?、Breadcrumbs、CurrentToolName?、UseTitleBand、ShowCommonMenusを持つ。DocumentTitleはブラウザーのタブの題名で、未指定ならPageTitleを使う。CurrentToolNameはPortalの管理画面が編集対象のツール名を示す小見出しで、ツール画面では使わない。UseTitleBandはトップ・一覧・ツール画面のタイトルを強調帯で表示するかどうか、ShowCommonMenusは通常機能への共通メニューを表示するかどうかで、ログイン・入場制限案内の画面ではfalseにする。メニューの非表示は表示上の制御であり、認可の代替にしない。ユーザーや権限を画面入力から受け取らない。ツール内の画面は`IToolPageShell.Build()`で組み立て、Portal側の画面名・パスを各ツールへ書き写さない。見出しは常にツール名で、パンくずの末尾もツール名になる。下層画面だけ`Build("画面名")`とし、ツール名をツールの入口へのリンクにしてパンくずの末尾へ画面名を続ける。
 - CSS／JSはRCLの `_content/SalesSupport.Common/` を使用し、各アプリのPathBaseを考慮する。Portalへのリンクとツール内リンクを区別する。
 - 入力フォームの配置は共通テーマの`ss-form`、`ss-panel`、`ss-field`（`ss-field-top`）、`ss-field-label`、`ss-required`、`ss-field-error`、`ss-actions`（`ss-actions-center`／`ss-actions-end`）と、狭い画面でラベルの下へ入力欄を送る指定をCommonが持つ。PortalとWebツールで同じ配置を同じクラス名で使い、アプリ側へ同じ指定を書き写さない。見出しの装飾、注記、カード、結果一覧などアプリ固有の見た目は各アプリの`site.css`に置く。
 - Portalと各ツールはレイアウトを指定し、本文だけ実装する。Bootstrap等をホストとCommonで二重読込みしない。

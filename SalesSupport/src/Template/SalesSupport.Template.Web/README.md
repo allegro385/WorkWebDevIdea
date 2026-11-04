@@ -11,7 +11,7 @@
 | 起動 | `AddSalesSupportCommon(ApplicationKind.Tool, environment, configuration)`による起動モードの確定、共通設定の検証・DI・認証・認可・ログの組込み（`Bootstrap/ToolServiceExtensions.cs`）。起動プロファイルは`standalone`（既定）と`portal` |
 | パイプライン | Commonの`UseSalesSupportTool()`が転送ヘッダー、セキュリティヘッダー、共通エラー応答、HTTPS（[HTTP運用](../../../../設計書/10_Common詳細設計.md#サイトの通信方式)では誘導しない）、静的資産、認証・認可、共通ログアウトを組み込む（`Program.cs`） |
 | 利用制御 | 共通の既定認可方針による共有Cookieの現行ユーザー・サイト公開状態・ツール状態の確認。ツール側に独自の認証画面を持ちません |
-| 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/TemplateExampleIndex.cshtml`、`TemplateExampleResult.cshtml`） |
+| 画面 | 共通レイアウト・ヘッダー・パンくず・検証表示を使う入力画面と結果画面（`Views/Tool/TemplateExampleIndex.cshtml`、`TemplateExampleResult.cshtml`）。タイトル帯の見出しとパンくずの末尾はツール名で、画面名は本文の見出しで表示します。`wwwroot/css/site.css`にはツール固有の指定だけを書き、`ss-`で始まる共通部品のルールは書きません |
 | 入力例 | 文字列・数値・日付・ドロップダウン・ラジオボタン・ファイル選択（`TemplateExample/ExampleModels.cs`） |
 | 実行 | CSRF付きPOST。ControllerはHTTPと画面遷移、Serviceが検証・計算・出力（`Controllers/ToolController.cs`、`TemplateExample/ExampleService.cs`） |
 | ファイル | `TOOL`＋`TOOL_INPUT`のアップロード条件をCommonから取得して検証し、一時領域だけへ保存。成否にかかわらず削除 |
@@ -27,14 +27,16 @@
 | 区分 | 対象 |
 | --- | --- |
 | 題材（削除する） | `TemplateExample/ExampleModels.cs`、`TemplateExample/ExampleService.cs`、`Views/Tool/TemplateExampleIndex.cshtml`、`Views/Tool/TemplateExampleResult.cshtml`、`wwwroot/css/site.css`の題材向け指定 |
-| 骨組み（そのまま使う） | `Program.cs`、`Bootstrap/ToolServiceExtensions.cs`、`Controllers/ToolController.cs`、`Views/_ViewImports.cshtml`、`Views/_ViewStart.cshtml`、`.csproj`、`Properties/launchSettings.json` |
+| 骨組み（そのまま使う） | `Program.cs`、`Bootstrap/ToolServiceExtensions.cs`、`Controllers/ToolController.cs`、`Views/_ViewImports.cshtml`、`Views/_ViewStart.cshtml`、`.csproj`、`Properties/launchSettings.json`、`web.config` |
 
 生成したツールでの差し替え手順です。[開発サイクル](../../../../AGENTS.md#開発方針作業サイクル)どおり資料更新→テスト追加→最小実装の順で進めます。
 
-1. `TemplateExample/`と`Views/Tool/TemplateExample*.cshtml`を削除する。
+1. `TemplateExample/`と`Views/Tool/TemplateExample*.cshtml`をファイルごと削除する。Visual Studioの「プロジェクトから除外」ではファイルが残り、題材の残存検出でビルドが止まります。
 2. 自分の題材の入力モデル・Service・Viewを`Models/`・`Services/`・`Views/Tool/`へ作る。
-3. `Bootstrap/ToolServiceExtensions.cs`のServiceの登録を自分のServiceへ差し替える。一時アップロードを使わないツールでは`RequireTemporaryStorage()`も外す。
-4. `Controllers/ToolController.cs`の本体と、View名を保持する定数`ExampleIndexView`を自分の題材へ書き替える。題材を削除するとコンパイルが通らないため、この手順を飛ばせません。
+3. `Bootstrap/ToolServiceExtensions.cs`のServiceの登録と題材の`using`を自分のServiceへ差し替える。一時アップロードを使わないツールでは`RequireTemporaryStorage()`も外す。
+4. `Controllers/ToolController.cs`の本体と題材の`using`、View名を保持する定数`ExampleIndexView`を自分の題材へ書き替える。題材を削除するとコンパイルが通らないため、この手順を飛ばせません。
+
+`Views/_ViewImports.cshtml`は題材を参照していないため、題材の削除では修正しません。Viewの`@model`は題材と一緒に差し替わります。
 
 `Controllers/ToolController.cs`のログ記録（`WEB_OPEN`・`WEB_EXECUTE`）、`IToolPageShell`の利用、CSRFとモデル検証の作法、認可の既定方針は、ツールをまたいで同じ運用にするため残してください。`WEB_OPEN`は入口アクションへCommonの`WebOpenLoggingFilter`を`TypeFilter`で適用して記録します。区分の選択肢をコードマスタで管理する場合は`ICodeMasterReader`へ差し替えます。
 
@@ -52,6 +54,39 @@
 
 このテンプレート自身は題材を持つことが目的のため、`.csproj`の`TemplateExampleAllowed`を`true`にしてターゲットを無効にしています。生成スクリプトがこの値を`false`へ置き換え、生成したツールでだけ検出が有効になります。
 
+## 画面遷移と戻る・進む
+
+更新要求の応答画面は、ブラウザーの戻る・進むで表示し直すときにフォームの再送信が必要になり、「フォームを再送信しますか？」（`ERR_CACHE_MISS`）が表示されます。CSRFトークンを出力した画面にはASP.NET Coreが`Cache-Control: no-cache, no-store`を付けるため、キャッシュの設定では回避できません。ログアウト後に画面を残さないため、この設定は変えません。
+
+| 処理 | 応答 |
+| --- | --- |
+| 入力エラー | POSTの応答で入力画面へエラーを表示する |
+| 入力を複数の画面に分けるツールのステップ移動 | PRG（POST→リダイレクト→GET）にする |
+| 計算・保存など`WEB_EXECUTE`を記録する実行の結果画面 | POSTの応答のままにする |
+
+実行の結果画面をGETにすると、更新や戻る・進むのたびに実行と記録が重複します。結果を保管して表示し直す方法は取りません。そのため結果画面の戻る・進むでは再送信の確認が残ります。これは意図した動作です。
+
+ステップ移動は次の形で実装します。`WebOpenLoggingFilter`は入口のアクションだけに付け、ステップの画面には付けません。
+
+```csharp
+/// <summary>ステップの画面を表示します。</summary>
+[HttpGet("wizard")]
+public IActionResult Wizard(WizardInput input) => View(input);
+
+/// <summary>入力を検証し、成功したら次のステップへリダイレクトします。</summary>
+[HttpPost("wizard")]
+public IActionResult WizardNext(WizardInput input) =>
+    ModelState.IsValid ? RedirectToAction(nameof(Wizard), new RouteValueDictionary(input.ToNextStep())) : View(nameof(Wizard), input);
+```
+
+クエリ文字列の値はブラウザーの履歴とIISのログに残ります。引き継ぐのはステップ番号や区分コードなど業務上の機密でない値だけにし、顧客名などの業務入力は`TempData`で引き継ぎます。選択したファイルはリダイレクトで引き継げないため、ファイルを受け取るのは実行のPOSTだけにします。
+
+## スクリプトと静的ファイル
+
+- Commonの`Content-Security-Policy`は`script-src 'self'`です。インラインの`<script>`と`onclick`などのイベント属性は動きません。既存のHTMLを移すときは、スクリプトを`wwwroot/js`の外部ファイルへ分け、Viewの`Scripts`セクションから読み込みます。
+- 静的ファイルは`wwwroot`へ置いて発行します。配信するのは発行時に含まれたファイルだけで、発行後に配置先の`wwwroot`へ足したファイルは404になります。
+- `wwwroot`のファイルはログインなしで読める公開資産です。ツールの利用権限で保護したいマニュアルや資料は`wwwroot`へ置かず、認可の対象になるControllerの経路で返します。
+
 ## 複製して新しいツールを作る
 
 ToolIdを入力して生成スクリプトを実行します。手順と命名規則は[生成スクリプトのREADME](../../../scripts/README.md)を参照してください。
@@ -68,11 +103,11 @@ SalesSupport\scripts\new-tool.bat T001
 | プロジェクトフォルダー | `SalesSupport/src/Template/SalesSupport.Template.Web` |
 | プロジェクト名・ルート名前空間 | `SalesSupport.Template.Web` |
 | テストプロジェクト | `SalesSupport/tests/SalesSupport.Template.Tests` |
-| 起動プロファイル（`standalone`・`portal`）のToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
+| 起動プロファイル（`standalone`・`portal`）と`web.config`のToolId・アプリ名 | `__TOOL_ID__` / `__TOOL_NAME__` |
 | 起動プロファイルのポート | `7075` / `5275` |
 | 題材の残存検出を有効にする`.csproj`のプロパティ | `TemplateExampleAllowed`（テンプレートは`true`、生成後は`false`） |
 
-`ToolId`は配置設定であり、ソースへ書きません。`Properties/launchSettings.json`の`__TOOL_ID__`・`__TOOL_NAME__`はローカル起動用のプレースホルダーで、生成時に実値へ置き換わります。`portal`プロファイルでテンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
+`ToolId`は配置設定であり、C#のソースへ書きません。`Properties/launchSettings.json`と`web.config`の`__TOOL_ID__`・`__TOOL_NAME__`はプレースホルダーで、生成時に実値へ置き換わります。`portal`プロファイルでテンプレートのまま起動すると、対応するツールがDBに存在しないため利用制御で拒否されます。
 
 ## 実行に必要な設定
 
@@ -85,7 +120,7 @@ SalesSupport\scripts\new-tool.bat T001
 
 単独開発では明細ファイルのアップロードをCommonが拒否し、画面の入力欄も無効になります。業務日付は現在のJST日付で、ログはDBへ保存しません。CSRF検証は有効です。
 
-ツール固有の値は各アプリの環境変数で与えます。ローカルでは起動プロファイルに設定済みです。
+ツール固有の値は各アプリの環境変数で与えます。ローカルでは起動プロファイル、配置環境では`web.config`に設定済みです。
 
 | 環境変数 | 内容 |
 | --- | --- |
@@ -94,9 +129,17 @@ SalesSupport\scripts\new-tool.bat T001
 | `SalesSupport__Tool__ExecutionMode` | `standalone`は`Standalone`、`portal`は`Portal`を明示。本番では設定しません |
 | `SalesSupport__CommonConfigPath` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。標準配置（IIS）では不要で、`portal`プロファイルはローカル用の値を設定済み |
 
-連携モードの共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、所定のSQLで手動適用します。アプリは起動時にDBを更新しません。本番で`Standalone`を指定すると起動を拒否します。
+連携モードの共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、[ツール登録SQLのひな形](../../../sql/README.md#新しいツールを登録する)で手動適用します。アプリは起動時にDBを更新しません。本番で`Standalone`を指定すると起動を拒否します。
 
 Data ProtectionキーはWindows DPAPIで保護するため、起動できるのはWindowsだけです。Linuxではビルドと単体テストのみ実行できます。連携モードで起動する結合テストはWindows以外ではスキップします。
+
+## 発行と配置
+
+プロジェクトの`web.config`が発行物へそのまま出力されるため、再発行しても環境変数は消えません。配置先のファイルを直接編集せず、プロジェクトのファイルを変更して発行します。`processPath`の`%LAUNCHER_PATH%`は発行時に実行方法へ置き換わります。
+
+- 既定は連携モードです。`ASPNETCORE_ENVIRONMENT=Development`と`SalesSupport__Tool__ExecutionMode=Standalone`はコメントのままにします。有効にして配置すると、単独モード（DBなし・エラー詳細の表示）で動きます。単独モードを確認できるのはHTTPSかつサーバー自身のブラウザーだけで、確認後は必ず戻します。
+- 起動できない原因を調べるときだけ、`stdoutLogEnabled`を`true`にし、配置先に`logs`フォルダーを作成してアプリケーションプールへ書込み権を与えます。アプリケーションプールをリサイクルして`logs\stdout_*.log`を確認し、調査後は`false`へ戻してログファイルを削除します。
+- クライアントからの確認は連携モードで行います。単独モードは通信方式の設定を読まず、他の端末からの要求も拒否します。
 
 ## 検証
 

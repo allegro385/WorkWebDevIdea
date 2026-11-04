@@ -77,7 +77,6 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
     public async Task<IReadOnlyList<InquiryTargetOption>> GetTargetsAsync(CancellationToken ct = default)
     {
         var tools = await (from tool in db.Tools.AsNoTracking()
-                           join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                            where tool.Status == "PUBLIC" || tool.Status == "PRIVATE"
                            orderby tool.SortOrder, tool.ToolName, tool.ToolId
                            select new { tool.ToolId, tool.ToolName }).ToListAsync(ct);

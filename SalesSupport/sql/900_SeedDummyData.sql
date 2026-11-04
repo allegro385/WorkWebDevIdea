@@ -43,25 +43,15 @@ BEGIN TRANSACTION;
 /* 既存データは削除しない。衝突時は停止し、追加された確認データも保持する。 */
 IF EXISTS (SELECT 1 FROM portal.Tools WHERE ToolId IN ('DMY-WEB', 'DMY-DESK', 'DMY-DOC'))
  OR EXISTS (SELECT 1 FROM portal.Inquiries WHERE InquiryId IN ('209912310001', '209912310002', '209912310003'))
- OR EXISTS (SELECT 1 FROM portal.ToolCategories WHERE CategoryName LIKE N'[[]DUMMY]%')
  OR EXISTS (SELECT 1 FROM portal.FaqCategories WHERE CategoryName LIKE N'[[]DUMMY]%')
  OR EXISTS (SELECT 1 FROM portal.Notices WHERE Title LIKE N'[[]DUMMY]%')
  OR EXISTS (SELECT 1 FROM log.SystemErrorLogs WHERE ErrorId = '00000000-0000-0000-0000-00000000E001')
     THROW 50904, N'既存ダミーデータと衝突します。再投入には新しい開発専用DBを使用してください。既存データは削除しません。', 1;
 
-INSERT portal.ToolCategories (CategoryName) VALUES
-(N'[DUMMY] 顧客管理'),
-(N'[DUMMY] 提案・見積'),
-(N'[DUMMY] 営業資料');
-
-DECLARE @CustomerCategoryId int = (SELECT CategoryId FROM portal.ToolCategories WHERE CategoryName = N'[DUMMY] 顧客管理');
-DECLARE @EstimateCategoryId int = (SELECT CategoryId FROM portal.ToolCategories WHERE CategoryName = N'[DUMMY] 提案・見積');
-DECLARE @DocumentCategoryId int = (SELECT CategoryId FROM portal.ToolCategories WHERE CategoryName = N'[DUMMY] 営業資料');
-
-INSERT portal.Tools (ToolId, CategoryId, ToolName, ToolSummary, Remarks, OwnerUserId, ToolType, WebAppUrl, Status, SortOrder) VALUES
-('DMY-WEB', @CustomerCategoryId, N'[DUMMY] 顧客情報検索ツール', N'顧客の基本情報と対応履歴を検索するWebツールです。', N'開発・画面確認用のダミーデータです。', @AdminUserId, 'WEB', N'/tools/DMY-WEB/app', 'PUBLIC', 10),
-('DMY-DESK', @EstimateCategoryId, N'[DUMMY] 見積作成支援ツール', N'見積書作成を支援するデスクトップツールです。', N'実際の配布ファイルは登録されていません。', @AdminUserId, 'DESKTOP', NULL, 'PRIVATE', 20),
-('DMY-DOC', @DocumentCategoryId, N'[DUMMY] 提案資料テンプレート集', N'提案資料を提供する資料型ツールの表示確認用です。', NULL, @AdminUserId, 'DOCUMENT', NULL, 'HIDDEN', 30);
+INSERT portal.Tools (ToolId, ToolName, ToolSummary, Remarks, OwnerUserId, ToolType, WebAppUrl, Status, SortOrder) VALUES
+('DMY-WEB', N'[DUMMY] 顧客情報検索ツール', N'顧客の基本情報と対応履歴を検索するWebツールです。', N'開発・画面確認用のダミーデータです。', @AdminUserId, 'WEB', N'/tools/DMY-WEB/app', 'PUBLIC', 10),
+('DMY-DESK', N'[DUMMY] 見積作成支援ツール', N'見積書作成を支援するデスクトップツールです。', N'実際の配布ファイルは登録されていません。', @AdminUserId, 'DESKTOP', NULL, 'PRIVATE', 20),
+('DMY-DOC', N'[DUMMY] 提案資料テンプレート集', N'提案資料を提供する資料型ツールの表示確認用です。', NULL, @AdminUserId, 'DOCUMENT', NULL, 'HIDDEN', 30);
 
 INSERT portal.ToolRoles (ToolId, RoleCode) VALUES
 ('DMY-WEB', 'A'), ('DMY-DESK', 'A'), ('DMY-DOC', 'A');

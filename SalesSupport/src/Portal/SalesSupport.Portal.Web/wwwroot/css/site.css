@@ -29,26 +29,6 @@
    画面共通の区画・一覧・入力です。色は共通テーマの変数を使用します。
    ------------------------------------------------------------------ */
 
-/* Portalの共通メニューはモックの大きさに合わせ、文字と帯の高さを確保します。 */
-.ss-header-inner {
-    min-height: 5.25rem;
-}
-
-.ss-brand {
-    font-size: 1.875rem;
-}
-
-.ss-nav-button {
-    font-size: 1.3125rem;
-    padding-inline: 1.25rem;
-}
-
-.ss-nav-group,
-.ss-account {
-    display: flex;
-    align-items: center;
-}
-
 .pt-panel-title {
     margin-bottom: 0.75rem;
     background: linear-gradient(90deg, #61d3f2, #8ce3f7);
@@ -241,7 +221,6 @@
 }
 
 .pt-col-star { width: 3rem; }
-.pt-col-category { width: 10rem; }
 .pt-col-name { width: 14rem; }
 .pt-col-version { width: 6.25rem; }
 .pt-col-date { width: 6.875rem; }

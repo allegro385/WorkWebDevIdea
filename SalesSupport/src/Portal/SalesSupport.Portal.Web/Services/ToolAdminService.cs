@@ -47,9 +47,6 @@ public interface IToolAdminService
     /// <summary>非公開を含むすべてのツールから、絞り込み条件に一致する行を返します。</summary>
     Task<IReadOnlyList<ToolSelectionItem>> GetSelectionAsync(ToolFilterInput filter, CancellationToken ct = default);
 
-    /// <summary>ツールカテゴリの選択肢を表示順で返します。</summary>
-    Task<IReadOnlyList<CategoryOption>> GetCategoriesAsync(CancellationToken ct = default);
-
     /// <summary>担当者に指定できる有効なシステム管理者を返します。</summary>
     Task<IReadOnlyList<UserOption>> GetOwnersAsync(CancellationToken ct = default);
 
@@ -88,26 +85,19 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
     public async Task<IReadOnlyList<ToolSelectionItem>> GetSelectionAsync(ToolFilterInput filter, CancellationToken ct = default)
     {
         var query = from tool in db.Tools.AsNoTracking()
-                    join category in db.ToolCategories.AsNoTracking() on tool.CategoryId equals category.CategoryId
                     join owner in db.Users.AsNoTracking() on tool.OwnerUserId equals owner.Id
-                    select new { Tool = tool, category.CategoryName, OwnerName = owner.DisplayName };
-        if (filter.CategoryId is { } categoryId) query = query.Where(x => x.Tool.CategoryId == categoryId);
+                    select new { Tool = tool, OwnerName = owner.DisplayName };
         if (filter.OwnerUserId is { } ownerUserId) query = query.Where(x => x.Tool.OwnerUserId == ownerUserId);
         if (!string.IsNullOrEmpty(filter.Status)) query = query.Where(x => x.Tool.Status == filter.Status);
 
         return await query
             .OrderBy(x => x.Tool.SortOrder).ThenBy(x => x.Tool.ToolName).ThenBy(x => x.Tool.ToolId)
-            .Select(x => new ToolSelectionItem(x.Tool.ToolId, x.Tool.SortOrder, x.CategoryName, x.Tool.ToolName, x.OwnerName,
+            .Select(x => new ToolSelectionItem(x.Tool.ToolId, x.Tool.SortOrder, x.Tool.ToolName, x.OwnerName,
                 x.Tool.Status,
                 db.ToolVersionHistories.Where(h => h.ToolId == x.Tool.ToolId && h.IsCurrent).Select(h => h.Version).FirstOrDefault() ?? "",
                 x.Tool.UpdateCount))
             .ToListAsync(ct);
     }
-
-    /// <summary>カテゴリはソート順、同順位は名称で並べます。</summary>
-    public async Task<IReadOnlyList<CategoryOption>> GetCategoriesAsync(CancellationToken ct = default) =>
-        await db.ToolCategories.AsNoTracking().OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
-            .Select(x => new CategoryOption(x.CategoryId, x.CategoryName)).ToListAsync(ct);
 
     /// <summary>担当者に指定できるのは有効なシステム管理者だけです。</summary>
     public async Task<IReadOnlyList<UserOption>> GetOwnersAsync(CancellationToken ct = default) =>
@@ -163,7 +153,6 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
             Input = new ToolBasicInput
             {
                 ToolName = tool.ToolName,
-                CategoryId = tool.CategoryId,
                 OwnerUserId = tool.OwnerUserId,
                 ToolSummary = tool.ToolSummary,
                 Remarks = tool.Remarks,
@@ -171,19 +160,19 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                 UpdateCount = tool.UpdateCount
             },
             ToolType = tool.ToolType,
-            Categories = await GetCategoriesAsync(ct),
             Owners = await GetOwnersAsync(ct),
             Statuses = await codes.GetOptionsAsync("TOOL_STATUS", ct)
         };
         return new ToolEditContext(tool.ToolName, tool.ToolType, basic, await BuildVersionSectionAsync(toolId, versionEditor, ct));
     }
 
-    /// <summary>管理画面では現在のバージョンより新しい履歴も含め、全件を降順で表示します。</summary>
+    /// <summary>管理画面では現在のバージョンより新しい履歴も含め、全件を新しい順で表示します。</summary>
     private async Task<ToolVersionSectionViewModel> BuildVersionSectionAsync(string toolId, ToolVersionInput? editor, CancellationToken ct)
     {
         var rows = await (from history in db.ToolVersionHistories.AsNoTracking()
                           join user in db.Users.AsNoTracking() on history.ModifiedByUserId equals user.Id
                           where history.ToolId == toolId
+                          orderby history.ReleasedAt descending, history.ToolHistoryId descending
                           select new
                           {
                               history.ToolHistoryId,
@@ -195,12 +184,11 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                               ModifiedByName = user.DisplayName
                           }).ToListAsync(ct);
 
-        var ordered = rows.OrderByDescending(x => x.Version, VersionOrder.Instance).ToList();
-        var maximum = ordered.FirstOrDefault();
-        var versions = ordered.Select(x => new ToolVersionRow(x.ToolHistoryId, x.Version, x.ReleasedAt, x.ModifiedByName,
+        var newest = rows.FirstOrDefault();
+        var versions = rows.Select(x => new ToolVersionRow(x.ToolHistoryId, x.Version, x.ReleasedAt, x.ModifiedByName,
             x.ChangeDescription, x.IsCurrent,
-            // 削除できるのはバージョン番号が最大で、現在のバージョンでなく、履歴が2件以上ある場合だけです。
-            CanDelete: maximum is not null && x.ToolHistoryId == maximum.ToolHistoryId && !x.IsCurrent && ordered.Count >= 2,
+            // 削除できるのは最も新しい履歴で、現在のバージョンでなく、履歴が2件以上ある場合だけです。
+            CanDelete: newest is not null && x.ToolHistoryId == newest.ToolHistoryId && !x.IsCurrent && rows.Count >= 2,
             x.UpdateCount)).ToList();
 
         return new ToolVersionSectionViewModel
@@ -237,8 +225,6 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
             var owner = await db.LockUserAsync(input.OwnerUserId, ct);
             if (owner is null || !owner.IsActive || owner.RoleCode != "ADMIN")
                 return ToolAdminResult.Invalid(new(nameof(ToolBasicInput.OwnerUserId), "INVALID_INPUT", "担当者には有効なシステム管理者を選択してください。"));
-            if (!await db.ToolCategories.AsNoTracking().AnyAsync(x => x.CategoryId == input.CategoryId, ct))
-                return ToolAdminResult.Invalid(new(nameof(ToolBasicInput.CategoryId), "INVALID_INPUT", "カテゴリを選択してください。"));
 
             var tool = await db.Tools.SingleOrDefaultAsync(x => x.ToolId == toolId, ct);
             if (tool is null) return ToolAdminResult.From(ToolAdminOutcome.Unavailable);
@@ -249,7 +235,6 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                 return ToolAdminResult.Invalid(new(nameof(ToolBasicInput.Status), "INVALID_INPUT", "一般公開にするには参考資料を1件以上登録してください。"));
 
             tool.ToolName = input.ToolName!;
-            tool.CategoryId = input.CategoryId;
             tool.OwnerUserId = input.OwnerUserId;
             tool.ToolSummary = CommonValidation.Normalize(input.ToolSummary);
             tool.Remarks = CommonValidation.Normalize(input.Remarks);
@@ -281,8 +266,10 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
     private async Task<ToolAdminResult> ApplyVersionAsync(string toolId, ToolVersionInput input, bool create, CancellationToken ct)
     {
         List<FieldError> errors = [];
-        if (!CommonValidation.IsVersion(input.Version))
-            errors.Add(new(nameof(ToolVersionInput.Version), "INVALID_INPUT", "バージョンは0～99の数字3組をピリオドで区切って入力してください。"));
+        // 表記は制限しません。前後の空白はDBの一意制約で区別されないため、保存前に除きます。
+        var version = input.Version?.Trim();
+        if (CommonValidation.ValidateText(nameof(ToolVersionInput.Version), version, 50, required: true) is { } versionError) errors.Add(versionError);
+        else if (version!.Any(char.IsControl)) errors.Add(new(nameof(ToolVersionInput.Version), "INVALID_INPUT", "バージョンに改行やタブなどの制御文字は使用できません。"));
         if (input.ReleasedAt is null) errors.Add(new(nameof(ToolVersionInput.ReleasedAt), "REQUIRED", "リリース日を入力してください。"));
         if (CommonValidation.ValidateText(nameof(ToolVersionInput.ChangeDescription), input.ChangeDescription, 2000, required: true) is { } descriptionError)
             errors.Add(descriptionError);
@@ -298,7 +285,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
             // 新規登録では除外対象がないため、IDENTITYが採番しない0を比較対象にします。
             var editingHistoryId = input.ToolHistoryId ?? 0;
             if (await db.ToolVersionHistories.AsNoTracking()
-                    .AnyAsync(x => x.ToolId == toolId && x.Version == input.Version && x.ToolHistoryId != editingHistoryId, ct))
+                    .AnyAsync(x => x.ToolId == toolId && x.Version == version && x.ToolHistoryId != editingHistoryId, ct))
                 return ToolAdminResult.Invalid(new(nameof(ToolVersionInput.Version), "INVALID_INPUT", "同じバージョンが既に登録されています。"));
 
             if (create)
@@ -307,7 +294,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                 db.ToolVersionHistories.Add(new ToolVersionHistory
                 {
                     ToolId = toolId,
-                    Version = input.Version!,
+                    Version = version!,
                     ModifiedByUserId = input.ModifiedByUserId,
                     ChangeDescription = input.ChangeDescription!,
                     ReleasedAt = input.ReleasedAt!.Value,
@@ -319,7 +306,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                 var history = await db.ToolVersionHistories.SingleOrDefaultAsync(x => x.ToolHistoryId == editingHistoryId && x.ToolId == toolId, ct);
                 if (history is null) return ToolAdminResult.From(ToolAdminOutcome.Unavailable);
                 if (history.UpdateCount != input.UpdateCount) return ToolAdminResult.From(ToolAdminOutcome.Conflict);
-                history.Version = input.Version!;
+                history.Version = version!;
                 history.ModifiedByUserId = input.ModifiedByUserId;
                 history.ChangeDescription = input.ChangeDescription!;
                 history.ReleasedAt = input.ReleasedAt!.Value;
@@ -339,7 +326,7 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
         return result;
     }
 
-    /// <summary>最大バージョン・現在版でない・2件以上を同時に確認してから削除します。</summary>
+    /// <summary>最新の履歴・現在版でない・2件以上を同時に確認してから削除します。</summary>
     private async Task<ToolAdminResult> ApplyVersionDeleteAsync(string toolId, int toolHistoryId, int updateCount, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -354,9 +341,9 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
             if (history.UpdateCount != updateCount) return ToolAdminResult.From(ToolAdminOutcome.Conflict);
             if (histories.Count < 2) return ToolAdminResult.Invalid(new("Version", "INVALID_INPUT", "履歴が1件のため削除できません。"));
             if (history.IsCurrent) return ToolAdminResult.Invalid(new("Version", "INVALID_INPUT", "現在のバージョンは削除できません。別の履歴を現在のバージョンとして保存してください。"));
-            var maximum = histories.Where(x => CommonValidation.IsVersion(x.Version)).OrderByDescending(x => x.Version, VersionOrder.Instance).FirstOrDefault();
-            if (maximum is null || maximum.ToolHistoryId != toolHistoryId)
-                return ToolAdminResult.Invalid(new("Version", "INVALID_INPUT", "バージョン番号が最大の履歴だけを削除できます。"));
+            var newest = histories.OrderByDescending(x => x.ReleasedAt).ThenByDescending(x => x.ToolHistoryId).First();
+            if (newest.ToolHistoryId != toolHistoryId)
+                return ToolAdminResult.Invalid(new("Version", "INVALID_INPUT", "最も新しい履歴だけを削除できます。"));
 
             db.ToolVersionHistories.Remove(history);
             await db.SaveChangesAsync(ct);
@@ -435,21 +422,5 @@ public sealed class ToolAdminService(PortalDbContext db, ICodeMasterReader codes
                 ToolAdminOutcome.InvalidInput => "INVALID_INPUT",
                 _ => "TOOL_UNAVAILABLE"
             }, toolId is null ? null : "TOOL", toolId, changes), ct);
-    }
-
-    /// <summary>バージョン番号を数値の組として比較する並べ替え用の比較子です。</summary>
-    private sealed class VersionOrder : IComparer<string>
-    {
-        /// <summary>共有できる比較子の実体です。</summary>
-        public static readonly VersionOrder Instance = new();
-
-        /// <summary>形式が不正な値は最小として扱い、並べ替えを失敗させません。</summary>
-        public int Compare(string? x, string? y)
-        {
-            var left = CommonValidation.IsVersion(x);
-            var right = CommonValidation.IsVersion(y);
-            if (!left || !right) return left == right ? 0 : left ? 1 : -1;
-            return CommonValidation.CompareVersions(x!, y!);
-        }
     }
 }

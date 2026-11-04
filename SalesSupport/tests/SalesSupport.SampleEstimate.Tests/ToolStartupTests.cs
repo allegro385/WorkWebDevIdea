@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,20 @@ public sealed class ToolStartupTests
         Assert.Equal("Portal", portal["SalesSupport__Tool__ExecutionMode"]);
         Assert.Equal(Path.Combine(SalesSupportRoot, "config", "salessupport.common.Development.json"),
             Path.GetFullPath(portal["SalesSupport__CommonConfigPath"]!, ProjectFolder));
+    }
+
+    /// <summary>発行物のweb.configは既定で連携モードとし、単独モードの設定はコメントのまま有効にしません。</summary>
+    [Fact]
+    public void WebConfigDefaultsToPortalMode()
+    {
+        var aspNetCore = XDocument.Load(Path.Combine(ProjectFolder, "web.config")).Descendants("aspNetCore").Single();
+        var variables = aspNetCore.Descendants("environmentVariable").ToDictionary(x => x.Attribute("name")!.Value, x => x.Attribute("value")!.Value);
+
+        Assert.Equal("false", aspNetCore.Attribute("stdoutLogEnabled")!.Value);
+        Assert.Equal("SAMPLE-ESTIMATE", variables["SalesSupport__Application__ToolId"]);
+        Assert.Equal("見積試算・案件記録", variables["SalesSupport__Application__Name"]);
+        Assert.DoesNotContain("ASPNETCORE_ENVIRONMENT", variables.Keys);
+        Assert.DoesNotContain("SalesSupport__Tool__ExecutionMode", variables.Keys);
     }
 
     /// <summary>外側のStandalone設定をportalプロファイルで上書きし、共通設定がなければ単独開発へ切り替えず起動を拒否します。</summary>

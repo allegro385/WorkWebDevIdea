@@ -102,7 +102,7 @@
                 <input type="hidden" name="UpdateCount" value="@versionEditor.UpdateCount" />
                 <div class="ss-field">
                     <label class="form-label ss-field-label" for="version-number">バージョン<span class="badge ss-required">必須</span></label>
-                    <input class="form-control" id="version-number" name="Version" value="@versionEditor.Version" maxlength="50" placeholder="例：1.2.3" />
+                    <input class="form-control" id="version-number" name="Version" value="@versionEditor.Version" maxlength="50" placeholder="例：1.2.3、V20260810" />
                 </div>
                 <div class="ss-field">
                     <label class="form-label ss-field-label" for="version-released">リリース日<span class="badge ss-required">必須</span></label>
@@ -141,15 +141,6 @@
         <div class="ss-field">
             <label class="form-label ss-field-label" for="basic-name">ツール名<span class="badge ss-required">必須</span></label>
             <input class="form-control" id="basic-name" name="ToolName" value="@Model.Basic.Input.ToolName" maxlength="200" />
-        </div>
-        <div class="ss-field">
-            <label class="form-label ss-field-label" for="basic-category">カテゴリ</label>
-            <select class="form-select" id="basic-category" name="CategoryId">
-                @foreach (var category in Model.Basic.Categories)
-                {
-                    <option value="@category.CategoryId" selected="@(category.CategoryId == Model.Basic.Input.CategoryId)">@category.CategoryName</option>
-                }
-            </select>
         </div>
         <div class="ss-field">
             <span class="form-label ss-field-label">提供種別</span>

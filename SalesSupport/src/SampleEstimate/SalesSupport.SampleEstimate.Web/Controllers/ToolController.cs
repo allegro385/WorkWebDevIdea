@@ -77,7 +77,7 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
                     preparedResult = File(await estimates.WriteTsvAsync(result, ct), "text/tab-separated-values", estimates.BuildFileName(result));
                 else
                 {
-                    ViewData.SetPageShell(shell.Build("計算結果"));
+                    ViewData.SetPageShell(shell.Build());
                     preparedResult = View("Result", result);
                 }
             }
@@ -116,8 +116,8 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     /// <returns>入力画面の表示情報です。</returns>
     private async Task<EstimateViewModel> BuildViewAsync(EstimateInput input, OperationMessage? message, CancellationToken ct)
     {
-        // パンくずの上位（Portalのトップ・ツール一覧）と対象ツール名はCommonが付けます。
-        ViewData.SetPageShell(shell.Build("入力"));
+        // タイトル帯のツール名とパンくずはCommonが付けます。画面名は本文の見出しで表示します。
+        ViewData.SetPageShell(shell.Build());
         return new EstimateViewModel
         {
             Input = input,

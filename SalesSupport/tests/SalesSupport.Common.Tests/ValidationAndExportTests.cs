@@ -12,17 +12,6 @@ namespace SalesSupport.Common.Tests;
 /// <summary>入力境界とテキスト出力の安全性を確認します。</summary>
 public sealed class ValidationAndExportTests
 {
-    /// <summary>先頭ゼロ・上限・改行・全角数字を区別します。</summary>
-    [Theory]
-    [InlineData("0.0.0", true)]
-    [InlineData("99.99.99", true)]
-    [InlineData("01.2.3", false)]
-    [InlineData("1.100.3", false)]
-    [InlineData("1.2.3\n", false)]
-    [InlineData("１.2.3", false)]
-    [InlineData(null, false)]
-    public void VersionChecksExactFormat(string? text, bool expected) => Assert.Equal(expected, CommonValidation.IsVersion(text));
-
     /// <summary>スキーム相対URLとエンコードされた危険なパスを拒否します。</summary>
     [Theory]
     [InlineData("/tools/001?a=1", true)]
@@ -39,7 +28,6 @@ public sealed class ValidationAndExportTests
     {
         Assert.NotNull(CommonValidation.ValidateText("Body", "😀 ", 2, true));
         Assert.Null(CommonValidation.ValidateText("Body", "😀", 2, true));
-        Assert.True(CommonValidation.CompareVersions("1.10.0", "1.9.99") > 0);
     }
 
     /// <summary>入力モデルの項目へ接頭辞を付け、別引数で受け取る項目は項目名のまま追加します。</summary>

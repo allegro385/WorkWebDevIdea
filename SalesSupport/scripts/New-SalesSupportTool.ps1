@@ -147,11 +147,13 @@ function Assert-NoNameConflict {
     テキストの置換一覧を順に適用します。
 #>
 function Convert-Text {
-    param([string]$Text, [object[]]$Replacements)
+    param([string]$Text, [object[]]$Replacements, [switch]$Xml)
 
     $converted = $Text
     foreach ($replacement in $Replacements) {
-        $converted = $converted.Replace($replacement.From, $replacement.To)
+        # 既定の値はJSON向けにエスケープしているため、XMLのファイルでは専用の値があればそちらを使います。
+        $to = if ($Xml -and $replacement.ContainsKey('XmlTo')) { $replacement.XmlTo } else { $replacement.To }
+        $converted = $converted.Replace($replacement.From, $to)
     }
     return $converted
 }
@@ -177,7 +179,7 @@ function Copy-TemplateFile {
     $text = [System.Text.Encoding]::UTF8.GetString($bytes)
     if ($hasBom) { $text = $text.Substring(1) }
     $encoding = New-Object System.Text.UTF8Encoding($hasBom)
-    [System.IO.File]::WriteAllText($DestinationPath, (Convert-Text -Text $text -Replacements $Replacements), $encoding)
+    [System.IO.File]::WriteAllText($DestinationPath, (Convert-Text -Text $text -Replacements $Replacements -Xml:($extension -eq '.config')), $encoding)
 }
 
 <#
@@ -311,6 +313,30 @@ function Test-GeneratedJson {
     return ,$findings
 }
 
+<#
+.SYNOPSIS
+    生成したweb.configの構文と、ToolId・表示名、既定が連携モードであることを検査します。
+#>
+function Test-GeneratedWebConfig {
+    param([string]$WebConfigPath, [string]$ExpectedToolId, [string]$ExpectedName)
+
+    $findings = @()
+    try {
+        $document = New-Object System.Xml.XmlDocument
+        $document.Load($WebConfigPath)
+        $variables = @{}
+        foreach ($node in $document.SelectNodes('//environmentVariable')) { $variables[$node.GetAttribute('name')] = $node.GetAttribute('value') }
+        if ($variables['SalesSupport__Application__ToolId'] -cne $ExpectedToolId -or $variables['SalesSupport__Application__Name'] -cne $ExpectedName) {
+            $findings += "$WebConfigPath：ToolIdまたはアプリ名が入力値と一致しません。"
+        }
+        if ($variables.ContainsKey('ASPNETCORE_ENVIRONMENT') -or $variables.ContainsKey('SalesSupport__Tool__ExecutionMode')) {
+            $findings += "$WebConfigPath：単独モードの設定が有効になっています。"
+        }
+    }
+    catch { $findings += "$WebConfigPath：XMLの構文が不正です。" }
+    return ,$findings
+}
+
 # ----- 1. 入力の検証と名称の導出 -----
 $identifier = ConvertTo-ToolIdentifier -Value $ToolId
 $toolIdValue = $ToolId.Trim()
@@ -319,6 +345,8 @@ if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = $toolIdValue }
 # プレースホルダーはJSONの文字列値の内側にあるため、表示名をJSON文字列としてエスケープしてから差し込みます。
 $jsonDisplayName = ConvertTo-Json -InputObject $displayName -Compress
 $escapedDisplayName = $jsonDisplayName.Substring(1, $jsonDisplayName.Length - 2)
+# web.configではXMLの属性値へ差し込みます。
+$xmlDisplayName = [System.Security.SecurityElement]::Escape($displayName)
 
 if ([string]::IsNullOrWhiteSpace($SalesSupportRoot)) { $SalesSupportRoot = Split-Path -Parent $PSScriptRoot }
 $SalesSupportRoot = [System.IO.Path]::GetFullPath($SalesSupportRoot)
@@ -346,7 +374,7 @@ $replacements = @(
     @{ From = "src/$templateSourceFolder/"; To = "src/$identifier/" },
     @{ From = $templateSolutionName; To = $solutionName },
     @{ From = $toolIdPlaceholder; To = $toolIdValue },
-    @{ From = $toolNamePlaceholder; To = $escapedDisplayName },
+    @{ From = $toolNamePlaceholder; To = $escapedDisplayName; XmlTo = $xmlDisplayName },
     @{ From = $templateExampleAllowed; To = $generatedExampleAllowed }
 )
 if ($HttpsPort -gt 0) { $replacements += @{ From = $templateHttpsPort; To = $HttpsPort.ToString() } }
@@ -412,15 +440,15 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 | ``SalesSupport__Tool__ExecutionMode`` | ``standalone``は``Standalone``、``portal``は``Portal``を明示。配置環境では設定しません |
 | ``SalesSupport__CommonConfigPath`` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置では不要 |
 
-配置環境ではIISの``web.config``でToolIdとアプリ名を設定します。
+配置環境のToolIdとアプリ名は``web.config``へ設定済みです。発行物へそのまま出力されるため、再発行しても消えません。
 
 ## 生成後に別途必要な作業
 
 スクリプトはソース一式だけを作ります。次の作業は[導入・運用](../../../../設計書/05_導入・運用.md)に従って別途行います。
 
-1. Portalのツールマスタへ ToolId ``$toolIdValue`` のWEBツール行と起動URLを所定のSQLで登録する。
-2. アップロードを使う場合は``TOOL``＋``TOOL_INPUT``のアップロード条件を登録する。
-3. IISへアプリケーションとアプリケーションプールを登録し、環境変数を設定する。
+1. [ツール登録SQLのひな形](../../../sql/README.md#新しいツールを登録する)で、ToolId ``$toolIdValue`` のツール行とロール割当てを登録する。
+2. アップロードを使う場合は、同じひな形で``TOOL``＋``TOOL_INPUT``のアップロード条件を登録する。
+3. IISの``/tools/$toolIdValue/app``へアプリケーションとアプリケーションプールを登録する。
 4. 非公開のまま動作を確認してから、限定公開または一般公開へ変更する。
 
 ## 検証
@@ -447,7 +475,8 @@ foreach ($token in $tokens) {
 $pathFindings = Test-ProjectPaths -SolutionPath $destinationSolutionPath -SolutionRoot $SalesSupportRoot
 $launchSettingsPath = Join-Path $destinationProjectPath 'Properties/launchSettings.json'
 $jsonFindings = Test-GeneratedJson -Roots @($destinationProjectPath) -LaunchSettingsPath $launchSettingsPath -ExpectedToolId $toolIdValue -ExpectedName $displayName
-$findings = @($leftovers) + @($pathFindings) + @($jsonFindings)
+$webConfigFindings = Test-GeneratedWebConfig -WebConfigPath (Join-Path $destinationProjectPath 'web.config') -ExpectedToolId $toolIdValue -ExpectedName $displayName
+$findings = @($leftovers) + @($pathFindings) + @($jsonFindings) + @($webConfigFindings)
 if ($findings.Count -gt 0) {
     Write-Host ""
     Write-Host "生成物の検査で問題が見つかりました。完成品として扱わないでください。" -ForegroundColor Red
@@ -455,7 +484,7 @@ if ($findings.Count -gt 0) {
     Write-Host "生成先：$destinationProjectPath、$destinationSolutionPath"
     exit 1
 }
-Write-Step "プレースホルダーの残存、参照先、JSONの検査に成功しました。"
+Write-Step "プレースホルダーの残存、参照先、JSON、web.configの検査に成功しました。"
 
 # ----- 6. restore・build -----
 if ($SkipBuild) {

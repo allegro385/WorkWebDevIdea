@@ -4,9 +4,9 @@ SET XACT_ABORT OFF;
 BEGIN TRANSACTION;
 DECLARE @Definition nvarchar(max) = (SELECT definition FROM sys.check_constraints WHERE name = N'CK_ToolVersionHistories_Version');
 EXEC(N'CREATE TABLE dbo.VersionConstraintProbe (Version nvarchar(50) NOT NULL CHECK ' + @Definition + N');');
-INSERT dbo.VersionConstraintProbe VALUES (N'0.0.0'), (N'1.2.3'), (N'99.99.99'), (N'10.0.9');
+INSERT dbo.VersionConstraintProbe VALUES (N'1.2.3'), (N'2026.11'), (N'1.0.0-beta'), (N'V20260810'), (N'第2版');
 DECLARE @Bad TABLE (Version nvarchar(50));
-INSERT @Bad VALUES (N'01.2.3'),(N'1.02.3'),(N'1.2.03'),(N'100.0.0'),(N'0.100.0'),(N'0.0.100'),(N'1..2'),(N'.1.2'),(N'1.2.'),(N'1.2.3 '),(N'１.2.3'),(N'-1.2.3'),(N'1.2.3.4'),(N'00.0.0');
+INSERT @Bad VALUES (N''),(N' '),(N'   ');
 DECLARE @Version nvarchar(50);
 DECLARE versions CURSOR LOCAL FAST_FORWARD FOR SELECT Version FROM @Bad;
 OPEN versions;
@@ -31,4 +31,4 @@ IF (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID('portal.ToolFiles
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_ToolFiles_Uploader' AND referenced_object_id=OBJECT_ID('portal.AspNetUsers'))
  THROW 51103, 'Uploader foreign key missing', 1;
 ROLLBACK TRANSACTION;
-PRINT 'PASS: version boundaries, retired import policy absence, upload columns and foreign key';
+PRINT 'PASS: free-form version, blank version rejection, retired import policy absence, upload columns and foreign key';

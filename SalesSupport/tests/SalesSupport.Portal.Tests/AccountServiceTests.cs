@@ -335,7 +335,7 @@ public sealed class AccountServiceTests
     }
 
     /// <summary>本番コードのSQLヒントだけを除去し、フィルターはInMemoryで評価する試験専用の変換です。</summary>
-    private sealed class InMemoryLockQuery : ExpressionVisitor, IQueryExpressionInterceptor
+    internal sealed class InMemoryLockQuery : ExpressionVisitor, IQueryExpressionInterceptor
     {
         public static readonly InMemoryLockQuery Instance = new();
         /// <summary>SQLロックを実行せず、認証の業務フローだけを試験します。</summary>

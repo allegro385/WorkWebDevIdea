@@ -22,7 +22,7 @@ ToolIdは`SAMPLE-ESTIMATE`、PortalからのURLは`/tools/SAMPLE-ESTIMATE/app`�
 
 起動プロファイルは`standalone`（既定、Visual StudioのF5）と`portal`の2つです。`standalone`はPortal・DB・SMTP・共通設定ファイルなしで入力画面・計算・TSV出力を試せ、業務日付はJSTの現在日付を使います。公開状態欄は「単独開発（DB確認なし）」と表示し、DBログは保存しません。明細ファイルはCommonが拒否し、案件の保存・一覧（本人の案件を扱う機能）は画面とサーバーの両方で利用できません。サイトが匿名モードの場合も、連携モードで同じく本人の案件を扱えません。[単独開発の設定手順](../../../config/README.md#ツールを単独で開発する)を参照してください。
 
-DB機能・共有Cookieの開発確認には`portal`プロファイルを使い、Portalでログインした実ユーザーで確認します。開発用ユーザーはPortalの[開発限定コマンド](../../Portal/SalesSupport.Portal.Web/README.md#開発試験用のユーザーを追加する)で登録します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`Standalone`を指定すると起動を拒否します。
+DB機能・共有Cookieの開発確認には`portal`プロファイルを使い、Portalでログインした実ユーザーで確認します。開発用ユーザーはPortalの[管理コマンド`import-users`](../../Portal/SalesSupport.Portal.Web/README.md#ユーザーを一括登録する)で登録します。CommonのDB認証・サイト／ツール状態確認を通した後に、サンプルもDBの公開状態とコード表示名を取得します。本番で`Standalone`を指定すると起動を拒否します。
 
 共通設定と秘密値の置き方は[設定手順](../../../config/README.md)に従います。接続文字列はCommonの`IConnectionStringProvider`から取得します。ローカルのToolId・表示名は`Properties/launchSettings.json`に設定済みです。SQLは[サンプル専用手順](../../../sql/sample/README.md)に従い、開発専用DBへ手動適用してください。IISでは独立アプリケーション・プール、環境変数、同一サイト配下のURLを[導入・運用](../../../../設計書/05_導入・運用.md)に従って用意します。
 

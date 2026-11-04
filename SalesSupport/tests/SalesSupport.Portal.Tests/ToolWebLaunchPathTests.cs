@@ -93,7 +93,7 @@ public sealed class ToolWebLaunchPathTests
     /// <returns>検証用のツールです。</returns>
     private static Tool Tool(string toolType, string? webAppUrl) => new()
     {
-        ToolId = "T001", CategoryId = 1, ToolName = "検証ツール", OwnerUserId = Guid.NewGuid(),
+        ToolId = "T001", ToolName = "検証ツール", OwnerUserId = Guid.NewGuid(),
         ToolType = toolType, WebAppUrl = webAppUrl, Status = "PUBLIC", SortOrder = 1
     };
 

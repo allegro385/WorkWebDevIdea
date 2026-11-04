@@ -12,8 +12,8 @@
 }
 
 .ss-header-development {
-    --ss-band-start: #7f3f46;
-    --ss-band-end: #a85b61;
+    --ss-band-start: #dc3545;
+    --ss-band-end: #dc3545;
 }
 
 .ss-body {
@@ -37,13 +37,13 @@
 
 .ss-header-inner {
     display: flex;
-    min-height: 4.375rem;
+    min-height: 5.25rem;
     align-items: center;
     gap: 2rem;
 }
 
 .ss-brand {
-    font-size: 1.5rem;
+    font-size: 1.875rem;
     font-weight: 800;
     color: var(--ss-band-ink);
     text-decoration: none;
@@ -71,13 +71,21 @@
     width: var(--ss-menu-width);
 }
 
+.ss-nav-group,
+.ss-account {
+    display: flex;
+    align-items: center;
+}
+
 .ss-dropdown {
     width: var(--ss-menu-width);
     min-width: var(--ss-menu-width);
 }
 
 .ss-nav-button {
+    padding-inline: 1.25rem;
     color: var(--ss-band-ink);
+    font-size: 1.3125rem;
     font-weight: 700;
     border: 0;
 }

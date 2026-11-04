@@ -9,17 +9,9 @@ namespace SalesSupport.Portal.Web.Areas.Admin.Models;
 /// <param name="DisplayName">画面へ表示する名前です。</param>
 public sealed record UserOption(Guid UserId, string DisplayName);
 
-/// <summary>ツールカテゴリの選択肢1件です。</summary>
-/// <param name="CategoryId">カテゴリの識別子です。</param>
-/// <param name="CategoryName">画面へ表示する名称です。</param>
-public sealed record CategoryOption(int CategoryId, string CategoryName);
-
 /// <summary>ツール選択画面の絞り込み条件です。</summary>
 public sealed class ToolFilterInput
 {
-    [Display(Name = "カテゴリ")]
-    public int? CategoryId { get; set; }
-
     [Display(Name = "担当者")]
     public Guid? OwnerUserId { get; set; }
 
@@ -30,13 +22,12 @@ public sealed class ToolFilterInput
 /// <summary>ツール選択画面の1行です。</summary>
 /// <param name="ToolId">ツールの識別子です。</param>
 /// <param name="SortOrder">表示順です。一覧で並べ替えて一括保存します。</param>
-/// <param name="CategoryName">ツールカテゴリの表示名です。</param>
 /// <param name="ToolName">ツール名です。</param>
 /// <param name="OwnerName">ツール担当者の表示名です。</param>
 /// <param name="Status">TOOL_STATUSのコード値です。</param>
 /// <param name="Version">現在のバージョンです。未選択・履歴0件では空文字です。</param>
 /// <param name="UpdateCount">同時更新の検出に使用する監査列です。</param>
-public sealed record ToolSelectionItem(string ToolId, int SortOrder, string CategoryName, string ToolName,
+public sealed record ToolSelectionItem(string ToolId, int SortOrder, string ToolName,
     string OwnerName, string Status, string Version, int UpdateCount);
 
 /// <summary>A001 ツール管理のツール選択画面の表示情報です。</summary>
@@ -47,9 +38,6 @@ public sealed class ToolSelectionViewModel
 
     /// <summary>非公開を含むすべてのツールから、条件に一致した行です。</summary>
     public IReadOnlyList<ToolSelectionItem> Tools { get; init; } = [];
-
-    /// <summary>カテゴリの選択肢です。</summary>
-    public IReadOnlyList<CategoryOption> Categories { get; init; } = [];
 
     /// <summary>担当者の選択肢です。有効なシステム管理者だけを表示します。</summary>
     public IReadOnlyList<UserOption> Owners { get; init; } = [];
@@ -89,9 +77,6 @@ public sealed class ToolBasicInput
     [StringLength(200, ErrorMessage = "ツール名は200文字以内で入力してください。")]
     public string? ToolName { get; set; }
 
-    [Display(Name = "カテゴリ")]
-    public int CategoryId { get; set; }
-
     [Display(Name = "担当者")]
     public Guid OwnerUserId { get; set; }
 
@@ -118,9 +103,6 @@ public sealed class ToolBasicSectionViewModel
 
     /// <summary>参照表示する提供種別です。</summary>
     public string ToolType { get; init; } = "";
-
-    /// <summary>カテゴリの選択肢です。</summary>
-    public IReadOnlyList<CategoryOption> Categories { get; init; } = [];
 
     /// <summary>担当者の選択肢です。有効なシステム管理者だけを表示します。</summary>
     public IReadOnlyList<UserOption> Owners { get; init; } = [];
@@ -152,6 +134,7 @@ public sealed class ToolVersionInput
 
     [Display(Name = "バージョン")]
     [Required(ErrorMessage = "バージョンを入力してください。")]
+    [StringLength(50, ErrorMessage = "バージョンは50文字以内で入力してください。")]
     public string? Version { get; set; }
 
     [Display(Name = "リリース日")]
