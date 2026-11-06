@@ -3,6 +3,9 @@ namespace SalesSupport.Common.Entities.Logging;
 /// <summary>ツールの起動・実行・取得を記録します。</summary>
 public sealed class ToolUsageLog
 {
+    /// <summary>備考の最大文字数です。超えた分はCommonLoggerが切り詰めるため、入力欄ではこの値以内に検証します。</summary>
+    public const int NoteMaxLength = 500;
+
     public long ToolUsageLogId { get; set; }
     public string ToolId { get; set; } = "";
     public Guid UserId { get; set; }
@@ -10,6 +13,8 @@ public sealed class ToolUsageLog
     public string EventType { get; set; } = "";
     public string ResultCode { get; set; } = "";
     public Guid? CorrelationId { get; set; }
+    /// <summary>ツールが任意で指定する備考です。指定がなければNULLです。</summary>
+    public string? Note { get; set; }
 }
 /// <summary>業務操作の種別と結果を記録します。</summary>
 public sealed class UserActivityLog

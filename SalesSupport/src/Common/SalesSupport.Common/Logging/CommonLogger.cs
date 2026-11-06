@@ -18,7 +18,11 @@ public sealed class LoggingOptions { public int TimeoutSeconds { get; set; } = 3
 /// <summary>外部から受け取らない要求内相関IDを保持します。</summary>
 public sealed class RequestCorrelation { public Guid Id { get; } = Guid.NewGuid(); }
 /// <summary>認可済みのツール利用結果です。</summary>
-public sealed record UsageEvent(string ToolId, string EventType, string ResultCode);
+/// <param name="ToolId">対象ツールです。</param>
+/// <param name="EventType">操作種別です。</param>
+/// <param name="ResultCode">処理結果です。</param>
+/// <param name="Note">ツールが任意で指定する備考です。指定しない場合はNULLです。</param>
+public sealed record UsageEvent(string ToolId, string EventType, string ResultCode, string? Note = null);
 /// <summary>コード値だけで表した変更前後です。表示名・入力本文は保持しません。</summary>
 public sealed record ActivityChange(string Field, string? FromCode, string? ToCode);
 /// <summary>本文やメールを含めず操作種別と結果だけを伝えます。</summary>
@@ -59,7 +63,11 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
         var toolId = application.Value.Kind == Contracts.ApplicationKind.Tool ? application.Value.ToolId : entry.ToolId;
         if (current.User is null || !IsCode(toolId, 20) || entry.EventType is not ("DESKTOP_DOWNLOAD" or "WEB_OPEN" or "WEB_EXECUTE") || entry.ResultCode is not ("SUCCESS" or "FAILURE"))
             return Task.FromResult(LogWriteResult.Skipped);
-        return SaveAsync(new ToolUsageLog { ToolId = toolId!, UserId = current.User.UserId, EventType = entry.EventType, ResultCode = entry.ResultCode, OccurredAt = clock.GetUtcNow().UtcDateTime, CorrelationId = correlation.Id });
+        return SaveAsync(new ToolUsageLog
+        {
+            ToolId = toolId!, UserId = current.User.UserId, EventType = entry.EventType, ResultCode = entry.ResultCode,
+            OccurredAt = clock.GetUtcNow().UtcDateTime, CorrelationId = correlation.Id, Note = NormalizeNote(entry.Note)
+        });
     }
 
     /// <summary>固定コードだけを記録し、入力データを受け付けません。</summary>
@@ -93,6 +101,15 @@ public sealed class CommonLogger(IDbContextFactory<LogDbContext> factory, ICurre
             ErrorMessage = message[..Math.Min(message.Length, 2000)], StackTrace = SafeStack(entry.Exception),
             RequestPath = MaskPath(request), HttpMethod = IsCode(request?.Method, 10) ? request!.Method : null, CorrelationId = correlation.Id
         });
+    }
+
+    /// <summary>備考から制御文字と前後の空白を除き、長さ超過でログ行全体を失わないよう上限で切り詰めます。</summary>
+    /// <param name="note">ツールが指定した備考です。</param>
+    /// <returns>保存する備考です。内容がなければNULLです。</returns>
+    private static string? NormalizeNote(string? note)
+    {
+        var text = string.Concat((note ?? "").Where(x => !char.IsControl(x))).Trim();
+        return text.Length == 0 ? null : text[..Math.Min(text.Length, ToolUsageLog.NoteMaxLength)];
     }
 
     /// <summary>変更内容をコード値だけで連結し、コード以外の値を捨てます。</summary>

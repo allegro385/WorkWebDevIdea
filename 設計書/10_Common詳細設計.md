@@ -311,16 +311,16 @@ PortalはログインとUserManagerによるロール・有効状態・ロック
 
 | メソッド | 入力 | 戻り値 |
 | --- | --- | --- |
-| IUsageLogger.WriteAsync(UsageEvent) | ToolId、EventType、ResultCode | LogWriteResult |
+| IUsageLogger.WriteAsync(UsageEvent) | ToolId、EventType、ResultCode、Note? | LogWriteResult |
 | IActivityLogger.WriteAsync(ActivityEvent) | EventType、ResultCode、FailureReason?、対象種別・ID?、許可済み変更コード? | LogWriteResult |
 | ISystemErrorLogger.WriteAsync(SystemErrorEvent) | ErrorId、ErrorCode?、表示用でない安全なログ本文、例外種別?、安全化済みスタック? | LogWriteResult |
-| IToolUsageLogger.WriteOpenAsync()／WriteExecuteAsync(succeeded) | Webツール用。設定のToolIdとWEB_OPEN／WEB_EXECUTEをCommonが補う | LogWriteResult |
+| IToolUsageLogger.WriteOpenAsync()／WriteExecuteAsync(succeeded)／WriteExecuteAsync(succeeded, note) | Webツール用。設定のToolIdとWEB_OPEN／WEB_EXECUTEをCommonが補う。noteは任意の備考 | LogWriteResult |
 
 UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが補う。未知ユーザーの認証失敗はUserId=nullとし、入力メールを保存しない。UsageEventには検証済みユーザーが必須。ツールのToolIdはConfig、Portalのダウンロード対象はDBから解決する。
 
 - CorrelationIdは要求開始時にGUID生成し、同じ要求内で共有する。外部から任意文字列を採用しない。アプリ間HTTP連携が必要な場合だけ信頼済み内部要求として引継ぎを設計する。
 - WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。結果フィルターはCommonの`WebOpenLoggingFilter`（`SalesSupport.Common.Logging`）が提供し、各ツールは入口アクションへ`TypeFilter`で適用するだけとする。ツール側へフィルターを複製しない。描画の完了後に応答が2xxの場合だけIUsageLoggerへ記録し、失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
-- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。記録はCommonの`IToolUsageLogger.WriteExecuteAsync(succeeded, ct)`（`SalesSupport.Common.Logging`）で行い、ToolIdの解決とEventType・ResultCodeの文字列を各ツールへ書き写さない。
+- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。記録はCommonの`IToolUsageLogger.WriteExecuteAsync(succeeded, ct)`（`SalesSupport.Common.Logging`）で行い、ToolIdの解決とEventType・ResultCodeの文字列を各ツールへ書き写さない。備考を記録する場合は`WriteExecuteAsync(succeeded, note, ct)`を使う。CommonLoggerは制御文字と前後の空白を除き、空はNULLとし、`ToolUsageLog.NoteMaxLength`（500文字）を超える分は切り詰める。長すぎる値でログ行全体を失わないよう、この整形はCommonで行う。入力値を渡す場合は検証を通った値だけとし、入力不正ではNULLとする。
 - DESKTOP_DOWNLOADは認可後の取得要求を1件記録し、取得準備の結果をSUCCESS／FAILUREとする。端末での受信完了を保証しない。
 - LogDbContextを都度作成し、業務の変更追跡やトランザクションを共有しない。3秒の独立上限でawaitし、fire-and-forgetや永続キューは作らない。
 - 書込み失敗はFailedを返し、再帰記録・代替ログ・自動再試行をしない。元の計算・保存結果を失敗へ変更しない。
