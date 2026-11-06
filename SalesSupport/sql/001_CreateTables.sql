@@ -413,6 +413,7 @@ CREATE TABLE log.ToolUsageLogs
     EventType varchar(30) NOT NULL,
     ResultCode varchar(20) NOT NULL,
     CorrelationId uniqueidentifier NULL,
+    Note nvarchar(500) NULL,
     CONSTRAINT CK_ToolUsageLogs_EventType CHECK (EventType IN ('DESKTOP_DOWNLOAD', 'WEB_OPEN', 'WEB_EXECUTE')),
     CONSTRAINT CK_ToolUsageLogs_ResultCode CHECK (ResultCode IN ('SUCCESS', 'FAILURE'))
 );

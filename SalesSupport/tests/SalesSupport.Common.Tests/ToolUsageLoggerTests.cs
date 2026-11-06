@@ -24,6 +24,18 @@ public sealed class ToolUsageLoggerTests
         Assert.Equal([new UsageEvent("T001", "WEB_EXECUTE", expectedResultCode)], usage.Events);
     }
 
+    /// <summary>ツールが指定した備考を、実行の記録へ添えます。</summary>
+    [Fact]
+    public async Task WritesExecuteWithNote()
+    {
+        var usage = new RecordingUsageLogger();
+        var logger = new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "T001" }));
+
+        await logger.WriteExecuteAsync(succeeded: true, "備考");
+
+        Assert.Equal([new UsageEvent("T001", "WEB_EXECUTE", "SUCCESS", "備考")], usage.Events);
+    }
+
     /// <summary>入口の記録は<c>WEB_OPEN</c>の成功を1件にします。</summary>
     [Fact]
     public async Task WritesOpenAsSuccess()

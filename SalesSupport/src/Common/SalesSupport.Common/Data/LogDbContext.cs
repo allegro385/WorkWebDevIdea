@@ -19,6 +19,7 @@ public sealed class LogDbContext(DbContextOptions<LogDbContext> options) : DbCon
         usage.Property(x => x.EventType).HasMaxLength(30).IsUnicode(false);
         usage.Property(x => x.ResultCode).HasMaxLength(20).IsUnicode(false);
         usage.Property(x => x.OccurredAt).HasColumnType("datetime2(3)");
+        usage.Property(x => x.Note).HasMaxLength(ToolUsageLog.NoteMaxLength);
         var activity = model.Entity<UserActivityLog>();
         activity.ToTable("UserActivityLogs", "log");
         activity.Property(x => x.EventType).HasMaxLength(50).IsUnicode(false);
