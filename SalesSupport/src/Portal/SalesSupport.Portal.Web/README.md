@@ -39,7 +39,7 @@ Identity標準EmailTokenProviderとAspNetUserTokensを利用します。Portal�
 
 接続文字列を含むCommonの設定は、Portalの`appsettings.json`ではなく[共通設定ファイル](../../../config/README.md)で管理します。Portalは接続文字列を自身の設定から読まず、Commonの`IConnectionStringProvider`から受け取ります。
 
-モード別の条件と切替手順は[共通設定ファイルのREADME](../../../config/README.md)を参照してください。Portalはコンテンツルートから既定の相対パス`../../config/salessupport.common.json`で共通設定ファイルを読みます。IISの標準配置（`<ルート>\apps\portal\`と`<ルート>\config\`）ではパス指定は不要です。配置が異なる場合だけ環境変数`SalesSupport__CommonConfigPath`へコンテンツルートからの相対パスを設定します。ローカルの`https`起動プロファイルは`../../../config/salessupport.common.Development.json`を指定済みです。絶対パス・不在・書式不正は構成エラーで、解決後のパスと理由を表示します。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
+モード別の条件と切替手順は[共通設定ファイルのREADME](../../../config/README.md)を参照してください。Portalはコンテンツルートから既定の相対パス`../../config/salessupport.common.json`で共通設定ファイルを読みます。IISの標準配置（`<ルート>\apps\portal\`と`<ルート>\config\`。Portalのフォルダー名は任意）ではパス指定は不要です。Webツールは`<ルート>\apps\tools\<ToolId>\`に置くため、既定は`../../../config/salessupport.common.json`です。配置が異なる場合だけ環境変数`SalesSupport__CommonConfigPath`へコンテンツルートからの相対パスを設定します。ローカルの`https`起動プロファイルは`../../../config/salessupport.common.Development.json`を指定済みです。絶対パス・不在・書式不正は構成エラーで、解決後のパスと理由を表示します。共通設定ファイル内のフォルダー（鍵・保存領域）は、共通設定ファイルがあるフォルダーからの相対パスで指定します。
 
 | キー | 内容 |
 | --- | --- |

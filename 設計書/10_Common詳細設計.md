@@ -133,7 +133,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | 1 | 共通設定ファイル（JSON、連携モードで必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
 | 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`SalesSupport__EnvironmentCode`等 |
 
-- 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定なら既定の`../../config/salessupport.common.json`とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（`<ルート>\apps\<アプリ名>\`と`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
+- 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定ならアプリ種別ごとの既定値（Portal`../../config/salessupport.common.json`、Webツール`../../../config/salessupport.common.json`）とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（Portal`<ルート>\apps\<フォルダー名>\`、Webツール`<ルート>\apps\tools\<ToolId>\`、`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
 - 親フォルダーを順に探す処理は行わず、読込先を一意に決める。絶対パス、制御文字、不在、書式不正は起動時に構成エラーとし、エラーには解決後のファイルパスと理由を示す。設定値の内容は表示しない。
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
@@ -174,7 +174,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | キー | 初期値 | 検証 |
 | --- | --- | --- |
 | SalesSupport:Tool:ExecutionMode | `Portal` | `Portal`／`Standalone`のみ。`Standalone`はToolかつホスト`Development`だけ。詳細は5節 |
-| SalesSupport:CommonConfigPath | `../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
+| SalesSupport:CommonConfigPath | Portal`../../config/salessupport.common.json`、Webツール`../../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
 
 単独開発では共通設定ファイルを読まないため、上表以外に`Site:Name`、`Application:Name`、`Application:ToolId`もホスト設定から読む。`EnvironmentCode`は`DEVELOPMENT`として扱い、他のキーは要求しない。詳細は5節。
 

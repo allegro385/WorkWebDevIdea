@@ -126,13 +126,13 @@ public sealed class ToolPipelineTests : IDisposable
     private static HttpClient CreateClient(WebApplicationFactory<Program> factory) =>
         factory.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
 
-    /// <summary>IISの標準配置（<c>apps/T001</c>と<c>config</c>）を一時フォルダーに作り、連携モードでツールを起動します。</summary>
+    /// <summary>IISの標準配置（<c>apps/tools/T001</c>と<c>config</c>）を一時フォルダーに作り、連携モードでツールを起動します。</summary>
     /// <param name="transportMode">共通設定ファイルへ書く通信方式です。NULLでは既定のHTTPSになります。</param>
     /// <param name="portalBaseUrl">共通設定ファイルへ書くPortalのURLです。NULLでは既定のHTTPSのURLです。</param>
     /// <returns>連携モードで起動するテスト用のホストです。</returns>
     private WebApplicationFactory<Program> CreatePortalModeFactory(string? transportMode = null, string? portalBaseUrl = null)
     {
-        var contentRoot = Path.Combine(root, "apps", "T001");
+        var contentRoot = Path.Combine(root, "apps", "tools", "T001");
         foreach (var folder in new[] { contentRoot, Path.Combine(root, "config"), Path.Combine(root, "keys"), Path.Combine(root, "storage", "temp") })
             Directory.CreateDirectory(folder);
         var settings = new
@@ -154,7 +154,7 @@ public sealed class ToolPipelineTests : IDisposable
         File.WriteAllText(Path.Combine(root, "config", "salessupport.common.json"), JsonSerializer.Serialize(settings));
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            // 既定の位置（コンテンツルートから../../config/salessupport.common.json）で共通設定ファイルを読ませます。
+            // Webツールの既定の位置（コンテンツルートから../../../config/salessupport.common.json）で共通設定ファイルを読ませます。
             builder.UseContentRoot(contentRoot);
             // 起動プロファイルportalと同じく連携モードを明示し、実行環境に残った単独開発の環境変数を引き継ぎません。
             builder.UseSetting("SalesSupport:Tool:ExecutionMode", "Portal");

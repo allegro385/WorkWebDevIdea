@@ -127,7 +127,7 @@ SalesSupport\scripts\new-tool.bat T001
 | `SalesSupport__Application__ToolId` | このアプリが対応するツールのID。Portalのツールマスタに登録済みのWEBツールと一致させます |
 | `SalesSupport__Application__Name` | 障害ログへ記録するアプリ名 |
 | `SalesSupport__Tool__ExecutionMode` | `standalone`は`Standalone`、`portal`は`Portal`を明示。本番では設定しません |
-| `SalesSupport__CommonConfigPath` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。標準配置（IIS）では不要で、`portal`プロファイルはローカル用の値を設定済み |
+| `SalesSupport__CommonConfigPath` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置（`<ルート>\apps\tools\<ToolId>\`。既定`../../../config/salessupport.common.json`）では不要で、`portal`プロファイルはローカル用の値を設定済み |
 
 連携モードの共通設定ファイルでは`SalesSupport:Storage:TemporaryRoot`が必要です。明細ファイルのアップロードを使うため、未設定の場合は起動時に構成エラーで停止します。DB側には、対象ToolIdのツール行（WEBツール・起動URL）、ロール割当てと、`TOOL`＋`TOOL_INPUT`のアップロード条件が必要です。登録は[導入・運用](../../../../設計書/05_導入・運用.md)に従い、[ツール登録SQLのひな形](../../../sql/README.md#新しいツールを登録する)で手動適用します。アプリは起動時にDBを更新しません。本番で`Standalone`を指定すると起動を拒否します。
 

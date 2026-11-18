@@ -37,7 +37,7 @@ public static class CommonServiceExtensions
         var mode = ToolExecutionModeSettings.Read(hostConfiguration, kind, environment);
         var standalone = mode == ToolExecutionMode.Standalone;
         // 単独開発は共通設定ファイルを読まず、ToolId・アプリ名はホスト設定（起動プロファイルの環境変数）から取得します。
-        var common = standalone ? null : CommonConfiguration.Load(environment.ContentRootPath, hostConfiguration[CommonConfiguration.PathKey]);
+        var common = standalone ? null : CommonConfiguration.Load(environment.ContentRootPath, hostConfiguration[CommonConfiguration.PathKey], kind);
         var configuration = common?.Values ?? hostConfiguration;
         // 認証モードは共通設定ファイルの値で決めます。単独開発はこのファイルを読まないため常にメールOTPのままです。
         var authenticationMode = standalone ? SiteAuthenticationMode.EmailOtp : SiteAuthenticationModeSettings.Read(configuration);
