@@ -207,6 +207,29 @@ public sealed class SiteAuthenticationModeTests : IDisposable
         Assert.Equal(StatusCodes.Status401Unauthorized, api.Response.StatusCode);
     }
 
+    /// <summary>実ユーザー専用ポリシーで本人を認証できない要求は、共通ユーザーの権限で判定せず、拒否の判定も残しません。</summary>
+    /// <remarks>判定を残さないことで、認可の結果は403・非公開案内ではなく認証チャレンジ（HTMLはログイン誘導、APIは401）になります。</remarks>
+    [Fact]
+    public async Task UnauthenticatedPrincipalIsNotJudgedAsCommonUser()
+    {
+        var current = new CurrentUserAccessor();
+        current.SetVerified(new CurrentUser(AnonymousSiteUser.UserId, AnonymousSiteUser.DisplayName, AnonymousSiteUser.RoleCode));
+        var options = Options.Create(new CommonOptions
+        {
+            Kind = ApplicationKind.Portal, EnvironmentCode = "PRODUCTION", AuthenticationMode = SiteAuthenticationMode.Anonymous
+        });
+        var http = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
+        var handler = new CommonAuthorizationHandler(new AccessEvaluator(current, new RejectSettings(), new RejectFactory(), options), current, options, http);
+        var requirement = new CommonAccessRequirement(Admin: true);
+        var context = new AuthorizationHandlerContext([requirement], new ClaimsPrincipal(new ClaimsIdentity()), null);
+
+        await handler.HandleAsync(context);
+
+        Assert.False(context.HasSucceeded);
+        Assert.Contains(requirement, context.PendingRequirements);
+        Assert.Empty(http.HttpContext.Items);
+    }
+
     /// <summary>匿名モードでも利用判定をDBで行い、単独開発のような認証なしの近道を使いません。</summary>
     [Fact]
     public async Task AnonymousModeStillEvaluatesDatabaseState()

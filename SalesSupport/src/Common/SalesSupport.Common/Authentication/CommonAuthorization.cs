@@ -32,6 +32,9 @@ public sealed class CommonAuthorizationHandler(IAccessEvaluator evaluator, ICurr
     /// <summary>許可時だけ要件を満たし、障害も拒否側へ倒します。</summary>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, CommonAccessRequirement requirement)
     {
+        // ポリシーの認証方式で本人を認証できない要求は、匿名モードの共通ユーザー等の権限で判定せず、拒否の判定も残しません。
+        // 認可は認証チャレンジ（HTMLはログイン誘導、APIは401）となり、サイト・ロール・ツールの判定はログイン後に行います。
+        if (!options.Value.IsStandalone && context.User.Identity?.IsAuthenticated != true) return;
         AccessDecision decision;
         try
         {
