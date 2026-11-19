@@ -120,6 +120,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         notice.Property(x => x.ToolId).HasMaxLength(20).IsUnicode(false);
         notice.Property(x => x.Title).HasMaxLength(200).IsRequired();
         notice.Property(x => x.Content).HasColumnType("nvarchar(max)").IsRequired();
+        notice.Property(x => x.EditedAt).HasColumnType("datetime2(3)");
         notice.Property(x => x.MailSentAt).HasColumnType("datetime2(3)");
         notice.HasOne<Tool>().WithMany().HasForeignKey(x => x.ToolId).OnDelete(DeleteBehavior.NoAction);
         notice.ConfigureAuditColumns("Notices");
@@ -142,6 +143,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         var inquiry = model.Entity<Inquiry>();
         inquiry.HasKey(x => x.InquiryId);
         inquiry.Property(x => x.InquiryId).HasColumnType("char(12)");
+        inquiry.Property(x => x.ReceivedAt).HasColumnType("datetime2(3)");
         inquiry.Property(x => x.CategoryCode).HasMaxLength(20).IsUnicode(false);
         inquiry.Property(x => x.TargetType).HasMaxLength(20).IsUnicode(false);
         inquiry.Property(x => x.ToolId).HasMaxLength(20).IsUnicode(false);

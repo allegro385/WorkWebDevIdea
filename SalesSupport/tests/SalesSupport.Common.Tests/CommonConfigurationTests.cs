@@ -1,4 +1,5 @@
 using SalesSupport.Common.Configuration;
+using SalesSupport.Common.Contracts;
 using Xunit;
 
 namespace SalesSupport.Common.Tests;
@@ -11,10 +12,10 @@ public sealed class CommonConfigurationTests : IDisposable
     private readonly string contentRoot;
     private readonly string configFolder;
 
-    /// <summary>標準配置（<c>apps/&lt;アプリ名&gt;</c>と<c>config</c>）を模した検証用フォルダーを作成します。</summary>
+    /// <summary>Webツールの標準配置（<c>apps/tools/&lt;ToolId&gt;</c>と<c>config</c>）を模した検証用フォルダーを作成します。</summary>
     public CommonConfigurationTests()
     {
-        contentRoot = Path.Combine(root, "apps", "T001");
+        contentRoot = Path.Combine(root, "apps", "tools", "T001");
         configFolder = Path.Combine(root, "config");
         Directory.CreateDirectory(contentRoot);
         Directory.CreateDirectory(configFolder);
@@ -26,17 +27,31 @@ public sealed class CommonConfigurationTests : IDisposable
         try { Directory.Delete(root, recursive: true); } catch (IOException) { /* 検証環境の残存は無視します。 */ }
     }
 
-    /// <summary>パスが未設定なら、コンテンツルートから既定の相対パスで標準配置の共通設定ファイルを読みます。</summary>
+    /// <summary>パスが未設定なら、アプリ種別ごとの標準配置（Portalは<c>apps/&lt;フォルダー名&gt;</c>、Webツールは<c>apps/tools/&lt;ToolId&gt;</c>）から既定の相対パスで同じ共通設定ファイルを読みます。</summary>
+    /// <param name="kind">読み込むアプリの種別です。</param>
+    /// <param name="path">ホスト設定のパスです。NULL・空白は未設定です。</param>
     [Theory]
-    [InlineData(null)]
-    [InlineData("   ")]
-    public void LoadUsesDefaultPathFromContentRoot(string? path)
+    [InlineData(ApplicationKind.Portal, null)]
+    [InlineData(ApplicationKind.Portal, "   ")]
+    [InlineData(ApplicationKind.Tool, null)]
+    [InlineData(ApplicationKind.Tool, "   ")]
+    public void LoadUsesDefaultPathForApplicationKind(ApplicationKind kind, string? path)
     {
         File.WriteAllText(Path.Combine(configFolder, "salessupport.common.json"), """{"ConnectionStrings":{"SalesSupport":"Data Source=verify;"}}""");
-        var configuration = CommonConfiguration.Load(contentRoot, path);
+        // Portalはapps直下、Webツールはapps/tools直下の任意のフォルダーへ配置します。
+        var applicationRoot = kind == ApplicationKind.Portal ? Path.Combine(root, "apps", "portal") : contentRoot;
+        Directory.CreateDirectory(applicationRoot);
+        var configuration = CommonConfiguration.Load(applicationRoot, path, kind);
         Assert.Equal("Data Source=verify;", new ConnectionStringProvider(configuration.Values).SalesSupportDatabase);
         Assert.Equal(configFolder, configuration.BaseDirectory);
-        Assert.Equal("../../config/salessupport.common.json", CommonConfiguration.DefaultPath);
+    }
+
+    /// <summary>既定の相対パスは、Portalが2階層上、Webツールが3階層上の<c>config</c>を指します。</summary>
+    [Fact]
+    public void DefaultPathDependsOnApplicationKind()
+    {
+        Assert.Equal("../../config/salessupport.common.json", CommonConfiguration.DefaultPath(ApplicationKind.Portal));
+        Assert.Equal("../../../config/salessupport.common.json", CommonConfiguration.DefaultPath(ApplicationKind.Tool));
     }
 
     /// <summary>指定した相対パスはアプリの実行フォルダーではなくコンテンツルートから解決します。</summary>
@@ -44,7 +59,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void LoadResolvesPathFromContentRoot()
     {
         var path = Write("local.json", """{"ConnectionStrings":{"SalesSupport":"Data Source=local;"}}""");
-        var configuration = CommonConfiguration.Load(contentRoot, path);
+        var configuration = CommonConfiguration.Load(contentRoot, path, ApplicationKind.Tool);
         Assert.Equal("Data Source=local;", new ConnectionStringProvider(configuration.Values).SalesSupportDatabase);
         Assert.Equal(configFolder, configuration.BaseDirectory);
     }
@@ -54,7 +69,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void LoadRejectsAbsolutePath()
     {
         Write("absolute.json", "{}");
-        Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, Path.Combine(configFolder, "absolute.json")));
+        Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, Path.Combine(configFolder, "absolute.json"), ApplicationKind.Tool));
     }
 
     /// <summary>ファイルがなければ構成エラーとし、利用者が置き場所を確認できるよう解決後のパスを示します。親フォルダーは探しません。</summary>
@@ -62,7 +77,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void LoadRejectsMissingFileWithResolvedPath()
     {
         File.WriteAllText(Path.Combine(root, "salessupport.common.json"), "{}");
-        var exception = Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, null));
+        var exception = Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, null, ApplicationKind.Tool));
         Assert.Contains(CommonConfiguration.PathKey, exception.Message);
         Assert.Contains(Path.Combine(configFolder, "salessupport.common.json"), exception.Message);
     }
@@ -72,7 +87,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void LoadRejectsMalformedFile()
     {
         var path = Write("broken.json", """{"ConnectionStrings":{"SalesSupport":"Password=secret""");
-        var exception = Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, path));
+        var exception = Assert.Throws<ConfigurationException>(() => CommonConfiguration.Load(contentRoot, path, ApplicationKind.Tool));
         Assert.Contains(CommonConfiguration.PathKey, exception.Message);
         Assert.Contains(Path.Combine(configFolder, "broken.json"), exception.Message);
         Assert.DoesNotContain("secret", exception.Message);
@@ -86,7 +101,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void ProviderRejectsMissingConnectionString(string content)
     {
         var path = Write("empty.json", content);
-        Assert.Throws<ConfigurationException>(() => new ConnectionStringProvider(CommonConfiguration.Load(contentRoot, path).Values));
+        Assert.Throws<ConfigurationException>(() => new ConnectionStringProvider(CommonConfiguration.Load(contentRoot, path, ApplicationKind.Tool).Values));
     }
 
     /// <summary>設定内のフォルダーは共通設定ファイルのフォルダーを基準に解決します。</summary>
@@ -94,7 +109,7 @@ public sealed class CommonConfigurationTests : IDisposable
     public void ResolvePathUsesConfigurationFileFolder()
     {
         var path = Write("paths.json", """{"SalesSupport":{"Storage":{"PermanentRoot":"../files"}}}""");
-        var configuration = CommonConfiguration.Load(contentRoot, path);
+        var configuration = CommonConfiguration.Load(contentRoot, path, ApplicationKind.Tool);
         var expected = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(configFolder, "../files")));
         Assert.Equal(expected, configuration.ResolvePath(configuration.Values["SalesSupport:Storage:PermanentRoot"], "Storage:PermanentRoot"));
     }
@@ -103,7 +118,7 @@ public sealed class CommonConfigurationTests : IDisposable
     [Fact]
     public void ResolvePathRejectsAbsolutePathAndKeepsUnsetAsNull()
     {
-        var configuration = CommonConfiguration.Load(contentRoot, Write("paths.json", "{}"));
+        var configuration = CommonConfiguration.Load(contentRoot, Write("paths.json", "{}"), ApplicationKind.Tool);
         Assert.Null(configuration.ResolvePath("   ", "Storage:TemporaryRoot"));
         Assert.Null(configuration.ResolvePath(null, "Storage:TemporaryRoot"));
         Assert.Throws<ConfigurationException>(() => configuration.ResolvePath(configFolder, "Storage:TemporaryRoot"));
@@ -116,7 +131,7 @@ public sealed class CommonConfigurationTests : IDisposable
         var path = Write("tool.json", """{"SalesSupport":{"Application":{"ToolId":"SHARED"}}}""");
         var original = Environment.GetEnvironmentVariable("SalesSupport__Application__ToolId");
         Environment.SetEnvironmentVariable("SalesSupport__Application__ToolId", "T001");
-        try { Assert.Equal("T001", CommonConfiguration.Load(contentRoot, path).Values["SalesSupport:Application:ToolId"]); }
+        try { Assert.Equal("T001", CommonConfiguration.Load(contentRoot, path, ApplicationKind.Tool).Values["SalesSupport:Application:ToolId"]); }
         finally { Environment.SetEnvironmentVariable("SalesSupport__Application__ToolId", original); }
     }
 
@@ -127,7 +142,7 @@ public sealed class CommonConfigurationTests : IDisposable
     private string Write(string name, string content)
     {
         File.WriteAllText(Path.Combine(configFolder, name), content);
-        return "../../config/" + name;
+        return "../../../config/" + name;
     }
 }
 

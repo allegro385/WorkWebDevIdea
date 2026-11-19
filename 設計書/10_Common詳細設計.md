@@ -133,7 +133,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | 1 | 共通設定ファイル（JSON、連携モードで必須） | 全アプリ共通の設定。下表のうちアプリ固有を除くすべて |
 | 2 | 配置環境変数（上書き） | アプリ固有の値と配置ごとの上書き。`SalesSupport__Application__ToolId`、`SalesSupport__EnvironmentCode`等 |
 
-- 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定なら既定の`../../config/salessupport.common.json`とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（`<ルート>\apps\<アプリ名>\`と`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
+- 共通設定ファイルの場所はホスト設定`SalesSupport:CommonConfigPath`（環境変数`SalesSupport__CommonConfigPath`）で与え、未設定ならアプリ種別ごとの既定値（Portal`../../config/salessupport.common.json`、Webツール`../../../config/salessupport.common.json`）とする。値は各アプリのコンテンツルートからの相対パスとする。コンテンツルートはIISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダーである。既定値は[標準配置](../SalesSupport/config/README.md#配置)（Portal`<ルート>\apps\<フォルダー名>\`、Webツール`<ルート>\apps\tools\<ToolId>\`、`<ルート>\config\`）に合わせ、標準配置ではIISへの指定を不要にする。ローカルの連携試験は起動プロファイルで`../../../config/salessupport.common.Development.json`を指定する。
 - 親フォルダーを順に探す処理は行わず、読込先を一意に決める。絶対パス、制御文字、不在、書式不正は起動時に構成エラーとし、エラーには解決後のファイルパスと理由を示す。設定値の内容は表示しない。
 - 設定内のフォルダー（`SalesSupport:DataProtection:KeyDirectory`、`SalesSupport:Storage:TemporaryRoot`／`PermanentRoot`）は共通設定ファイルがあるフォルダーからの相対パスで指定し、起動時に絶対パスへ解決してから検証する。絶対パス・制御文字を含む指定は受け付けない。
 - ファイルはWeb公開領域と配置フォルダーの外へ置き、対象アプリケーションプールと運用管理者にだけアクセス権を与える。配置場所とアクセス権は導入時の運用確認で保証し、アプリ起動時には配置フォルダーとの包含関係を検査しない。配置と雛形は[共通設定ファイル](../SalesSupport/config/README.md)、[配布・配置方針](05_導入・運用.md#deployment)に従う。
@@ -174,7 +174,7 @@ Commonが必要とする設定は、Commonが所有する共通設定ファイ�
 | キー | 初期値 | 検証 |
 | --- | --- | --- |
 | SalesSupport:Tool:ExecutionMode | `Portal` | `Portal`／`Standalone`のみ。`Standalone`はToolかつホスト`Development`だけ。詳細は5節 |
-| SalesSupport:CommonConfigPath | `../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
+| SalesSupport:CommonConfigPath | Portal`../../config/salessupport.common.json`、Webツール`../../../config/salessupport.common.json` | コンテンツルートからの相対パス。連携モードだけ使用 |
 
 単独開発では共通設定ファイルを読まないため、上表以外に`Site:Name`、`Application:Name`、`Application:ToolId`もホスト設定から読む。`EnvironmentCode`は`DEVELOPMENT`として扱い、他のキーは要求しない。詳細は5節。
 
@@ -311,16 +311,16 @@ PortalはログインとUserManagerによるロール・有効状態・ロック
 
 | メソッド | 入力 | 戻り値 |
 | --- | --- | --- |
-| IUsageLogger.WriteAsync(UsageEvent) | ToolId、EventType、ResultCode | LogWriteResult |
+| IUsageLogger.WriteAsync(UsageEvent) | ToolId、EventType、ResultCode、Note? | LogWriteResult |
 | IActivityLogger.WriteAsync(ActivityEvent) | EventType、ResultCode、FailureReason?、対象種別・ID?、許可済み変更コード? | LogWriteResult |
 | ISystemErrorLogger.WriteAsync(SystemErrorEvent) | ErrorId、ErrorCode?、表示用でない安全なログ本文、例外種別?、安全化済みスタック? | LogWriteResult |
-| IToolUsageLogger.WriteOpenAsync()／WriteExecuteAsync(succeeded) | Webツール用。設定のToolIdとWEB_OPEN／WEB_EXECUTEをCommonが補う | LogWriteResult |
+| IToolUsageLogger.WriteOpenAsync()／WriteExecuteAsync(succeeded)／WriteExecuteAsync(succeeded, note) | Webツール用。設定のToolIdとWEB_OPEN／WEB_EXECUTEをCommonが補う。noteは任意の備考 | LogWriteResult |
 
 UserId、発生UTC日時、ApplicationName、要求内CorrelationIdはCommonが補う。未知ユーザーの認証失敗はUserId=nullとし、入力メールを保存しない。UsageEventには検証済みユーザーが必須。ツールのToolIdはConfig、Portalのダウンロード対象はDBから解決する。
 
 - CorrelationIdは要求開始時にGUID生成し、同じ要求内で共有する。外部から任意文字列を採用しない。アプリ間HTTP連携が必要な場合だけ信頼済み内部要求として引継ぎを設計する。
 - WEB_OPENはツールの入口アクションの正常な画面応答1回につき1件。結果フィルターはCommonの`WebOpenLoggingFilter`（`SalesSupport.Common.Logging`）が提供し、各ツールは入口アクションへ`TypeFilter`で適用するだけとする。ツール側へフィルターを複製しない。描画の完了後に応答が2xxの場合だけIUsageLoggerへ記録し、失敗・リダイレクト・静的資産は対象外。内部APIや再計算は起動ログにしない。
-- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。記録はCommonの`IToolUsageLogger.WriteExecuteAsync(succeeded, ct)`（`SalesSupport.Common.Logging`）で行い、ToolIdの解決とEventType・ResultCodeの文字列を各ツールへ書き写さない。
+- WEB_EXECUTEは業務処理の完了箇所で1回。成功・失敗を記録し、ControllerとServiceの両方で二重記録しない。キャンセルはFAILUREとして扱い、結果未確定なら成功を記録しない。記録はCommonの`IToolUsageLogger.WriteExecuteAsync(succeeded, ct)`（`SalesSupport.Common.Logging`）で行い、ToolIdの解決とEventType・ResultCodeの文字列を各ツールへ書き写さない。備考を記録する場合は`WriteExecuteAsync(succeeded, note, ct)`を使う。CommonLoggerは制御文字と前後の空白を除き、空はNULLとし、`ToolUsageLog.NoteMaxLength`（500文字）を超える分は切り詰める。長すぎる値でログ行全体を失わないよう、この整形はCommonで行う。入力値を渡す場合は検証を通った値だけとし、入力不正ではNULLとする。
 - DESKTOP_DOWNLOADは認可後の取得要求を1件記録し、取得準備の結果をSUCCESS／FAILUREとする。端末での受信完了を保証しない。
 - LogDbContextを都度作成し、業務の変更追跡やトランザクションを共有しない。3秒の独立上限でawaitし、fire-and-forgetや永続キューは作らない。
 - 書込み失敗はFailedを返し、再帰記録・代替ログ・自動再試行をしない。元の計算・保存結果を失敗へ変更しない。

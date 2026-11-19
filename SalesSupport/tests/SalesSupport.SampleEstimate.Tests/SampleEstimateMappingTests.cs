@@ -30,4 +30,22 @@ public sealed class SampleEstimateMappingTests
         Assert.Contains(entity.GetIndexes(), index => index.IsUnique && index.Properties.Single().Name == nameof(EstimateRecord.SubmissionId));
         Assert.Single(db.Model.GetEntityTypes());
     }
+
+    /// <summary>一覧の更新日時は監査列ではなく、アプリケーションが保存する業務列EditedAtを使うことを確認します。</summary>
+    [Fact]
+    public void ListUsesBusinessEditedAtColumn()
+    {
+        var options = new DbContextOptionsBuilder<SampleEstimateDbContext>()
+            .UseSqlServer("Server=unused;Database=unused;Integrated Security=true;TrustServerCertificate=true")
+            .Options;
+        using var db = new SampleEstimateDbContext(options);
+        var editedAt = db.Model.FindEntityType(typeof(EstimateRecord))!.FindProperty(nameof(EstimateRecord.EditedAt));
+
+        Assert.NotNull(editedAt);
+        Assert.Equal(ValueGenerated.Never, editedAt.ValueGenerated);
+        Assert.Equal("datetime2(3)", editedAt.GetColumnType());
+        var summaryProperties = typeof(SalesSupport.SampleEstimate.Web.Services.EstimateRecordSummary).GetProperties().Select(x => x.Name).ToList();
+        Assert.Contains(nameof(EstimateRecord.EditedAt), summaryProperties);
+        Assert.DoesNotContain(nameof(EstimateRecord.UpdatedAt), summaryProperties);
+    }
 }

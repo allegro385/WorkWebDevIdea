@@ -35,10 +35,10 @@ public sealed class ToolExecutionModeTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), "ss-mode-" + Guid.NewGuid().ToString("N"));
     private readonly string contentRoot;
 
-    /// <summary>標準配置（<c>apps/T001</c>と<c>config</c>・<c>keys</c>）を模した検証用フォルダーを作成します。共通設定ファイルは作りません。</summary>
+    /// <summary>Webツールの標準配置（<c>apps/tools/T001</c>と<c>config</c>・<c>keys</c>）を模した検証用フォルダーを作成します。共通設定ファイルは作りません。</summary>
     public ToolExecutionModeTests()
     {
-        contentRoot = Path.Combine(root, "apps", "T001");
+        contentRoot = Path.Combine(root, "apps", "tools", "T001");
         Directory.CreateDirectory(contentRoot);
         Directory.CreateDirectory(Path.Combine(root, "config"));
         Directory.CreateDirectory(Path.Combine(root, "keys"));

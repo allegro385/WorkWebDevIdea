@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using SalesSupport.Common.Authentication;
+using SalesSupport.Common.DateTime;
 using SalesSupport.SampleEstimate.Web.Data;
 using SalesSupport.SampleEstimate.Web.Models;
 
 namespace SalesSupport.SampleEstimate.Web.Services;
 
 /// <summary>案件一覧に表示する1件の要約です。</summary>
-public sealed record EstimateRecordSummary(Guid RecordId, string ProjectName, DateOnly AppliedOn, string CategoryCode, decimal Total, DateTime UpdatedAt);
+public sealed record EstimateRecordSummary(Guid RecordId, string ProjectName, DateOnly AppliedOn, string CategoryCode, decimal Total, DateTime EditedAt);
 
 /// <summary>検索結果と、同じ条件に該当する全件の集計です。</summary>
 public sealed record EstimateRecordList(IReadOnlyList<EstimateRecordSummary> Items, int Count, decimal Total);
@@ -28,7 +29,7 @@ public interface IEstimateRecordService
 }
 
 /// <summary>EF Coreを直接使うサンプルの業務サービスです。ユーザーごとに検索範囲を限定します。</summary>
-public sealed class EstimateRecordService(SampleEstimateDbContext db, ICurrentUserAccessor current) : IEstimateRecordService
+public sealed class EstimateRecordService(SampleEstimateDbContext db, ICurrentUserAccessor current, IApplicationClock clock) : IEstimateRecordService
 {
     /// <summary>認証済みユーザーのIDです。認可の設定漏れがあっても他人のデータへ倒しません。</summary>
     private Guid UserId => current.User?.UserId ?? throw new UnauthorizedAccessException("認証済みユーザーが必要です。");
@@ -42,8 +43,8 @@ public sealed class EstimateRecordService(SampleEstimateDbContext db, ICurrentUs
         if (to is { } end) query = query.Where(x => x.AppliedOn <= end);
         if (!string.IsNullOrEmpty(categoryCode)) query = query.Where(x => x.CategoryCode == categoryCode);
         var totals = await query.GroupBy(_ => 1).Select(g => new { Count = g.Count(), Total = g.Sum(x => x.Total) }).SingleOrDefaultAsync(ct);
-        var items = await query.OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.RecordId).Take(100)
-            .Select(x => new EstimateRecordSummary(x.RecordId, x.ProjectName, x.AppliedOn, x.CategoryCode, x.Total, x.UpdatedAt))
+        var items = await query.OrderByDescending(x => x.EditedAt).ThenBy(x => x.RecordId).Take(100)
+            .Select(x => new EstimateRecordSummary(x.RecordId, x.ProjectName, x.AppliedOn, x.CategoryCode, x.Total, x.EditedAt))
             .ToListAsync(ct);
         return new(items, totals?.Count ?? 0, totals?.Total ?? 0);
     }
@@ -68,7 +69,8 @@ public sealed class EstimateRecordService(SampleEstimateDbContext db, ICurrentUs
             RecordId = Guid.NewGuid(), SubmissionId = submissionId, OwnerUserId = userId,
             ProjectName = result.ProjectName, AppliedOn = result.AppliedOn, CategoryCode = input.CategoryCode!,
             Quantity = result.Quantity, UnitPrice = result.UnitPrice, Subtotal = result.Subtotal,
-            DiscountAmount = result.DiscountAmount, Total = result.Total, DetailRowCount = result.DetailRowCount
+            DiscountAmount = result.DiscountAmount, Total = result.Total, DetailRowCount = result.DetailRowCount,
+            EditedAt = clock.GetUtcNow().UtcDateTime // 画面の更新日時は監査列ではなく、この業務列で持ちます。
         };
         db.EstimateRecords.Add(record);
         try { await db.SaveChangesAsync(ct); }
@@ -102,6 +104,7 @@ public sealed class EstimateRecordService(SampleEstimateDbContext db, ICurrentUs
         record.DiscountAmount = result.DiscountAmount;
         record.Total = result.Total;
         record.DetailRowCount = null; // 編集時にファイルを再送しないため、古い行数は引き継ぎません。
+        record.EditedAt = clock.GetUtcNow().UtcDateTime;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return RecordUpdateResult.Conflict; }
         return RecordUpdateResult.Updated;

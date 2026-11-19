@@ -84,6 +84,8 @@ public sealed class Notice : AuditedEntity
     public string Title { get; set; } = "";
     public string Content { get; set; } = "";
     public bool IsPublished { get; set; }
+    /// <summary>登録・編集保存したUTC日時です。メール送信や監査列の更新では変わりません。</summary>
+    public System.DateTime EditedAt { get; set; }
     public System.DateTime? MailSentAt { get; set; }
 }
 
@@ -110,6 +112,8 @@ public sealed class FaqItem : AuditedEntity
 public sealed class Inquiry : AuditedEntity
 {
     public string InquiryId { get; set; } = "";
+    /// <summary>受付UTC日時です。InquiryIdの受付日を求めた時刻と同じ値を保存します。</summary>
+    public System.DateTime ReceivedAt { get; set; }
     public string CategoryCode { get; set; } = "";
     public string TargetType { get; set; } = "";
     public string? ToolId { get; set; }

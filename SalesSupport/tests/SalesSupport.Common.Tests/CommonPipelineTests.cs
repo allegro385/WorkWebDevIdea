@@ -27,13 +27,12 @@ public sealed class CommonPipelineTests : IDisposable
     ];
 
     private readonly string root = Path.Combine(Path.GetTempPath(), "ss-pipeline-" + Guid.NewGuid().ToString("N"));
-    private readonly string contentRoot;
 
-    /// <summary>標準配置（<c>apps/T001</c>と<c>config</c>・<c>keys</c>）を模した検証用フォルダーを作成します。</summary>
+    /// <summary>標準配置（Portal<c>apps/portal</c>、Webツール<c>apps/tools/T001</c>と<c>config</c>・<c>keys</c>）を模した検証用フォルダーを作成します。</summary>
     public CommonPipelineTests()
     {
-        contentRoot = Path.Combine(root, "apps", "T001");
-        Directory.CreateDirectory(contentRoot);
+        Directory.CreateDirectory(ContentRoot(ApplicationKind.Portal));
+        Directory.CreateDirectory(ContentRoot(ApplicationKind.Tool));
         Directory.CreateDirectory(Path.Combine(root, "config"));
         Directory.CreateDirectory(Path.Combine(root, "keys"));
     }
@@ -66,6 +65,11 @@ public sealed class CommonPipelineTests : IDisposable
         foreach (var (name, value) in ExpectedHeaders) Assert.Equal(value, response.Headers[name].ToString());
     }
 
+    /// <summary>アプリ種別ごとの標準配置のコンテンツルートを返します。</summary>
+    /// <param name="kind">アプリ種別です。</param>
+    /// <returns>検証用フォルダー内のコンテンツルートです。</returns>
+    private string ContentRoot(ApplicationKind kind) => kind == ApplicationKind.Portal ? Path.Combine(root, "apps", "portal") : Path.Combine(root, "apps", "tools", "T001");
+
     /// <summary>Portalでもツールでも、Commonの登録だけで更新要求のCSRF検証がグローバルフィルターとして適用されます。</summary>
     /// <param name="kind">登録するアプリ種別です。</param>
     [Theory]
@@ -88,7 +92,7 @@ public sealed class CommonPipelineTests : IDisposable
         File.WriteAllText(Path.Combine(root, "config", "salessupport.common.json"), System.Text.Json.JsonSerializer.Serialize(settings));
 
         var services = new ServiceCollection().AddLogging();
-        services.AddSalesSupportCommon(kind, new StubEnvironment { ContentRootPath = contentRoot }, new ConfigurationBuilder().Build());
+        services.AddSalesSupportCommon(kind, new StubEnvironment { ContentRootPath = ContentRoot(kind) }, new ConfigurationBuilder().Build());
         using var provider = services.BuildServiceProvider();
 
         Assert.Contains(provider.GetRequiredService<IOptions<MvcOptions>>().Value.Filters, x => x is AutoValidateAntiforgeryTokenAttribute);

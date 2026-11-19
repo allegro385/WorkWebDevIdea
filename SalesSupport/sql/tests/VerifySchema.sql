@@ -26,11 +26,11 @@ BEGIN CATCH
     IF ERROR_NUMBER() <> 547 THROW;
 END CATCH;
 -- LENは末尾空白を数えないため、本文の上限はDATALENGTHで確認する。
-INSERT portal.Notices (NoticeType, Title, Content, IsPublished)
-VALUES ('SYSTEM', N'Boundary notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000), 0);
+INSERT portal.Notices (NoticeType, Title, Content, IsPublished, EditedAt)
+VALUES ('SYSTEM', N'Boundary notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000), 0, SYSUTCDATETIME());
 BEGIN TRY
-    INSERT portal.Notices (NoticeType, Title, Content, IsPublished)
-    VALUES ('SYSTEM', N'Overflow notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000) + N' ', 0);
+    INSERT portal.Notices (NoticeType, Title, Content, IsPublished, EditedAt)
+    VALUES ('SYSTEM', N'Overflow notice', REPLICATE(CAST(N'あ' AS nvarchar(max)), 10000) + N' ', 0, SYSUTCDATETIME());
     THROW 51007, 'Notice trailing space accepted', 1;
 END TRY
 BEGIN CATCH

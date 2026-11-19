@@ -142,11 +142,13 @@ public sealed class InquiryService(PortalDbContext db, ICodeMasterReader codes, 
 
             // 採番は保存トランザクションの外側で行い、失敗しても確保した番号を戻しません。
             // 受付日は開発用の業務日付ではなく、実際のUTC時刻から求めたJST日付を使います。
-            var receivedOn = DateOnly.FromDateTime(clock.ToJst(clock.GetUtcNow()).DateTime);
+            var receivedAt = clock.GetUtcNow();
+            var receivedOn = DateOnly.FromDateTime(clock.ToJst(receivedAt).DateTime);
             var inquiryId = await allocator.AllocateAsync(receivedOn, ct);
             var inquiry = new Inquiry
             {
                 InquiryId = inquiryId,
+                ReceivedAt = receivedAt.UtcDateTime,
                 CategoryCode = category!.CodeValue,
                 TargetType = targetType!,
                 ToolId = toolId,

@@ -438,7 +438,7 @@ ToolId ``$toolIdValue`` のWebツールです。テンプレートツールか�
 | ``SalesSupport__Application__ToolId`` | ``$toolIdValue`` |
 | ``SalesSupport__Application__Name`` | 障害ログへ記録するアプリ名 |
 | ``SalesSupport__Tool__ExecutionMode`` | ``standalone``は``Standalone``、``portal``は``Portal``を明示。配置環境では設定しません |
-| ``SalesSupport__CommonConfigPath`` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置では不要 |
+| ``SalesSupport__CommonConfigPath`` | 連携モードの共通設定ファイルへの、コンテンツルートからの相対パス。IISの標準配置（``<ルート>\apps\tools\<ToolId>\``。既定``../../../config/salessupport.common.json``）では不要 |
 
 配置環境のToolIdとアプリ名は``web.config``へ設定済みです。発行物へそのまま出力されるため、再発行しても消えません。
 

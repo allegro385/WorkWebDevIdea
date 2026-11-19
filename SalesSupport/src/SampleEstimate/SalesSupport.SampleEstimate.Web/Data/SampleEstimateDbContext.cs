@@ -24,5 +24,6 @@ public sealed class SampleEstimateDbContext(DbContextOptions<SampleEstimateDbCon
         record.Property(x => x.Subtotal).HasPrecision(18, 0);
         record.Property(x => x.DiscountAmount).HasPrecision(18, 0);
         record.Property(x => x.Total).HasPrecision(18, 0);
+        record.Property(x => x.EditedAt).HasColumnType("datetime2(3)");
     }
 }

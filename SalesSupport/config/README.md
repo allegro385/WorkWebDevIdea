@@ -8,12 +8,12 @@ Commonが読み込む共通設定ファイルの雛形です。接続文字列�
 
 1. 環境に合う雛形をコピーし、下記の既定の場所へ置きます。ファイルは**Web公開領域とアプリの配置フォルダーの外**です。
 2. 下表の「導入時に設定」の項目へ実値を記入します。未設定のままでは起動時に構成エラーで停止し、既定値での代替は行いません。
-3. Portalと各Webツールは、各アプリのコンテンツルートから既定の相対パス`../../config/salessupport.common.json`でこのファイルを読みます。標準配置ではパスの指定は不要です。配置が異なる場合だけ、IISアプリケーションの環境変数`SalesSupport__CommonConfigPath`（`web.config`の`<environmentVariables>`）で相対パスを与えます。全アプリが同じファイルを指します。
+3. Portalと各Webツールは、各アプリのコンテンツルートから既定の相対パスでこのファイルを読みます。既定はPortalが`../../config/salessupport.common.json`、Webツールが`../../../config/salessupport.common.json`です。標準配置ではパスの指定は不要です。配置が異なる場合だけ、IISアプリケーションの環境変数`SalesSupport__CommonConfigPath`（`web.config`の`<environmentVariables>`）で相対パスを与えます。全アプリが同じファイルを指します。
 4. ファイルのACLは、対象アプリケーションプールの読取りと運用管理者だけに限定します。Data Protectionの鍵フォルダーと同じ扱いです。
 
 | 用途 | 既定の場所 | 読み込むアプリ |
 | --- | --- | --- |
-| IIS配置（開発サーバー・本番） | `<ルート>\config\salessupport.common.json` | `<ルート>\apps\<アプリ名>\`に配置したPortal・Webツール。パス指定不要 |
+| IIS配置（開発サーバー・本番） | `<ルート>\config\salessupport.common.json` | `<ルート>\apps\<フォルダー名>\`に配置したPortal、`<ルート>\apps\tools\<ToolId>\`に配置したWebツール。パス指定不要 |
 | ローカルの連携試験 | リポジトリの`SalesSupport\config\salessupport.common.Development.json` | Portalの`https`、各ツールの`portal`起動プロファイル。プロファイルが`SalesSupport__CommonConfigPath=../../../config/salessupport.common.Development.json`を指定済み |
 
 Webツールの[単独開発](#ツールを単独で開発する)ではこのファイルを読みません。親フォルダーを順に探す処理はなく、読込先は一意です。ファイルがない場合や書式不正の場合は、解決後のファイルパスと理由を表示して起動を停止します（設定値は表示しません）。
@@ -26,15 +26,15 @@ Webツールの[単独開発](#ツールを単独で開発する)ではこのフ
 
 | 対象 | 基準フォルダー |
 | --- | --- |
-| 環境変数`SalesSupport__CommonConfigPath`（既定`../../config/salessupport.common.json`） | 各アプリのコンテンツルート。IISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダー、`dotnet <アプリ>.dll`では現在のフォルダー |
+| 環境変数`SalesSupport__CommonConfigPath`（既定はPortal`../../config/salessupport.common.json`、Webツール`../../../config/salessupport.common.json`） | 各アプリのコンテンツルート。IISでは配置フォルダー、Visual Studio・`dotnet run`ではプロジェクトフォルダー、`dotnet <アプリ>.dll`では現在のフォルダー |
 | このファイル内のフォルダー（`KeyDirectory`、`Storage:*Root`） | このファイルがあるフォルダー |
 
 雛形の値は次の配置を前提にしています。配置が違う場合は相対パスを読み替えてください。
 
 ```text
 D:\SalesSupport\
-├─ apps\portal\      Portalの発行成果物（IISアプリケーション）
-├─ apps\T001\        Webツールの発行成果物（IISアプリケーション）
+├─ apps\portal\      Portalの発行成果物（IISアプリケーション。フォルダー名は任意）
+├─ apps\tools\T001\  Webツールの発行成果物（IISアプリケーション。apps\tools\<ToolId>\）
 ├─ config\           このファイル（salessupport.common.json）
 ├─ keys\             Data Protectionキー
 └─ storage\temp\, storage\files\   一時・永続の保存領域
