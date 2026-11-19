@@ -93,8 +93,8 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
     {
         var query = db.Inquiries.AsNoTracking().AsQueryable();
         if (CommonValidation.Normalize(input.InquiryId) is { } inquiryId) query = query.Where(x => x.InquiryId == inquiryId);
-        if (input.From is { } from) { var fromUtc = ToUtc(from); query = query.Where(x => x.CreatedAt >= fromUtc); }
-        if (input.To is { } to) { var toUtc = ToUtc(to.AddDays(1)); query = query.Where(x => x.CreatedAt < toUtc); }
+        if (input.From is { } from) { var fromUtc = ToUtc(from); query = query.Where(x => x.ReceivedAt >= fromUtc); }
+        if (input.To is { } to) { var toUtc = ToUtc(to.AddDays(1)); query = query.Where(x => x.ReceivedAt < toUtc); }
         if (CommonValidation.Normalize(input.CategoryCode) is { } category) query = query.Where(x => x.CategoryCode == category);
         if (CommonValidation.Normalize(input.AdminNote) is { } note) query = query.Where(x => x.AdminNote != null && x.AdminNote.Contains(note));
         if (CommonValidation.Normalize(input.Content) is { } content) query = query.Where(x => x.Content.Contains(content));
@@ -112,7 +112,7 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
                           select new
                           {
                               inquiry.InquiryId,
-                              inquiry.CreatedAt,
+                              inquiry.ReceivedAt,
                               inquiry.CategoryCode,
                               inquiry.TargetType,
                               inquiry.ToolId,
@@ -127,8 +127,8 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
 
         return rows
             // 要対応・対応中・検討中を優先し、同順位は受付日時とIDの降順で安定させます。
-            .OrderBy(x => Priority(x.Status)).ThenByDescending(x => x.CreatedAt).ThenByDescending(x => x.InquiryId, StringComparer.Ordinal)
-            .Select(x => new InquiryListItem(x.InquiryId, DateOnly.FromDateTime(ToJst(x.CreatedAt).DateTime), ToJst(x.CreatedAt),
+            .OrderBy(x => Priority(x.Status)).ThenByDescending(x => x.ReceivedAt).ThenByDescending(x => x.InquiryId, StringComparer.Ordinal)
+            .Select(x => new InquiryListItem(x.InquiryId, DateOnly.FromDateTime(ToJst(x.ReceivedAt).DateTime), ToJst(x.ReceivedAt),
                 x.CategoryCode, FormatTarget(x.TargetType, x.ToolId), DescribeTarget(x.TargetType, x.ToolName), x.SenderName,
                 x.AssigneeUserId, x.Status, x.AdminNote, Preview(x.Content), x.UpdateCount))
             .ToList();
@@ -143,7 +143,7 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
                          select new
                          {
                              inquiry.InquiryId,
-                             inquiry.CreatedAt,
+                             inquiry.ReceivedAt,
                              inquiry.CategoryCode,
                              inquiry.TargetType,
                              inquiry.ToolId,
@@ -158,7 +158,7 @@ public sealed class InquiryAdminService(PortalDbContext db, ICodeMasterReader co
                          }).SingleOrDefaultAsync(ct);
         if (row is null) return null;
 
-        var detail = new InquiryDetailView(row.InquiryId, ToJst(row.CreatedAt), row.SenderName, row.SenderEmail ?? "",
+        var detail = new InquiryDetailView(row.InquiryId, ToJst(row.ReceivedAt), row.SenderName, row.SenderEmail ?? "",
             row.Content, DescribeTarget(row.TargetType, row.ToolName));
         var input = new InquiryEditRow
         {

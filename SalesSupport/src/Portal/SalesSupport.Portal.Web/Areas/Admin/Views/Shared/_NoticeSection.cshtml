@@ -37,7 +37,7 @@
                         <tr>
                             <td><input type="checkbox" class="form-check-input" name="noticeIds" value="@notice.NoticeId" aria-label="@notice.Title を送信対象に選択" /></td>
                             <td><span class="pt-notice-published @(notice.IsPublished ? "" : "pt-notice-unpublished")">@(notice.IsPublished ? "公開" : "非公開")</span></td>
-                            <td>@notice.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                            <td>@notice.EditedAt.ToString("yyyy/MM/dd HH:mm")</td>
                             <td>@(notice.MailSentAt is { } sentAt ? sentAt.ToString("yyyy/MM/dd HH:mm") : "-----")</td>
                             <td>@notice.Title</td>
                             <td class="pt-multiline pt-clamp">@notice.Content</td>

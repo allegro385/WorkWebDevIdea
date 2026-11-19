@@ -34,6 +34,20 @@ public sealed class InquiryServiceTests
         Assert.Equal("202610310001", acceptance.InquiryId);
     }
 
+    /// <summary>受付日時は採番日を求めた時刻と同じUTC時刻を業務列ReceivedAtへ保存します。</summary>
+    [Fact]
+    public async Task StoresReceivedAtFromSameInstantAsInquiryId()
+    {
+        var receivedAt = new DateTimeOffset(2026, 10, 30, 15, 30, 0, TimeSpan.Zero);
+        await using var db = CreateContext();
+        var service = CreateService(db, new StubClock(receivedAt), new RecordingAllocator());
+
+        var acceptance = await service.SubmitAsync(new InquirySubmission(SenderId, "QUESTION", "PORTAL", "受付日時の確認です。", null, null));
+
+        Assert.Equal(InquiryOutcome.Accepted, acceptance.Outcome);
+        Assert.Equal(receivedAt.UtcDateTime, db.Inquiries.Single().ReceivedAt);
+    }
+
     /// <summary>送信者と宛先だけを登録した検証用のContextを作成します。</summary>
     /// <returns>インメモリーのPortalDbContextです。</returns>
     private static PortalDbContext CreateContext()

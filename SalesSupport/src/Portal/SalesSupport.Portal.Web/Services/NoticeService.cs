@@ -15,11 +15,11 @@ namespace SalesSupport.Portal.Web.Services;
 /// <param name="Title">表題です。</param>
 /// <param name="Content">本文です。一覧では2行程度のプレビューとして表示します。</param>
 /// <param name="IsPublished">公開中かどうかです。</param>
-/// <param name="UpdatedAt">更新日時のJST表示値です。</param>
+/// <param name="EditedAt">登録・編集保存した日時のJST表示値です。メール送信では変わりません。</param>
 /// <param name="MailSentAt">最終送信成功日時のJST表示値です。成功歴がない場合はnullです。</param>
 /// <param name="UpdateCount">同時更新の検出に使用する監査列です。</param>
 public sealed record NoticeListItem(int NoticeId, string Title, string Content, bool IsPublished,
-    DateTimeOffset UpdatedAt, DateTimeOffset? MailSentAt, int UpdateCount);
+    DateTimeOffset EditedAt, DateTimeOffset? MailSentAt, int UpdateCount);
 
 /// <summary>お知らせ編集欄の入出力です。MailSentAtは編集保存で変更しません。</summary>
 /// <param name="NoticeId">更新対象の識別子です。新規登録ではnullです。</param>
@@ -100,11 +100,11 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
     public async Task<IReadOnlyList<NoticeListItem>> GetListAsync(string noticeType, string? toolId, CancellationToken ct = default)
     {
         var rows = await db.Notices.AsNoTracking().Where(x => x.NoticeType == noticeType && x.ToolId == toolId)
-            .OrderByDescending(x => x.UpdatedAt).ThenByDescending(x => x.NoticeId)
-            .Select(x => new { x.NoticeId, x.Title, x.Content, x.IsPublished, x.UpdatedAt, x.MailSentAt, x.UpdateCount })
+            .OrderByDescending(x => x.EditedAt).ThenByDescending(x => x.NoticeId)
+            .Select(x => new { x.NoticeId, x.Title, x.Content, x.IsPublished, x.EditedAt, x.MailSentAt, x.UpdateCount })
             .ToListAsync(ct);
         return rows.Select(x => new NoticeListItem(x.NoticeId, x.Title, x.Content, x.IsPublished,
-            ToJst(x.UpdatedAt), x.MailSentAt is null ? null : ToJst(x.MailSentAt.Value), x.UpdateCount)).ToList();
+            ToJst(x.EditedAt), x.MailSentAt is null ? null : ToJst(x.MailSentAt.Value), x.UpdateCount)).ToList();
     }
 
     /// <summary>別のツール・種別のお知らせは読み込みません。</summary>
@@ -124,7 +124,7 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
         return result;
     }
 
-    /// <summary>タイトル・本文・公開状態だけを更新します。</summary>
+    /// <summary>タイトル・本文・公開状態と、その保存日時EditedAtだけを更新します。</summary>
     private async Task<NoticeSaveResult> ApplySaveAsync(string noticeType, string? toolId, NoticeEditModel input, CancellationToken ct)
     {
         List<FieldError> errors = [];
@@ -132,6 +132,7 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
         if (CommonValidation.ValidateText(nameof(NoticeEditModel.Content), input.Content, MaxContentLength, required: true) is { } contentError) errors.Add(contentError);
         if (errors.Count != 0) return new(NoticeSaveOutcome.InvalidInput, new(errors));
 
+        var editedAt = clock.GetUtcNow().UtcDateTime;
         try
         {
             if (input.NoticeId is not { } noticeId)
@@ -142,7 +143,8 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
                     ToolId = toolId,
                     Title = input.Title!,
                     Content = input.Content!,
-                    IsPublished = input.IsPublished
+                    IsPublished = input.IsPublished,
+                    EditedAt = editedAt
                 });
                 await db.SaveChangesAsync(ct);
                 return NoticeSaveResult.From(NoticeSaveOutcome.Saved);
@@ -156,6 +158,7 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
             notice.Title = input.Title!;
             notice.Content = input.Content!;
             notice.IsPublished = input.IsPublished;
+            notice.EditedAt = editedAt;
             await db.SaveChangesAsync(ct);
             return NoticeSaveResult.From(NoticeSaveOutcome.Saved);
         }
@@ -238,7 +241,7 @@ public sealed class NoticeService(PortalDbContext db, IApplicationClock clock, I
     private async Task<MailContent?> BuildMailAsync(NoticeSendTicket ticket, IReadOnlyList<int> noticeIds, CancellationToken ct)
     {
         var notices = await db.Notices.AsNoTracking().Where(x => noticeIds.Contains(x.NoticeId))
-            .OrderByDescending(x => x.UpdatedAt).ThenByDescending(x => x.NoticeId)
+            .OrderByDescending(x => x.EditedAt).ThenByDescending(x => x.NoticeId)
             .Select(x => new { x.Title, x.Content }).ToListAsync(ct);
         var body = string.Join("\r\n", notices.Select(x => $"【{x.Title}】\r\n{x.Content}\r\n"));
         if (ticket.NoticeType != "TOOL") return templates.Render(NoticeMailTemplates.Key(ticket.NoticeType), new Dictionary<string, string> { ["お知らせ"] = body });

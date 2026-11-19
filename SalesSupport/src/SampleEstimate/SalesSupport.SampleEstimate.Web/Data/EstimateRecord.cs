@@ -29,4 +29,6 @@ public sealed class EstimateRecord : AuditedEntity
     public decimal Total { get; set; }
     /// <summary>入力ファイルの非空行数です。ファイル本体は保存しません。</summary>
     public int? DetailRowCount { get; set; }
+    /// <summary>登録・編集保存したUTC日時です。一覧の表示と並び順に使い、監査列UpdatedAtは使いません。</summary>
+    public DateTime EditedAt { get; set; }
 }

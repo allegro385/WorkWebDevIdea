@@ -41,6 +41,7 @@ BEGIN TRY
         DiscountAmount decimal(18,0) NOT NULL,
         Total decimal(18,0) NOT NULL,
         DetailRowCount int NULL,
+        EditedAt datetime2(3) NOT NULL,
         UpdateCount int NOT NULL CONSTRAINT DF_SampleEstimateRecords_UpdateCount DEFAULT (0),
         CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_SampleEstimateRecords_CreatedAt DEFAULT SYSUTCDATETIME(),
         CreatedBy nvarchar(128) NOT NULL CONSTRAINT DF_SampleEstimateRecords_CreatedBy DEFAULT USER_NAME(),
@@ -82,12 +83,12 @@ BEGIN TRY
     INSERT portal.FileUploadPolicyExtensions(PolicyId, Extension) VALUES (@PolicyId, '.tsv');
 
     INSERT dbo.SampleEstimateRecords(RecordId, SubmissionId, OwnerUserId, ProjectName, AppliedOn, CategoryCode, Quantity, UnitPrice,
-        Subtotal, DiscountAmount, Total, DetailRowCount)
+        Subtotal, DiscountAmount, Total, DetailRowCount, EditedAt)
     VALUES
         ('00000000-0000-0000-0000-00000000A101', '00000000-0000-0000-0000-00000000B101', @OwnerUserId,
-         N'[SAMPLE] 標準案件', '2026-09-23', 'STANDARD', 2, 50000, 100000, 0, 100000, NULL),
+         N'[SAMPLE] 標準案件', '2026-09-23', 'STANDARD', 2, 50000, 100000, 0, 100000, NULL, DATEADD(minute, -1, SYSUTCDATETIME())),
         ('00000000-0000-0000-0000-00000000A102', '00000000-0000-0000-0000-00000000B102', @OwnerUserId,
-         N'[SAMPLE] キャンペーン案件', '2026-09-24', 'CAMPAIGN', 3, 10000, 30000, 3000, 27000, 4);
+         N'[SAMPLE] キャンペーン案件', '2026-09-24', 'CAMPAIGN', 3, 10000, 30000, 3000, 27000, 4, SYSUTCDATETIME());
     COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH

@@ -220,6 +220,7 @@ CREATE TABLE portal.Notices
     Title nvarchar(200) NOT NULL,
     Content nvarchar(max) NOT NULL,
     IsPublished bit NOT NULL CONSTRAINT DF_Notices_IsPublished DEFAULT (0),
+    EditedAt datetime2(3) NOT NULL,
     MailSentAt datetime2(3) NULL,
     UpdateCount int NOT NULL CONSTRAINT DF_Notices_UpdateCount DEFAULT (0),
     CreatedAt datetime2(3) NOT NULL CONSTRAINT DF_Notices_CreatedAt DEFAULT SYSUTCDATETIME(),
@@ -380,6 +381,7 @@ CREATE TABLE portal.InquiryDailySequences
 CREATE TABLE portal.Inquiries
 (
     InquiryId char(12) NOT NULL,
+    ReceivedAt datetime2(3) NOT NULL,
     CategoryCode varchar(20) NOT NULL,
     TargetType varchar(20) NOT NULL,
     ToolId varchar(20) NULL,

@@ -61,10 +61,10 @@ INSERT portal.ToolVersionHistories (ToolId, Version, ModifiedByUserId, ChangeDes
 ('DMY-WEB', '1.1.0', @AdminUserId, N'検索条件を追加しました。', '2026-09-01', 1),
 ('DMY-DESK', '2.0.0', @AdminUserId, N'帳票レイアウトを更新しました。', '2026-09-05', 1);
 
-INSERT portal.Notices (NoticeType, ToolId, Title, Content, IsPublished, MailSentAt) VALUES
-('SYSTEM', NULL, N'[DUMMY] システムメンテナンスのお知らせ', N'開発環境の表示確認用お知らせです。', 1, NULL),
-('TOOL', 'DMY-WEB', N'[DUMMY] 検索条件を追加しました', N'検索条件の追加を想定したダミーのお知らせです。', 1, SYSUTCDATETIME()),
-('TOOL', 'DMY-DESK', N'[DUMMY] 新しい版を公開しました', N'限定公開ツールのお知らせ表示確認用です。', 1, NULL);
+INSERT portal.Notices (NoticeType, ToolId, Title, Content, IsPublished, EditedAt, MailSentAt) VALUES
+('SYSTEM', NULL, N'[DUMMY] システムメンテナンスのお知らせ', N'開発環境の表示確認用お知らせです。', 1, SYSUTCDATETIME(), NULL),
+('TOOL', 'DMY-WEB', N'[DUMMY] 検索条件を追加しました', N'検索条件の追加を想定したダミーのお知らせです。', 1, DATEADD(day, -1, SYSUTCDATETIME()), SYSUTCDATETIME()),
+('TOOL', 'DMY-DESK', N'[DUMMY] 新しい版を公開しました', N'限定公開ツールのお知らせ表示確認用です。', 1, SYSUTCDATETIME(), NULL);
 
 INSERT portal.FaqCategories (CategoryName, SortOrder) VALUES
 (N'[DUMMY] ログイン・アカウント', 10),
@@ -82,11 +82,12 @@ INSERT portal.FaqItems (CategoryId, Question, Answer, SortOrder, IsPublished) VA
 INSERT portal.UserToolFavorites (UserId, ToolId) VALUES (@GeneralUserId, 'DMY-WEB');
 
 INSERT portal.Inquiries
-    (InquiryId, CategoryCode, TargetType, ToolId, SubmittedByUserId, Content, Status, AssigneeUserId, AdminNote)
+    (InquiryId, ReceivedAt, CategoryCode, TargetType, ToolId, SubmittedByUserId, Content, Status, AssigneeUserId, AdminNote)
 VALUES
-('209912310001', 'QUESTION', 'TOOL', 'DMY-WEB', @GeneralUserId, N'検索条件の指定方法を教えてください。', 'IN_PROGRESS', @AdminUserId, N'操作手順を確認中。'),
-('209912310002', 'PROBLEM', 'PORTAL', NULL, @GeneralUserId, N'ポータルの画面表示が崩れることがあります。', 'ACTION_REQUIRED', NULL, N'ブラウザー情報の確認が必要。'),
-('209912310003', 'REQUEST', 'OTHER', NULL, @GeneralUserId, N'新しい営業資料の掲載を希望します。', 'UNDER_REVIEW', @AdminUserId, NULL);
+-- ReceivedAtはUTC。InquiryIdの受付日（JST 2099-12-31）と一致させる。
+('209912310001', '2099-12-31T00:10:00', 'QUESTION', 'TOOL', 'DMY-WEB', @GeneralUserId, N'検索条件の指定方法を教えてください。', 'IN_PROGRESS', @AdminUserId, N'操作手順を確認中。'),
+('209912310002', '2099-12-31T01:20:00', 'PROBLEM', 'PORTAL', NULL, @GeneralUserId, N'ポータルの画面表示が崩れることがあります。', 'ACTION_REQUIRED', NULL, N'ブラウザー情報の確認が必要。'),
+('209912310003', '2099-12-31T02:30:00', 'REQUEST', 'OTHER', NULL, @GeneralUserId, N'新しい営業資料の掲載を希望します。', 'UNDER_REVIEW', @AdminUserId, NULL);
 
 INSERT log.ToolUsageLogs (ToolId, UserId, OccurredAt, EventType, ResultCode, CorrelationId) VALUES
 ('DMY-WEB', @GeneralUserId, DATEADD(minute, -30, SYSUTCDATETIME()), 'WEB_OPEN', 'SUCCESS', '00000000-0000-0000-0000-00000000D001'),
