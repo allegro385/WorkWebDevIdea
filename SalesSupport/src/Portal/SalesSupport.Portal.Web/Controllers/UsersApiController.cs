@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Contracts;
@@ -23,6 +24,7 @@ public sealed class UsersApiController(ICurrentUserAccessor current, IPreference
 
     /// <summary>本人の通知設定を返します。未登録は整合性エラーとして503を返します。</summary>
     [HttpGet("preferences")]
+    [Authorize(Policy = CommonPolicies.User)]
     public async Task<ActionResult<UserPreferencesDto>> GetPreferences(CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();
@@ -34,6 +36,7 @@ public sealed class UsersApiController(ICurrentUserAccessor current, IPreference
 
     /// <summary>本人の通知設定を更新します。CSRFトークンを必須とし、成功時は保存後の値を返します。</summary>
     [HttpPut("preferences")]
+    [Authorize(Policy = CommonPolicies.User)]
     public async Task<ActionResult<UserPreferencesDto>> PutPreferences([FromBody] UserPreferencesDto input, CancellationToken ct)
     {
         if (current.User is not { } user) return Unauthorized();

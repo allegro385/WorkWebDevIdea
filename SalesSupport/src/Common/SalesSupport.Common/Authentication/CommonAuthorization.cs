@@ -7,6 +7,19 @@ using SalesSupport.Common.Logging;
 
 namespace SalesSupport.Common.Authentication;
 
+/// <summary>Commonが登録する明示用の認可ポリシー名です。PortalとWebツールのControllerへ指定します。</summary>
+public static class CommonPolicies
+{
+    /// <summary>共有Cookieの実ユーザーで、サイト入場に加えてADMINを要求します。</summary>
+    public const string Admin = "SalesSupportAdmin";
+
+    /// <summary>そのモードの既定の認証方式で、サイト入場とConfigのToolIdの利用可否を要求します。</summary>
+    public const string Tool = "SalesSupportTool";
+
+    /// <summary>本人向けの画面・APIで、共有Cookieの実ユーザーとサイト入場（ツールではToolIdの利用可否も）を要求します。匿名モードの共通ユーザーでは満たしません。</summary>
+    public const string User = "SalesSupportUser";
+}
+
 /// <summary>サイト入場と必要に応じた管理者・ツール利用の要件です。</summary>
 public sealed record CommonAccessRequirement(bool Admin = false, bool Tool = false) : IAuthorizationRequirement;
 

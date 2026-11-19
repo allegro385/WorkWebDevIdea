@@ -81,7 +81,7 @@ public static class CommonServiceExtensions
         services.AddOptions<LoggingOptions>().Bind(configuration.GetSection("SalesSupport:Logging"))
             .Validate(x => x.TimeoutSeconds > 0, "Logging:TimeoutSecondsが不正です。").ValidateOnStart();
         AddStorage(services, common);
-        AddMail(services, configuration, kind, anonymous);
+        AddMail(services, configuration, kind);
         AddHttp(services, configuration);
         services.AddOptions<ProxyOptions>().Bind(configuration.GetSection("SalesSupport:Proxy"))
             .Validate(x => x.KnownProxies.All(address => System.Net.IPAddress.TryParse(address, out _)), "Proxy:KnownProxiesが不正です。").ValidateOnStart();
@@ -123,16 +123,17 @@ public static class CommonServiceExtensions
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CommonAuthorizationHandler>();
         services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler, CommonAuthorizationResultHandler>();
         // 単独開発は既定の認証方式でCookieを読まず、自端末からの対象ツール利用だけを既定認可で許可します。
-        // 匿名モードは既定の認証方式で固定の共通ユーザーを確定し、サイト・ツールの判定は通常どおりDBで行います。
+        // 匿名モードは既定の認証方式でログイン利用者または固定の共通ユーザーを確定し、サイト・ツールの判定は通常どおりDBで行います。
         var defaultScheme = standalone ? StandaloneToolAuthenticationHandler.SchemeName
             : anonymous ? AnonymousSiteAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
         services.AddAuthorization(options =>
         {
-            // 管理者の明示ポリシーは共有Cookieの実ユーザーだけを対象とし、単独開発・匿名モードでは満たしません。
-            options.AddPolicy("SalesSupportAdmin", policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Admin: true)));
-            // ツールの明示ポリシーは匿名モードでも機能させるため、そのモードの認証方式を使います。管理者の明示ポリシーは共有Cookieのままです。
+            // 管理者と本人の明示ポリシーは共有Cookieの実ユーザーだけを対象とし、単独開発と匿名モードの共通ユーザーでは満たしません。
+            options.AddPolicy(CommonPolicies.Admin, policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Admin: true)));
+            options.AddPolicy(CommonPolicies.User, policy => policy.AddAuthenticationSchemes(SharedCookieContract.Scheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: kind == ApplicationKind.Tool)));
+            // ツールの明示ポリシーは匿名モードの共通ユーザーでも機能させるため、そのモードの認証方式を使います。
             var toolScheme = anonymous ? AnonymousSiteAuthenticationHandler.SchemeName : SharedCookieContract.Scheme;
-            options.AddPolicy("SalesSupportTool", policy => policy.AddAuthenticationSchemes(toolScheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: true)));
+            options.AddPolicy(CommonPolicies.Tool, policy => policy.AddAuthenticationSchemes(toolScheme).RequireAuthenticatedUser().AddRequirements(new CommonAccessRequirement(Tool: true)));
             var fallback = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(defaultScheme);
             if (!standalone) fallback.RequireAuthenticatedUser();
             options.FallbackPolicy = fallback.AddRequirements(new CommonAccessRequirement(Tool: kind == ApplicationKind.Tool)).Build();
@@ -198,15 +199,14 @@ public static class CommonServiceExtensions
             .ValidateOnStart();
     }
 
-    /// <summary>メールを使用するホストだけSMTP設定を要求します。匿名モードはメールを使わないため無効にします。</summary>
-    private static void AddMail(IServiceCollection services, IConfiguration configuration, ApplicationKind kind, bool anonymous)
+    /// <summary>メールを使用するホスト（Portal）だけSMTP設定を要求します。匿名モードでもログインのメールOTPに使います。</summary>
+    private static void AddMail(IServiceCollection services, IConfiguration configuration, ApplicationKind kind)
     {
         var isDevelopment = configuration["SalesSupport:EnvironmentCode"] == "DEVELOPMENT";
         services.AddOptions<MailTemplateOptions>();
         services.AddOptions<MailOptions>().Bind(configuration.GetSection("SalesSupport:Mail"))
             // 共通設定ファイルや環境変数にEnabledが含まれていても、メール利用可否はアプリ種別で確定します。
-            // 匿名モードはログインOTP・通知・問い合わせを提供しないため、Portalでも送信を無効へ固定します。
-            .PostConfigure(options => options.Enabled = kind == ApplicationKind.Portal && !anonymous)
+            .PostConfigure(options => options.Enabled = kind == ApplicationKind.Portal)
             .Validate(x => !x.Enabled || !string.IsNullOrWhiteSpace(x.Host), "Mail:Hostが必要です。")
             .Validate(x => !x.Enabled || x.Port is > 0 and <= 65535, "Mail:Portが不正です。")
             .Validate(x => !x.Enabled || x.TlsMode is MailTlsMode.StartTls or MailTlsMode.SslOnConnect, "Mail:TlsModeを明示してください。")

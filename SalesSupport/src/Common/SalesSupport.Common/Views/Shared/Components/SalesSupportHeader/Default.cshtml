@@ -47,5 +47,12 @@
                 </ul>
             </div>
         }
+        else if (Model.LoginUrl is not null)
+        {
+            @* 匿名モードの共通ユーザーは、利用者メニューと同じ右上の位置からログインへ移動します。 *@
+            <div class="ss-account">
+                <a class="btn ss-nav-button" href="@Model.LoginUrl">ログイン</a>
+            </div>
+        }
     </div>
 </header>

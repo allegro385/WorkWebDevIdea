@@ -23,7 +23,7 @@ using Xunit;
 
 namespace SalesSupport.Common.Tests;
 
-/// <summary>サイトの認証モード（メールOTP・匿名）の受付条件と、匿名モードの固定ユーザー・既定スキーム・境界を確認します。</summary>
+/// <summary>サイトの認証モード（メールOTP・匿名）の受付条件と、匿名モードの共通ユーザー・任意ログイン・既定スキーム・境界を確認します。</summary>
 [Collection(CommonConfigPathCollection.Name)]
 public sealed class SiteAuthenticationModeTests : IDisposable
 {
@@ -100,9 +100,13 @@ public sealed class SiteAuthenticationModeTests : IDisposable
         Assert.Equal([AnonymousSiteAuthenticationHandler.SchemeName], fallback.AuthenticationSchemes);
         // 固定の共通ユーザーも認証済み利用者として扱うため、既定方針の利用者要求は残します。
         Assert.Contains(fallback.Requirements, x => x is DenyAnonymousAuthorizationRequirement);
-        Assert.Equal([AnonymousSiteAuthenticationHandler.SchemeName], authorization.GetPolicy("SalesSupportTool")!.AuthenticationSchemes);
-        // 管理者の明示ポリシーは共有Cookieの実ユーザーだけを対象とし、匿名モードでは満たしません。
-        Assert.Equal([SharedCookieContract.Scheme], authorization.GetPolicy("SalesSupportAdmin")!.AuthenticationSchemes);
+        Assert.Equal([AnonymousSiteAuthenticationHandler.SchemeName], authorization.GetPolicy(CommonPolicies.Tool)!.AuthenticationSchemes);
+        // 管理者と本人の明示ポリシーは共有Cookieの実ユーザーだけを対象とし、共通ユーザーでは満たしません。
+        Assert.Equal([SharedCookieContract.Scheme], authorization.GetPolicy(CommonPolicies.Admin)!.AuthenticationSchemes);
+        var user = authorization.GetPolicy(CommonPolicies.User)!;
+        Assert.Equal([SharedCookieContract.Scheme], user.AuthenticationSchemes);
+        Assert.Contains(user.Requirements, x => x is DenyAnonymousAuthorizationRequirement);
+        Assert.Contains(user.Requirements, x => x is CommonAccessRequirement { Admin: false, Tool: false });
     }
 
     /// <summary>メールOTPのモードでは共有Cookieを既定スキームとして使います。</summary>
@@ -113,62 +117,94 @@ public sealed class SiteAuthenticationModeTests : IDisposable
         Assert.False(provider.GetRequiredService<IOptions<CommonOptions>>().Value.IsAnonymous);
         Assert.Equal(SharedCookieContract.Scheme,
             (await provider.GetRequiredService<IAuthenticationSchemeProvider>().GetDefaultAuthenticateSchemeAsync())!.Name);
-        Assert.Equal([SharedCookieContract.Scheme],
-            provider.GetRequiredService<IOptions<AuthorizationOptions>>().Value.GetPolicy("SalesSupportTool")!.AuthenticationSchemes);
+        var authorization = provider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
+        Assert.Equal([SharedCookieContract.Scheme], authorization.GetPolicy(CommonPolicies.Tool)!.AuthenticationSchemes);
+        Assert.Equal([SharedCookieContract.Scheme], authorization.GetPolicy(CommonPolicies.User)!.AuthenticationSchemes);
     }
 
-    /// <summary>匿名モードではメールを使わないため、Portalでも送信を無効へ固定します。</summary>
+    /// <summary>匿名モードでもログインのメールOTPを送るため、Portalのメールを有効にします。</summary>
     [Fact]
-    public async Task AnonymousModeDisablesMail()
+    public async Task AnonymousModeKeepsMailForLoginOtp()
     {
         await using var anonymous = Register(SiteAuthenticationMode.Anonymous);
-        Assert.False(anonymous.GetRequiredService<IOptions<MailOptions>>().Value.Enabled);
+        Assert.True(anonymous.GetRequiredService<IOptions<MailOptions>>().Value.Enabled);
         await using var emailOtp = Register(SiteAuthenticationMode.EmailOtp);
         Assert.True(emailOtp.GetRequiredService<IOptions<MailOptions>>().Value.Enabled);
     }
 
-    /// <summary>匿名認証は固定の共通ユーザーを検証済み利用者として確定し、Cookieを読みません。</summary>
+    /// <summary>共有Cookieで認証できない要求は、固定の共通ユーザーを検証済み利用者として確定します。</summary>
     [Fact]
-    public async Task AnonymousHandlerConfirmsFixedUser()
+    public async Task AnonymousHandlerConfirmsFixedUserWithoutSignedInUser()
     {
-        await using var services = new ServiceCollection().AddOptions().AddLogging().BuildServiceProvider();
         var current = new CurrentUserAccessor();
-        var handler = new AnonymousSiteAuthenticationHandler(services.GetRequiredService<IOptionsMonitor<AuthenticationSchemeOptions>>(),
-            services.GetRequiredService<ILoggerFactory>(), UrlEncoder.Default, current);
-        var context = new DefaultHttpContext();
-        context.Request.Headers.Cookie = SharedCookieContract.CookieName + "=invalid";
-        await handler.InitializeAsync(
-            new AuthenticationScheme(AnonymousSiteAuthenticationHandler.SchemeName, null, typeof(AnonymousSiteAuthenticationHandler)), context);
-
-        var result = await handler.AuthenticateAsync();
+        var result = await AuthenticateAnonymousAsync(current, AuthenticateResult.NoResult());
 
         Assert.True(result.Succeeded);
         Assert.True(result.Principal!.Identity!.IsAuthenticated);
         Assert.Equal(AnonymousSiteUser.UserId.ToString(), result.Principal.FindFirstValue(ClaimTypes.NameIdentifier));
         Assert.Equal(new CurrentUser(AnonymousSiteUser.UserId, AnonymousSiteUser.DisplayName, AnonymousSiteUser.RoleCode), current.User);
+        Assert.False(current.HasIdentifiedUser());
     }
 
-    /// <summary>匿名モードでは残っている共有Cookieを受理せず、実ユーザーとして扱いません。</summary>
+    /// <summary>共有Cookieで認証できた要求は、そのログイン利用者を返し、共通ユーザーで上書きしません。</summary>
     [Fact]
-    public async Task AnonymousModeRejectsSharedCookie()
+    public async Task AnonymousHandlerReturnsSignedInUser()
     {
         var current = new CurrentUserAccessor();
-        current.SetVerified(new CurrentUser(Guid.NewGuid(), "前回の利用者", "ADMIN"));
+        var signedIn = new CurrentUser(Guid.NewGuid(), "試験太郎", "ADMIN");
+        current.SetVerified(signedIn);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, signedIn.UserId.ToString())], SharedCookieContract.Scheme));
+        var result = await AuthenticateAnonymousAsync(current, AuthenticateResult.Success(new AuthenticationTicket(principal, SharedCookieContract.Scheme)));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(signedIn.UserId.ToString(), result.Principal!.FindFirstValue(ClaimTypes.NameIdentifier));
+        Assert.Equal(signedIn, current.User);
+        Assert.True(current.HasIdentifiedUser());
+    }
+
+    /// <summary>匿名モードでも共有Cookieを通常どおりDBと照合し、ログイン利用者として受け付けます。</summary>
+    [Fact]
+    public async Task AnonymousModeValidatesSharedCookie()
+    {
         var options = Options.Create(new CommonOptions
         {
             Kind = ApplicationKind.Portal, EnvironmentCode = "PRODUCTION", AuthenticationMode = SiteAuthenticationMode.Anonymous
         });
-        var events = new SharedCookieEvents(new RejectFactory(), current,
-            new SalesSupport.Common.DateTime.ApplicationClock(TimeProvider.System), options, Options.Create(new IdentityOptions()));
+        var clock = new SalesSupport.Common.DateTime.ApplicationClock(TimeProvider.System);
+        var events = new SharedCookieEvents(new RejectFactory(), new CurrentUserAccessor(), clock, options, Options.Create(new IdentityOptions()));
         var scheme = new AuthenticationScheme(SharedCookieContract.Scheme, null, typeof(CookieAuthenticationHandler));
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())], SharedCookieContract.Scheme));
+        var properties = SharedCookieContract.CreateSignInProperties(clock.GetUtcNow());
         var validate = new CookieValidatePrincipalContext(new DefaultHttpContext(), scheme, new CookieAuthenticationOptions(),
-            new AuthenticationTicket(principal, new AuthenticationProperties(), SharedCookieContract.Scheme));
+            new AuthenticationTicket(principal, properties, SharedCookieContract.Scheme));
 
-        await events.ValidatePrincipal(validate);
+        // DBの照合へ進んだことを、DB参照の検出で確認します。
+        await Assert.ThrowsAsync<InvalidOperationException>(() => events.ValidatePrincipal(validate));
+    }
 
-        Assert.Null(validate.Principal);
-        Assert.Null(current.User);
+    /// <summary>匿名モードでも本人を要求する画面の未認証HTML要求はPortalのログインへ戻り先付きで誘導し、APIは401を返します。</summary>
+    [Fact]
+    public async Task AnonymousModeRedirectsHtmlToLogin()
+    {
+        var options = Options.Create(new CommonOptions
+        {
+            Kind = ApplicationKind.Portal, EnvironmentCode = "PRODUCTION", PortalBaseUrl = "https://example.invalid/portal/",
+            AuthenticationMode = SiteAuthenticationMode.Anonymous
+        });
+        var events = new SharedCookieEvents(new RejectFactory(), new CurrentUserAccessor(), new SalesSupport.Common.DateTime.ApplicationClock(TimeProvider.System),
+            options, Options.Create(new IdentityOptions()));
+        var scheme = new AuthenticationScheme(SharedCookieContract.Scheme, null, typeof(CookieAuthenticationHandler));
+
+        var html = new DefaultHttpContext();
+        html.Request.PathBase = "/portal";
+        html.Request.Path = "/tools/favorites";
+        await events.RedirectToLogin(new RedirectContext<CookieAuthenticationOptions>(html, scheme, new CookieAuthenticationOptions(), new AuthenticationProperties(), "unused"));
+        Assert.Equal("https://example.invalid/portal/account/login?returnUrl=%2Fportal%2Ftools%2Ffavorites", html.Response.Headers.Location.ToString());
+
+        var api = new DefaultHttpContext();
+        api.Request.Path = "/api/users/me/preferences";
+        await events.RedirectToLogin(new RedirectContext<CookieAuthenticationOptions>(api, scheme, new CookieAuthenticationOptions(), new AuthenticationProperties(), "unused"));
+        Assert.Equal(StatusCodes.Status401Unauthorized, api.Response.StatusCode);
     }
 
     /// <summary>匿名モードでも利用判定をDBで行い、単独開発のような認証なしの近道を使いません。</summary>
@@ -184,6 +220,39 @@ public sealed class SiteAuthenticationModeTests : IDisposable
         var evaluator = new AccessEvaluator(current, new RejectSettings(), new RejectFactory(), options);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => evaluator.EvaluateAsync(new(AccessPurpose.ToolUse, "T001")));
+    }
+
+    /// <summary>共有Cookieの認証結果を差し替えて、匿名モードの認証方式を1回実行します。</summary>
+    /// <param name="current">同じ要求内の検証済み利用者を保持する領域です。</param>
+    /// <param name="sharedCookie">共有Cookieの認証結果として返す値です。</param>
+    /// <returns>匿名モードの認証方式の結果です。</returns>
+    private static async Task<AuthenticateResult> AuthenticateAnonymousAsync(CurrentUserAccessor current, AuthenticateResult sharedCookie)
+    {
+        await using var services = new ServiceCollection().AddOptions().AddLogging()
+            .AddSingleton<IAuthenticationService>(new StubAuthenticationService(sharedCookie)).BuildServiceProvider();
+        var handler = new AnonymousSiteAuthenticationHandler(services.GetRequiredService<IOptionsMonitor<AuthenticationSchemeOptions>>(),
+            services.GetRequiredService<ILoggerFactory>(), UrlEncoder.Default, current);
+        var context = new DefaultHttpContext { RequestServices = services };
+        await handler.InitializeAsync(
+            new AuthenticationScheme(AnonymousSiteAuthenticationHandler.SchemeName, null, typeof(AnonymousSiteAuthenticationHandler)), context);
+        return await handler.AuthenticateAsync();
+    }
+
+    /// <summary>共有Cookieの認証結果だけを返す認証サービスです。</summary>
+    /// <param name="sharedCookie">共有Cookieの方式に対して返す結果です。</param>
+    private sealed class StubAuthenticationService(AuthenticateResult sharedCookie) : IAuthenticationService
+    {
+        /// <summary>共有Cookieの方式だけに設定した結果を返します。</summary>
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme) =>
+            Task.FromResult(scheme == SharedCookieContract.Scheme ? sharedCookie : AuthenticateResult.NoResult());
+        /// <summary>この試験では使用しません。</summary>
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
+        /// <summary>この試験では使用しません。</summary>
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
+        /// <summary>この試験では使用しません。</summary>
+        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties) => throw new NotSupportedException();
+        /// <summary>この試験では使用しません。</summary>
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
     }
 
     /// <summary>指定した認証モードの共通設定ファイルを作成し、PortalのCommonを登録します。</summary>

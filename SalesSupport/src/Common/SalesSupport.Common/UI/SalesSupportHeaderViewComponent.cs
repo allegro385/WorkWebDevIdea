@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SalesSupport.Common.Data;
@@ -14,9 +15,10 @@ public sealed record HeaderLink(string Label, string Url);
 public sealed record HeaderMenu(string Label, IReadOnlyList<HeaderLink> Links);
 
 /// <summary>共通ヘッダーの表示内容です。権限は検証済み情報だけから決定します。</summary>
-/// <remarks>単独開発ではPortalへのリンクとログアウトを持たず、<see cref="PortalTopUrl"/>と<see cref="LogoutUrl"/>はNULLです。</remarks>
+/// <remarks>単独開発ではPortalへのリンクとログアウトを持たず、<see cref="PortalTopUrl"/>と<see cref="LogoutUrl"/>はNULLです。
+/// <see cref="LoginUrl"/>は匿名モードの共通ユーザーへ右上に表示するPortalのログイン画面のURLで、それ以外はNULLです。</remarks>
 public sealed record SalesSupportHeaderModel(string SiteName, string? DisplayName, bool IsAdmin, bool IsDevelopment, string? PortalTopUrl,
-    IReadOnlyList<HeaderMenu> Menus, IReadOnlyList<HeaderLink> AccountLinks, string? LogoutUrl, bool IsStandalone = false);
+    IReadOnlyList<HeaderMenu> Menus, IReadOnlyList<HeaderLink> AccountLinks, string? LogoutUrl, bool IsStandalone = false, string? LoginUrl = null);
 
 /// <summary>検証済みユーザー、環境帯、Portalの固定リンクを描画します。</summary>
 public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current, IOptions<CommonOptions> options, ISalesSupportLinks links, CommonDbContext db) : ViewComponent
@@ -26,13 +28,14 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
     {
         // 単独開発にはPortal・ログイン利用者がないため、Portalへの導線を出さずにモードだけを示します。
         if (options.Value.IsStandalone) return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, true, null, [], [], null, IsStandalone: true));
-        // 匿名モードには本人向け機能とログアウトがないため、全ツールとマニュアルだけを案内します。
-        if (options.Value.IsAnonymous)
+        // 匿名モードの共通ユーザーには本人向け機能がないため、全ツールとマニュアルだけを案内し、右上にログインを表示します。
+        if (options.Value.IsAnonymous && current.User is not null && !current.HasIdentifiedUser())
         {
-            List<HeaderMenu> anonymousMenus = ViewData.GetPageShell().ShowCommonMenus
-                ? [new("ツール一覧", [new("全ツール", links.Portal("tools"))]), new("サポート", [new("利用マニュアル・FAQ", links.Portal("help"))])]
-                : [];
-            return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, options.Value.IsDevelopment, links.Portal(), anonymousMenus, [], null));
+            if (!ViewData.GetPageShell().ShowCommonMenus)
+                return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, options.Value.IsDevelopment, links.Portal(), [], [], null));
+            List<HeaderMenu> anonymousMenus = [new("ツール一覧", [new("全ツール", links.Portal("tools"))]), new("サポート", [new("利用マニュアル・FAQ", links.Portal("help"))])];
+            return View(new SalesSupportHeaderModel(options.Value.SiteName, null, false, options.Value.IsDevelopment, links.Portal(), anonymousMenus, [], null,
+                LoginUrl: LoginUrl()));
         }
         var user = current.User;
         var isAdmin = user?.RoleCode == "ADMIN";
@@ -58,5 +61,15 @@ public sealed class SalesSupportHeaderViewComponent(ICurrentUserAccessor current
         List<HeaderLink> accountLinks = [];
         return View(new SalesSupportHeaderModel(options.Value.SiteName, user?.DisplayName, isAdmin, options.Value.IsDevelopment,
             links.Portal(), menus, accountLinks, links.Local("account/logout")));
+    }
+
+    /// <summary>表示中の画面へ戻るPortalのログイン画面のURLを返します。</summary>
+    /// <returns>GETの画面はPathBase・パス・クエリを戻り先に付けたURL、GETで開けない更新結果の画面は戻り先なしのURLです。</returns>
+    private string LoginUrl()
+    {
+        var request = HttpContext.Request;
+        if (!HttpMethods.IsGet(request.Method)) return links.Portal("account/login");
+        var returnUrl = request.PathBase.Add(request.Path).Value + request.QueryString;
+        return links.Portal("account/login") + "?returnUrl=" + Uri.EscapeDataString(string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl);
     }
 }

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.MasterData;
 using SalesSupport.Common.UI;
 using SalesSupport.Portal.Web.Areas.Admin.Models;
-using SalesSupport.Portal.Web.Bootstrap;
+using SalesSupport.Common.Authentication;
 using SalesSupport.Portal.Web.Models;
 using SalesSupport.Portal.Web.Services;
 
@@ -13,7 +13,7 @@ namespace SalesSupport.Portal.Web.Areas.Admin.Controllers;
 /// <remarks>送信者と本文は変更できません。添付ファイルは保存していないため表示しません。</remarks>
 [Area("Admin")]
 [Route("admin/inquiries")]
-[Authorize(Policy = PortalPolicies.Admin)]
+[Authorize(Policy = CommonPolicies.Admin)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class InquiriesController(IInquiryAdminService inquiries, ICodeMasterReader codes) : Controller
 {

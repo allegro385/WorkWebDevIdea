@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
@@ -11,51 +10,45 @@ using Xunit;
 
 namespace SalesSupport.Portal.Tests;
 
-/// <summary>ポータルトップが、認証モードに応じてお知らせ表示とツール一覧への寄せを切り替えることを確認します。</summary>
+/// <summary>ポータルトップが、ログイン利用者と匿名モードの共通ユーザーの双方にお知らせを表示し、本人向けの入口を切り替えることを確認します。</summary>
 public sealed class HomeControllerTests
 {
-    /// <summary>匿名モードではトップを設けず、ツール一覧へ遷移させます。</summary>
+    /// <summary>匿名モードの共通ユーザーにもトップを表示し、本人向けの入口は表示しない指定にします。</summary>
     [Fact]
-    public async Task AnonymousTopRedirectsToToolList()
+    public async Task CommonUserTopShowsNoticesWithoutPersonalEntries()
     {
-        var notices = new StubSystemNoticeService();
-        var controller = Create(notices, anonymous: true);
+        var notices = new StubSystemNoticeService { Notices = [Notice()] };
+        var controller = Create(notices, new(AnonymousSiteUser.UserId, AnonymousSiteUser.DisplayName, AnonymousSiteUser.RoleCode));
 
-        var result = await controller.Index(default);
+        var model = Assert.IsType<HomeViewModel>(Assert.IsType<ViewResult>(await controller.Index(default)).Model);
 
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("Tools", redirect.ControllerName);
-        Assert.Equal("Index", redirect.ActionName);
-        // お知らせは遷移先の一覧で取得するため、トップでは取得しません。
-        Assert.Equal(0, notices.Calls);
-    }
-
-    /// <summary>ログインするモードでは、公開中のシステムお知らせを付けてトップを表示します。</summary>
-    [Fact]
-    public async Task LoginModeTopShowsSystemNotices()
-    {
-        var notices = new StubSystemNoticeService
-        {
-            Notices = [new(1, "メンテナンスのお知らせ", "本文", new DateOnly(2026, 10, 29), true)]
-        };
-        var controller = Create(notices);
-
-        var result = await controller.Index(default);
-
-        var model = Assert.IsType<HomeViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.Equal("メンテナンスのお知らせ", Assert.Single(model.Notices).Title);
+        Assert.False(model.HasIdentifiedUser);
+        Assert.False(model.CanUsePreferences);
+        Assert.False(model.IsAdmin);
     }
+
+    /// <summary>ログインした利用者には、公開中のシステムお知らせと本人向けの入口を表示します。</summary>
+    [Fact]
+    public async Task SignedInTopShowsSystemNotices()
+    {
+        var notices = new StubSystemNoticeService { Notices = [Notice()] };
+        var controller = Create(notices, new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "試験太郎", "A"));
+
+        var model = Assert.IsType<HomeViewModel>(Assert.IsType<ViewResult>(await controller.Index(default)).Model);
+
+        Assert.Equal("メンテナンスのお知らせ", Assert.Single(model.Notices).Title);
+        Assert.True(model.HasIdentifiedUser);
+    }
+
+    /// <summary>表示確認用のお知らせ1件を作成します。</summary>
+    private static PortalNoticeView Notice() => new(1, "メンテナンスのお知らせ", "本文", new DateOnly(2026, 10, 29), true);
 
     /// <summary>HTTPコンテキスト付きの対象Controllerを生成します。</summary>
     /// <param name="notices">システムお知らせの取得に使用する代替実装です。</param>
-    /// <param name="anonymous">匿名モードとして動かす場合はtrueです。</param>
-    private static HomeController Create(ISystemNoticeService notices, bool anonymous = false) =>
-        new(new StubSettingsReader(), notices, new StubCurrentUserAccessor(), new StubPreferenceService(), Options.Create(new CommonOptions
-        {
-            Kind = ApplicationKind.Portal,
-            EnvironmentCode = "PRODUCTION",
-            AuthenticationMode = anonymous ? SiteAuthenticationMode.Anonymous : SiteAuthenticationMode.EmailOtp
-        }))
+    /// <param name="user">検証済み利用者です。</param>
+    private static HomeController Create(ISystemNoticeService notices, CurrentUser user) =>
+        new(new StubSettingsReader(), notices, new StubCurrentUserAccessor(user), new StubPreferenceService())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -89,11 +82,12 @@ public sealed class HomeControllerTests
         public Task<DateOnly?> GetBusinessDateAsync(CancellationToken ct = default) => throw new NotSupportedException();
     }
 
-    /// <summary>検証済みの一般ユーザーを固定で返します。</summary>
-    private sealed class StubCurrentUserAccessor : ICurrentUserAccessor
+    /// <summary>指定した検証済み利用者を返します。</summary>
+    /// <param name="user">トップを表示する利用者です。</param>
+    private sealed class StubCurrentUserAccessor(CurrentUser user) : ICurrentUserAccessor
     {
-        /// <summary>トップを表示できる一般ユーザーです。</summary>
-        public CurrentUser? User { get; } = new(Guid.Parse("11111111-1111-1111-1111-111111111111"), "試験太郎", "A");
+        /// <summary>トップを表示する利用者です。</summary>
+        public CurrentUser? User { get; } = user;
     }
 
     /// <summary>通知設定の利用を許可しない状態で固定します。</summary>

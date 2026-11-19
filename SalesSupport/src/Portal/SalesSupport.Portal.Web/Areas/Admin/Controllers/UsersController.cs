@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.UI;
 using SalesSupport.Portal.Web.Areas.Admin.Models;
-using SalesSupport.Portal.Web.Bootstrap;
 using SalesSupport.Portal.Web.Models;
 using SalesSupport.Portal.Web.Services;
 
@@ -13,7 +12,7 @@ namespace SalesSupport.Portal.Web.Areas.Admin.Controllers;
 /// <remarks>一般ロール間の変更だけを許可し、ユーザーの物理削除は行いません。</remarks>
 [Area("Admin")]
 [Route("admin/users")]
-[Authorize(Policy = PortalPolicies.Admin)]
+[Authorize(Policy = CommonPolicies.Admin)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class UsersController(IUserAdminService users, ICurrentUserAccessor current) : Controller
 {

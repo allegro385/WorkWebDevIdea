@@ -30,6 +30,14 @@ public sealed class CurrentUserAccessor : ICurrentUserAccessor
         User = user;
     }
 }
+/// <summary>検証済み利用者の種類を判定します。</summary>
+public static class CurrentUserExtensions
+{
+    /// <summary>本人を特定できるログイン利用者かを返します。本人向けデータの所有者を決められるかの判定に使います。</summary>
+    /// <param name="current">同じ要求内の検証済み利用者です。</param>
+    /// <returns>共有Cookieで確認した利用者ならtrue。利用者なし（単独開発）と匿名モードの固定共通ユーザーはfalseです。</returns>
+    public static bool HasIdentifiedUser(this ICurrentUserAccessor current) => current.User is { } user && user.UserId != AnonymousSiteUser.UserId;
+}
 /// <summary>サイトとツールの現行状態で利用を判定します。</summary>
 public interface IAccessEvaluator
 {
