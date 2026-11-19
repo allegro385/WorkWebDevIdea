@@ -19,7 +19,7 @@
 | A002 ユーザー管理（ログインID検索・外部属性参照・一般ロール間変更・有効状態変更・ロック解除） | 実装済み |
 | A005 問い合わせ管理（検索・一括保存・詳細更新） | 実装済み |
 | A006 サイト管理（システムお知らせの保存・確認付き手動送信） | 実装済み |
-| 匿名モード（ログインなしの公開。トップを一覧へ寄せ、お知らせを一覧上部へ表示し、本人向け画面を経路ごと除外） | 実装済み |
+| 匿名モード（ログインなしの公開。未ログインは共通ユーザーで本人向け画面をログインへ誘導し、ヘッダー右上からログインすると本人向け機能を利用可能） | 実装済み |
 | HTTP運用モード（HTTPSのバインドが未完了の期間。HTTPSへの誘導とHSTSを止め、CookieのSecureを要求の方式に合わせる） | 実装済み |
 | TSVによるユーザーの一括登録（管理コマンド`import-users`） | 実装済み |
 
@@ -46,13 +46,13 @@ Identity標準EmailTokenProviderとAspNetUserTokensを利用します。Portal�
 | `ConnectionStrings:SalesSupport` | SQL Serverの接続文字列 |
 | `SalesSupport:EnvironmentCode` | `DEVELOPMENT` または `PRODUCTION` |
 | `SalesSupport:Site:Name` | 共通ヘッダー・フッターの表示名とメール文面のサイト名 |
-| `SalesSupport:Site:AuthenticationMode` | `EmailOtp`（未設定時の既定）または`Anonymous`。第1段のログインなし公開だけ`Anonymous` |
+| `SalesSupport:Site:AuthenticationMode` | `EmailOtp`（未設定時の既定）または`Anonymous`。第1段のログインなしでも使える公開だけ`Anonymous` |
 | `SalesSupport:Site:TransportMode` | `Https`（未設定時の既定）または`Http`。HTTPSのバインドがない期間だけ`Http` |
 | `SalesSupport:Application:Name` | このアプリ自身の名前。障害ログの`ApplicationName`に使用 |
 | `SalesSupport:Portal:BaseUrl` | 末尾スラッシュ付きのPortal公開URL。スキームは`Site:TransportMode`に合わせます（`Https`はhttps、`Http`はhttp） |
 | `SalesSupport:DataProtection:KeyDirectory` | 各アプリから参照できる実在の鍵共有フォルダー |
 | `SalesSupport:Storage:TemporaryRoot` / `PermanentRoot` | 一時・永続のファイル保存領域。Webルートと配置先の外に置きます |
-| `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です。`Anonymous`ではPortalもメールを使わないため、Commonが送信を無効へ固定し、これらの検証を行いません |
+| `SalesSupport:Mail:*` | SMTPのHost・Port・TlsMode・From・MaxRecipients等。`DEVELOPMENT`では`DevelopmentRecipient`も必須です。`Anonymous`でもログインのメールOTPに使うため必要です |
 | `SalesSupport:Proxy:KnownProxies` | 転送ヘッダーを信頼するプロキシのIP。未設定では転送ヘッダーを採用しません |
 | `SalesSupport:Http:TimeoutSeconds` / `SalesSupport:Logging:TimeoutSeconds` | 外部HTTPとログ処理の制限時間（既定30秒・3秒） |
 

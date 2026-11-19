@@ -29,13 +29,9 @@ public sealed class CommonOptions
     /// <summary>起動時に検証された、Portal・DB・共通設定ファイルを使わない単独開発のツールかを返します。</summary>
     public bool IsStandalone => Kind == ApplicationKind.Tool && IsDevelopment && ExecutionMode == ToolExecutionMode.Standalone;
 
-    /// <summary>ログインを行わず、固定の共通ユーザーとして利用させる匿名モードかを返します。</summary>
-    /// <remarks>共通設定ファイルを読まない単独開発は対象外です。</remarks>
+    /// <summary>ログインしなくても固定の共通ユーザーとして利用させる匿名モードかを返します。</summary>
+    /// <remarks>共通設定ファイルを読まない単独開発は対象外です。要求ごとの本人の有無は<c>ICurrentUserAccessor.HasIdentifiedUser()</c>で判定します。</remarks>
     public bool IsAnonymous => !IsStandalone && AuthenticationMode == SiteAuthenticationMode.Anonymous;
-
-    /// <summary>本人を特定できる利用者がいるかを返します。本人向けデータの所有者を決められるかの判定に使います。</summary>
-    /// <remarks>単独開発には認証ユーザーがなく、匿名モードの固定共通ユーザーはAspNetUsersに存在しないため、どちらもfalseです。</remarks>
-    public bool HasIdentifiedUser => !IsStandalone && !IsAnonymous;
 
     /// <summary>HTTPSのバインドが未完了の期間に使う、HTTPで公開するモードかを返します。</summary>
     /// <remarks>共通設定ファイルを読まない単独開発は対象外です。</remarks>

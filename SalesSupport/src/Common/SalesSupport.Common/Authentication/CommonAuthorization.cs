@@ -7,6 +7,19 @@ using SalesSupport.Common.Logging;
 
 namespace SalesSupport.Common.Authentication;
 
+/// <summary>Commonが登録する明示用の認可ポリシー名です。PortalとWebツールのControllerへ指定します。</summary>
+public static class CommonPolicies
+{
+    /// <summary>共有Cookieの実ユーザーで、サイト入場に加えてADMINを要求します。</summary>
+    public const string Admin = "SalesSupportAdmin";
+
+    /// <summary>そのモードの既定の認証方式で、サイト入場とConfigのToolIdの利用可否を要求します。</summary>
+    public const string Tool = "SalesSupportTool";
+
+    /// <summary>本人向けの画面・APIで、共有Cookieの実ユーザーとサイト入場（ツールではToolIdの利用可否も）を要求します。匿名モードの共通ユーザーでは満たしません。</summary>
+    public const string User = "SalesSupportUser";
+}
+
 /// <summary>サイト入場と必要に応じた管理者・ツール利用の要件です。</summary>
 public sealed record CommonAccessRequirement(bool Admin = false, bool Tool = false) : IAuthorizationRequirement;
 
@@ -19,6 +32,9 @@ public sealed class CommonAuthorizationHandler(IAccessEvaluator evaluator, ICurr
     /// <summary>許可時だけ要件を満たし、障害も拒否側へ倒します。</summary>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, CommonAccessRequirement requirement)
     {
+        // ポリシーの認証方式で本人を認証できない要求は、匿名モードの共通ユーザー等の権限で判定せず、拒否の判定も残しません。
+        // 認可は認証チャレンジ（HTMLはログイン誘導、APIは401）となり、サイト・ロール・ツールの判定はログイン後に行います。
+        if (!options.Value.IsStandalone && context.User.Identity?.IsAuthenticated != true) return;
         AccessDecision decision;
         try
         {

@@ -88,9 +88,8 @@ public static class CommonPipelineExtensions
         if (useRateLimiter) app.UseRateLimiter();
         app.UseAuthorization();
 
-        // ヘッダーのログアウトはCommonの共通処理で共有Cookieを破棄し、Portalへ戻します。
-        // 匿名モードは終了させる認証がないため、ログアウト経路を組み込みません。
-        if (!common.IsAnonymous) app.MapSalesSupportLogout();
+        // ヘッダーのログアウトはCommonの共通処理で共有Cookieを破棄し、Portalへ戻します。匿名モードのログイン利用者にも使います。
+        app.MapSalesSupportLogout();
 
         app.MapControllerRoute(
             name: "default",

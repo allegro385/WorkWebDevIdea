@@ -12,4 +12,5 @@ public sealed record PortalNoticeView(int NoticeId, string Title, string Content
 /// <param name="Notices">公開中のシステムお知らせです。</param>
 /// <param name="IsAdmin">管理画面のメニューカードを表示するかどうかです。認可の代替にはしません。</param>
 /// <param name="CanUsePreferences">現在のロールが個人設定の利用を許可されているかどうかです。</param>
-public sealed record HomeViewModel(IReadOnlyList<PortalNoticeView> Notices, bool IsAdmin, bool CanUsePreferences);
+/// <param name="HasIdentifiedUser">ログインした本人かどうかです。匿名モードの共通ユーザーではfalseにし、本人向けの入口を表示しません。</param>
+public sealed record HomeViewModel(IReadOnlyList<PortalNoticeView> Notices, bool IsAdmin, bool CanUsePreferences, bool HasIdentifiedUser);

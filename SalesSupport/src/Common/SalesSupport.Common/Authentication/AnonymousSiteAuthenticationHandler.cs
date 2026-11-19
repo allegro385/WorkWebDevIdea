@@ -7,7 +7,7 @@ using SalesSupport.Common.Contracts;
 
 namespace SalesSupport.Common.Authentication;
 
-/// <summary>匿名モードで全要求の利用者として扱う、固定の共通ユーザーです。</summary>
+/// <summary>匿名モードでログインしていない要求の利用者として扱う、固定の共通ユーザーです。</summary>
 /// <remarks>AspNetUsersへ登録せず、ログの識別値と権限判定のロールとしてだけ使用します。</remarks>
 public static class AnonymousSiteUser
 {
@@ -21,7 +21,7 @@ public static class AnonymousSiteUser
     public const string RoleCode = "A";
 }
 
-/// <summary>匿名モードの認証方式です。Cookieを読まず、固定の共通ユーザーを検証済み利用者として確定します。</summary>
+/// <summary>匿名モードの認証方式です。共有Cookieで確認できたログイン利用者を優先し、それ以外は固定の共通ユーザーを検証済み利用者として確定します。</summary>
 /// <remarks>Commonが共通設定ファイルの認証モードを検証した場合だけ登録します。サイト・ツールの状態とロール割当ては通常どおりDBで判定します。</remarks>
 public sealed class AnonymousSiteAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -39,15 +39,18 @@ public sealed class AnonymousSiteAuthenticationHandler : AuthenticationHandler<A
         CurrentUserAccessor current)
         : base(options, logger, encoder) => this.current = current;
 
-    /// <summary>固定の共通ユーザーの認証チケットを返します。要求のCookie・ヘッダーは参照しません。</summary>
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    /// <summary>共有Cookieが有効ならそのログイン利用者を、なければ固定の共通ユーザーの認証チケットを返します。</summary>
+    /// <remarks>共有Cookieの検証（DB照合と検証済み利用者の確定）は共有Cookieの認証方式が通常どおり行います。</remarks>
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        var signedIn = await Context.AuthenticateAsync(SharedCookieContract.Scheme);
+        if (signedIn.Succeeded) return AuthenticateResult.Success(new AuthenticationTicket(signedIn.Principal, signedIn.Properties, SchemeName));
         var identity = new ClaimsIdentity(
         [
             new Claim(ClaimTypes.NameIdentifier, AnonymousSiteUser.UserId.ToString()),
             new Claim(ClaimTypes.Name, AnonymousSiteUser.DisplayName)
         ], SchemeName);
         current.SetVerified(new CurrentUser(AnonymousSiteUser.UserId, AnonymousSiteUser.DisplayName, AnonymousSiteUser.RoleCode));
-        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
+        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName));
     }
 }

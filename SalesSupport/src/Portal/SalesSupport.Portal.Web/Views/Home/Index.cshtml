@@ -1,7 +1,7 @@
 @model HomeViewModel
 @*
     P002 ポータルトップです。公開中のシステムお知らせと、主要機能の入口を表示します。
-    管理画面の列はシステム管理者にだけ表示します。表示制御は認可の代替にはしません。
+    管理画面の列はシステム管理者にだけ表示します。匿名モードの共通ユーザーには本人向けの入口を表示しません。表示制御は認可の代替にはしません。
 *@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
@@ -13,7 +13,10 @@
         <h2 class="pt-card-title">ツール一覧</h2>
         <ul class="pt-card-links">
             <li><a asp-controller="Tools" asp-action="Index"><span>全ツール</span><span aria-hidden="true">›</span></a></li>
-            <li><a asp-controller="Tools" asp-action="Favorites"><span>お気に入りツール</span><span aria-hidden="true">›</span></a></li>
+            @if (Model.HasIdentifiedUser)
+            {
+                <li><a asp-controller="Tools" asp-action="Favorites"><span>お気に入りツール</span><span aria-hidden="true">›</span></a></li>
+            }
         </ul>
     </section>
     <section class="pt-card">
@@ -24,7 +27,10 @@
                 <li><a asp-controller="Preferences" asp-action="Index"><span>個人設定</span><span aria-hidden="true">›</span></a></li>
             }
             <li><a asp-controller="Help" asp-action="Index"><span>利用マニュアル・FAQ</span><span aria-hidden="true">›</span></a></li>
-            <li><a asp-controller="Inquiries" asp-action="New"><span>問い合わせ・ご意見</span><span aria-hidden="true">›</span></a></li>
+            @if (Model.HasIdentifiedUser)
+            {
+                <li><a asp-controller="Inquiries" asp-action="New"><span>問い合わせ・ご意見</span><span aria-hidden="true">›</span></a></li>
+            }
         </ul>
     </section>
     @if (Model.IsAdmin)

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Validation;
@@ -7,6 +8,7 @@ namespace SalesSupport.Portal.Web.Controllers;
 
 /// <summary>本人のお気に入り登録・解除を受け付けます。詳細画面へは遷移しません。</summary>
 [Route("tools/{toolId}")]
+[Authorize(Policy = CommonPolicies.User)]
 public sealed class FavoritesController(IFavoriteService favorites, ICurrentUserAccessor current) : Controller
 {
     /// <summary>お気に入りへ登録します。登録済みでも成功として元の画面へ戻ります。</summary>

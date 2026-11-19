@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Contracts;
@@ -9,6 +10,7 @@ namespace SalesSupport.Portal.Web.Controllers;
 
 /// <summary>P006 個人設定です。本人の通知設定だけを表示・更新します。</summary>
 [Route("preferences")]
+[Authorize(Policy = CommonPolicies.User)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class PreferencesController(IPreferenceService preferences, ICurrentUserAccessor current) : Controller
 {

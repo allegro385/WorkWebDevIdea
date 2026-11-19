@@ -1,8 +1,7 @@
 @model ToolListViewModel
 @*
     P003 ツール一覧・P008 お気に入りツールです。表示項目・並び順・操作は両画面で統一します。
-    匿名モードでは、画面上部にトップ画面と同じ共通部分ビューで公開中のシステムお知らせを表示し、
-    お気に入りの星印とタブを表示しません。
+    匿名モードの共通ユーザーには、お気に入りの星印とタブを表示しません。
     星印はお気に入りの登録・解除だけを行い、詳細画面へは遷移しません。
 *@
 @{
@@ -12,11 +11,7 @@
 @section Head {
     <link rel="stylesheet" href="~/css/site.css" />
 }
-@if (Model.IsAnonymousMode)
-{
-    <partial name="_Notices" model="Model.Notices" />
-}
-else
+@if (Model.HasIdentifiedUser)
 {
     <nav class="pt-tabs" aria-label="表示するツールの種類">
         <a class="pt-tab @(Model.FavoritesOnly ? "" : "pt-tab-active")" asp-controller="Tools" asp-action="Index"
@@ -46,7 +41,7 @@ else
     <table class="table pt-tool-table">
         <thead>
             <tr>
-                @if (!Model.IsAnonymousMode)
+                @if (Model.HasIdentifiedUser)
                 {
                     <th scope="col" class="pt-col-star"><span class="visually-hidden">お気に入り</span>☆</th>
                 }
@@ -62,7 +57,7 @@ else
             @foreach (var tool in Model.Tools)
             {
                 <tr class="@(tool.IsLimited ? "pt-row-limited" : "")">
-                    @if (!Model.IsAnonymousMode)
+                    @if (Model.HasIdentifiedUser)
                     {
                         <td class="pt-col-star">
                             <form method="post" asp-controller="Favorites" asp-action="@(tool.IsFavorite ? "Remove" : "Add")"

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesSupport.Common.Authentication;
 using SalesSupport.Common.UI;
@@ -8,6 +9,7 @@ namespace SalesSupport.Portal.Web.Controllers;
 
 /// <summary>P007 問い合わせ・ご意見です。受付とメール送信を一度だけ試行します。</summary>
 [Route("inquiries")]
+[Authorize(Policy = CommonPolicies.User)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class InquiriesController(IInquiryService inquiries, ICurrentUserAccessor current, IConfirmationStore confirmations) : Controller
 {

@@ -24,11 +24,8 @@ public sealed record ToolListItem(string ToolId, string ToolName, string? Summar
 /// <param name="Tools">選択中のタブに表示する行です。</param>
 public sealed record ToolListViewModel(bool FavoritesOnly, int AllCount, int FavoriteCount, IReadOnlyList<ToolListItem> Tools)
 {
-    /// <summary>画面上部へ表示する公開中のシステムお知らせです。トップ画面と同じ内容・同じ並びで、匿名モード以外では空です。</summary>
-    public IReadOnlyList<PortalNoticeView> Notices { get; init; } = [];
-
-    /// <summary>匿名モードの表示にするかどうかです。お知らせを表示し、お気に入りの操作とタブを表示しません。</summary>
-    public bool IsAnonymousMode { get; init; }
+    /// <summary>ログインした本人かどうかです。匿名モードの共通ユーザーではfalseにし、お気に入りの操作とタブを表示しません。</summary>
+    public bool HasIdentifiedUser { get; init; }
 }
 
 /// <summary>ツール詳細のバージョン更新情報1行です。</summary>
@@ -68,6 +65,6 @@ public sealed record ToolDetailViewModel(string ToolId, string ToolName, string?
     /// <summary>戻り先を一覧またはお気に入り一覧に切り替えるための指定です。</summary>
     public bool FromFavorites { get; init; }
 
-    /// <summary>匿名モードの表示にするかどうかです。お気に入りの操作を表示しません。</summary>
-    public bool IsAnonymousMode { get; init; }
+    /// <summary>ログインした本人かどうかです。匿名モードの共通ユーザーではfalseにし、お気に入りの操作を表示しません。</summary>
+    public bool HasIdentifiedUser { get; init; }
 }

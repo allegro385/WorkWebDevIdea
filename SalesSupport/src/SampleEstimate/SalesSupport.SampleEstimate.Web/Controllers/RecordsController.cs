@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
+using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
 using SalesSupport.SampleEstimate.Web.Models;
@@ -11,20 +9,13 @@ using SalesSupport.SampleEstimate.Web.Services;
 namespace SalesSupport.SampleEstimate.Web.Controllers;
 
 /// <summary>本人の保存済み案件を検索・表示・更新します。業務判断はServiceに委譲します。</summary>
+/// <remarks>本人を特定できるログイン利用者だけが使えます。匿名モードの共通ユーザーはログイン画面へ誘導し、単独開発では利用できません。</remarks>
 [Route("records")]
-[Authorize(Policy = "SalesSupportTool")]
+[Authorize(Policy = CommonPolicies.User)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class RecordsController(IEstimateRecordService records, IEstimateService estimates, IToolUsageLogger usage,
-    IToolPageShell shell, IOptions<CommonOptions> options) : Controller
+    IToolPageShell shell) : Controller
 {
-    /// <summary>本人を特定できない構成（単独開発・匿名モード）では、この画面の全要求を対象なしとして拒否します。</summary>
-    /// <param name="context">実行しようとしているアクションの情報です。</param>
-    public override void OnActionExecuting(ActionExecutingContext context)
-    {
-        if (!options.Value.HasIdentifiedUser) context.Result = NotFound();
-        base.OnActionExecuting(context);
-    }
-
     /// <summary>条件に一致する案件を一覧と合計で表示します。</summary>
     /// <remarks>ツール起動の記録は入口画面（ToolController）だけで行い、ツール内の画面遷移では記録しません。</remarks>
     [HttpGet("")]

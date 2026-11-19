@@ -47,7 +47,7 @@
     <h2 class="pt-panel-title">基本情報</h2>
     <div class="pt-tool-summary">
         <div class="pt-tool-summary-head">
-            @if (!Model.IsAnonymousMode)
+            @if (Model.HasIdentifiedUser)
             {
                 <form method="post" asp-controller="Favorites" asp-action="@(Model.IsFavorite ? "Remove" : "Add")"
                       asp-route-toolId="@Model.ToolId" asp-route-returnUrl="@returnUrl" data-ss-once>

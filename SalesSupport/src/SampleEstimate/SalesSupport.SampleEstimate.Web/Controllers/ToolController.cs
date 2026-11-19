@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using SalesSupport.Common.Configuration;
+using SalesSupport.Common.Authentication;
 using SalesSupport.Common.DateTime;
 using SalesSupport.Common.Logging;
 using SalesSupport.Common.UI;
@@ -14,7 +13,7 @@ namespace SalesSupport.SampleEstimate.Web.Controllers;
 [Route("")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class ToolController(IEstimateService estimates, IEstimateRecordService records, IToolStatusService status, IToolUsageLogger usage, IBusinessDateProvider businessDate,
-    IToolPageShell shell, IOptions<CommonOptions> options) : Controller
+    IToolPageShell shell, ICurrentUserAccessor current) : Controller
 {
     /// <summary>入力不正のときに画面上部へ表示する案内です。</summary>
     private static readonly OperationMessage InvalidInputMessage =
@@ -47,10 +46,10 @@ public sealed class ToolController(IEstimateService estimates, IEstimateRecordSe
     public async Task<IActionResult> Execute(EstimateInput input, IFormFile? detailFile, CancellationToken ct)
     {
         if (!ModelState.IsValid) return await FailureViewAsync(input, ct);
-        // 本人を特定できない構成（単独開発・匿名モード）では案件の所有者を決められないため保存を拒否します。
-        if (!options.Value.HasIdentifiedUser && input.Output == EstimateOutput.Save)
+        // 本人を特定できない利用者（単独開発・匿名モードの未ログイン）では案件の所有者を決められないため保存を拒否します。
+        if (!current.HasIdentifiedUser() && input.Output == EstimateOutput.Save)
         {
-            ModelState.AddModelError("Input.Output", "案件の保存にはPortalでログインしてください（単独開発とログインなしの公開では保存できません）。");
+            ModelState.AddModelError("Input.Output", "案件の保存にはログインしてください（単独開発では保存できません）。");
             return await FailureViewAsync(input, ct);
         }
         if (input.Output == EstimateOutput.Save && input.SubmissionId == Guid.Empty)

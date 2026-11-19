@@ -1,5 +1,6 @@
 @model EstimateViewModel
-@inject Microsoft.Extensions.Options.IOptions<SalesSupport.Common.Configuration.CommonOptions> CommonSettings
+@using SalesSupport.Common.Authentication
+@inject ICurrentUserAccessor CurrentUser
 @*
     見積の入力画面です。画面表示・TSV出力は副作用を持たず、要約保存だけが案件を登録します。
     CSRF、サーバー側検証、共通の一時ファイル処理は三つの出力方法に同じように適用します。
@@ -68,8 +69,8 @@
                             <label class="form-check-label" for="output-download">TSVファイルをダウンロードする</label>
                         </div>
                         <div class="form-check">
-                            @* 本人を特定できない構成（単独開発・匿名モード）では案件の所有者を決められないため選べません。 *@
-                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@(!CommonSettings.Value.HasIdentifiedUser)" />
+                            @* 本人を特定できない利用者（単独開発・匿名モードの未ログイン）では案件の所有者を決められないため選べません。 *@
+                            <input class="form-check-input" type="radio" asp-for="Input.Output" value="@EstimateOutput.Save" id="output-save" disabled="@(!CurrentUser.HasIdentifiedUser())" />
                             <label class="form-check-label" for="output-save">要約を案件として保存する</label>
                         </div>
                     </div>
@@ -89,7 +90,7 @@
             </div>
         </section>
     </form>
-    @if (CommonSettings.Value.HasIdentifiedUser)
+    @if (CurrentUser.HasIdentifiedUser())
     {
         <a class="btn btn-outline-primary" asp-controller="Records" asp-action="Index">保存した案件の一覧・集計</a>
     }

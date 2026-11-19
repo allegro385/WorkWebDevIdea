@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using SalesSupport.Common.Authentication;
 using SalesSupport.Common.Configuration;
 using SalesSupport.Common.Contracts;
 using SalesSupport.Common.DateTime;
@@ -115,11 +116,19 @@ public sealed class ToolControllerLoggingTests
     private static ToolController CreateController(IEstimateService estimates, IUsageLogger usage, StubRecordService? records = null) => new(
         estimates, records ?? new StubRecordService(), new StubToolStatusService(),
         new ToolUsageLogger(usage, Options.Create(new CommonOptions { ToolId = "SAMPLE-ESTIMATE" })), new StubBusinessDateProvider(),
-        new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "見積試算" })),
-        Options.Create(new CommonOptions { ToolId = "SAMPLE-ESTIMATE" }))
+        new ToolPageShell(Options.Create(new CommonOptions { ApplicationName = "見積試算" })), SignedIn())
     {
         ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
     };
+
+    /// <summary>案件を保存できる、ログインした利用者を確定します。</summary>
+    /// <returns>検証済み利用者を保持する領域です。</returns>
+    private static CurrentUserAccessor SignedIn()
+    {
+        var current = new CurrentUserAccessor();
+        current.SetVerified(new CurrentUser(Guid.Parse("11111111-1111-1111-1111-111111111111"), "試験太郎", "A"));
+        return current;
+    }
 
     /// <summary>DBを使わず公開状態の表示名を返します。</summary>
     private sealed class StubToolStatusService : IToolStatusService
